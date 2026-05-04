@@ -27,7 +27,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 1A | 1 | Port Gaussian generator + GaussianOracle | todo | — | — | 0 | [needs thinking] Source: CARE-PD/synthetic/gaussian_motion.py |
+| 1A | 1 | Port Gaussian generator + GaussianOracle | in-progress | task/1A-gaussian-motion | mbxai-task-1A-gaussian | 0 | [needs thinking] Source: CARE-PD/synthetic/gaussian_motion.py |
 | 1B | 1 | Port Burr / Gaussian-copula generator + CopulaOracle | todo | — | — | 0 | [needs thinking] Source: CARE-PD/synthetic/burr_motion.py |
 | 1C | 1 | Skeleton-structured and gait-periodic synthetics | todo | — | — | 1A | [needs thinking] Source: CARE-PD/synthetic/diagnostic_motion.py |
 | 1D | 1 | Label function library | todo | — | — | 0 | [mechanical] Extract from CARE-PD/synthetic/gaussian_motion.py |
