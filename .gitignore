@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+env/
+carepd/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# WandB
+wandb/
+
+# Model checkpoints (download, don't commit)
+motionbench/classifiers/checkpoints/*.pt
+motionbench/classifiers/checkpoints/*.pth
+motionbench/classifiers/checkpoints/*.ckpt
+!motionbench/classifiers/checkpoints/.gitkeep
+
+# Results (generated, don't commit raw results)
+results/synthetic/*.pkl
+results/synthetic/*.json
+results/care_pd/*.pkl
+results/care_pd/*.json
+
+# Hydra outputs
+outputs/
+multirun/
+
+# Data (too large to commit)
+data/
+
+# OS
+.DS_Store
+Thumbs.db
