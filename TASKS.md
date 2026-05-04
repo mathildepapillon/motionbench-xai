@@ -27,7 +27,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 1A | 1 | Port Gaussian generator + GaussianOracle | todo | — | — | 0 | [needs thinking] Source: CARE-PD/synthetic/gaussian_motion.py |
+| 1A | 1 | Port Gaussian generator + GaussianOracle | done | task/1A-gaussian-motion | mbxai-task-1A-gaussian | 0 | GaussianMotionDataset + GaussianOracle ported. Covariance factories (AR1/equicorr), KroneckerProduct, true_shapley (M≤12). 97 tests passing. BACKLOG B-001: M>12 path needed for J=17 spatial players. |
 | 1B | 1 | Port Burr / Gaussian-copula generator + CopulaOracle | todo | — | — | 0 | [needs thinking] Source: CARE-PD/synthetic/burr_motion.py |
 | 1C | 1 | Skeleton-structured and gait-periodic synthetics | todo | — | — | 1A | [needs thinking] Source: CARE-PD/synthetic/diagnostic_motion.py |
 | 1D | 1 | Label function library | todo | — | — | 0 | [mechanical] Extract from CARE-PD/synthetic/gaussian_motion.py |
@@ -38,7 +38,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 2A | 2 | Off-manifold imputers (Zero, Mean, Marginal, GaussNoise) | todo | — | — | 0 | [mechanical] Source: CARE-PD/shap_facade/imputers.py |
+| 2A | 2 | Off-manifold imputers (Zero, Mean, Marginal, GaussNoise) | done | task/2A-off-manifold-imputers | mbxai-task-2A-offmanifold | 0 | ZeroImputer, MeanImputer, MarginalDonorImputer, GaussianNoiseImputer + masking utils. All observe-preservation contracts verified. 86 tests passing. |
 | 2B | 2 | Empirical / classical-conditional imputers | todo | — | — | 0 | [verify against literature] Source: CARE-PD/model/empirical/imputer.py |
 | 2C | 2 | Port MotionSHAP-VAEAC | todo | — | — | 0 | [mechanical] Source: CARE-PD/model/vaeac/ |
 | 2D | 2 | Port MotionSHAP-Flow + M=10 regression investigation | todo | — | — | 0 | [needs thinking] Source: CARE-PD/model/flow_matching/ + model/flow_shap/ |
@@ -61,7 +61,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 4A | 4 | Synthetic classifiers (MLP, CNN, Transformer) | todo | — | — | 0 | [mechanical] Extract SyntheticMLPClassifier from CARE-PD/synthetic/gaussian_motion.py |
+| 4A | 4 | Synthetic classifiers (MLP, CNN, Transformer) | done | task/4A-synthetic-classifiers | mbxai-task-4A-synthetic-clf | 0 | SyntheticMLPClassifier (temporal K-window), SyntheticCNNClassifier, SyntheticTransformerClassifier. Checkpoints trained on A100 GPU (16s). Val acc: MLP 0.40, CNN 0.71, Transformer 0.94 (bootstrap label — see BACKLOG B-001). |
 | 4B | 4 | Port CARE-PD encoders + reproducibility check | todo | — | — | 0 | [needs thinking, verify against literature] Priority: PoseFormerV2, POTR, MotionBERT |
 
 ---
