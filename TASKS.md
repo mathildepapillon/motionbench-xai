@@ -51,7 +51,7 @@
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 3A | 3 | Captum-based methods (IG, DeepLift, GradShap, Saliency, SmoothGrad, IxG) | todo | — | — | 0 | [mechanical] |
-| 3B | 3 | LRP via Zennit | todo | — | — | 0 | [mechanical] |
+| 3B | 3 | LRP via Zennit | done | task/3B-lrp | mbxai-task-3B-lrp | 0 | LRPAttributor wraps Zennit Gradient+LayerMapComposite for epsilon/gamma/alpha_beta rules. Rule instances (Epsilon, Gamma, AlphaBeta) are hooks not composites in this zennit version, so each is registered via LayerMapComposite; coordinate relevances aggregated with players.aggregate. No deferred items. |
 | 3C | 3 | Time-series SHAP variants (TimeSHAP, WindowSHAP, ShaTS, GroupSeg) | todo | — | — | 0 | [mechanical] |
 | 3D | 3 | Grad-CAM and attention-based methods | todo | — | — | 4B | [mechanical] Depends on ported classifier |
 
