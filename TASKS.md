@@ -61,7 +61,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 4A | 4 | Synthetic classifiers (MLP, CNN, Transformer) | todo | — | — | 0 | [mechanical] Extract SyntheticMLPClassifier from CARE-PD/synthetic/gaussian_motion.py |
+| 4A | 4 | Synthetic classifiers (MLP, CNN, Transformer) | in-progress | task/4A-synthetic-classifiers | mbxai-task-4A-synthetic-clf | 0 | [mechanical] Extract SyntheticMLPClassifier from CARE-PD/synthetic/gaussian_motion.py |
 | 4B | 4 | Port CARE-PD encoders + reproducibility check | todo | — | — | 0 | [needs thinking, verify against literature] Priority: PoseFormerV2, POTR, MotionBERT |
 
 ---
