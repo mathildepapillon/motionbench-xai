@@ -21,7 +21,11 @@
 
 ## Deferred items
 
-*Empty at Phase 0 — add entries here as you work.*
+| ID | Discoverer | Task | Title | Details |
+|----|-----------|------|-------|---------|
+| B-001 | task/1A-gaussian-motion | 1A | GaussianMotionDataset uses proxy label | Dataset uses quantile-bin of joint-0 grand mean as placeholder label. Replace with Task 1D LabelFunction once available. |
+| B-002 | task/1A-gaussian-motion | 1A | true_shapley does not support M>12 | For spatial player mode with J=17, true_shapley raises NotImplementedError. A KernelSHAP sampling path (sample_kernelshap_coalitions already implemented in coalitions.py) should be added in a follow-up. |
+| B-003 | task/1A-gaussian-motion | 1A | Efficiency test MC tolerance | test_true_shapley_efficiency uses a constant classifier to avoid MC noise; a more realistic test with a linear classifier and tight tolerance would improve coverage (see test_true_shapley_efficiency_slow). |
 
 <!-- Template:
 | ID | Discoverer | Task | Title | Details |
