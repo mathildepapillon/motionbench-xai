@@ -34,12 +34,13 @@ from motionbench.classifiers.synthetic_cnn import SyntheticCNNClassifier
 from motionbench.classifiers.synthetic_mlp import SyntheticMLPClassifier
 from motionbench.classifiers.synthetic_transformer import SyntheticTransformerClassifier
 
-# Limit CPU threads to avoid contention on machines with many cores.
-# (Set after imports; torch.set_num_threads takes effect for subsequent ops.)
-os.environ.setdefault("OMP_NUM_THREADS", "1")
-os.environ.setdefault("MKL_NUM_THREADS", "1")
-torch.set_num_threads(1)
-torch.set_num_interop_threads(1)
+# On GPU: pin to 1 CPU thread to avoid contention (GPU does the work).
+# On CPU: let PyTorch use all available cores for reasonable throughput.
+if torch.cuda.is_available():
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
 
 CHECKPOINT_DIR = Path(__file__).parent.parent / "motionbench" / "classifiers" / "checkpoints"
 
