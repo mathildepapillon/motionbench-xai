@@ -27,7 +27,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 1A | 1 | Port Gaussian generator + GaussianOracle | in-progress | task/1A-gaussian-motion | mbxai-task-1A-gaussian | 0 | [needs thinking] Source: CARE-PD/synthetic/gaussian_motion.py |
+| 1A | 1 | Port Gaussian generator + GaussianOracle | done | task/1A-gaussian-motion | mbxai-task-1A-gaussian | 0 | Ported GaussianMotionBenchmark + GaussianMotionDataset (GroundTruthDataset protocol) with SigmaJointsFactory (equicorrelated, skeleton_adjacency, block_diagonal, data_driven) and SigmaTimeFactory (ar1, ar_p, gait_periodic). GaussianOracle satisfies both Oracle and BaseImputer ABCs via closed-form Kronecker conditional; coalitions.py exposes ar1_cov, equicorr, shapley_kernel_weight, enumerate_coalitions, sample_kernelshap_coalitions, solve_shapley_wls. SyntheticMLPClassifier deferred to Task 4A; label functions deferred to Task 1D. 31/31 tests pass; ruff clean. |
 | 1B | 1 | Port Burr / Gaussian-copula generator + CopulaOracle | todo | — | — | 0 | [needs thinking] Source: CARE-PD/synthetic/burr_motion.py |
 | 1C | 1 | Skeleton-structured and gait-periodic synthetics | todo | — | — | 1A | [needs thinking] Source: CARE-PD/synthetic/diagnostic_motion.py |
 | 1D | 1 | Label function library | todo | — | — | 0 | [mechanical] Extract from CARE-PD/synthetic/gaussian_motion.py |

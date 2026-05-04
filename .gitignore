@@ -52,8 +52,10 @@ results/care_pd/*.json
 outputs/
 multirun/
 
-# Data (too large to commit)
-data/
+# Data (too large to commit) — raw top-level data dirs only
+/data/
+# Allow source-code under motionbench/data/
+!motionbench/data/
 
 # OS
 .DS_Store
