@@ -52,8 +52,8 @@ results/care_pd/*.json
 outputs/
 multirun/
 
-# Data (too large to commit)
-data/
+# Data (too large to commit — keep this anchored so motionbench/data/ is NOT ignored)
+/data/
 
 # OS
 .DS_Store
