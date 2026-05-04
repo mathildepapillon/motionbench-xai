@@ -38,7 +38,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 2A | 2 | Off-manifold imputers (Zero, Mean, Marginal, GaussNoise) | in-progress | task/2A-off-manifold-imputers | mbxai-task-2A-offmanifold | 0 | [mechanical] Source: CARE-PD/shap_facade/imputers.py |
+| 2A | 2 | Off-manifold imputers (Zero, Mean, Marginal, GaussNoise) | done | task/2A-off-manifold-imputers | mbxai-task-2A-offmanifold | 0 | Implemented ZeroImputer, MeanImputer, MarginalDonorImputer, GaussianNoiseImputer plus motionbench/utils/masking.py; 20/20 tests pass, ruff clean. Design: is_on_manifold class-var shadows BaseImputer property; fit() raises RuntimeError via hasattr guard; GaussianNoiseImputer two-pass streaming avoids storing full dataset. Deferred: mypy strict-mode pass (type: ignore on _pool/_mean accesses in tests needs fixing); consider exposing fit-state via a public property rather than hasattr. |
 | 2B | 2 | Empirical / classical-conditional imputers | todo | — | — | 0 | [verify against literature] Source: CARE-PD/model/empirical/imputer.py |
 | 2C | 2 | Port MotionSHAP-VAEAC | todo | — | — | 0 | [mechanical] Source: CARE-PD/model/vaeac/ |
 | 2D | 2 | Port MotionSHAP-Flow + M=10 regression investigation | todo | — | — | 0 | [needs thinking] Source: CARE-PD/model/flow_matching/ + model/flow_shap/ |
