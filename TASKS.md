@@ -30,7 +30,7 @@
 | 1A | 1 | Port Gaussian generator + GaussianOracle | done | task/1A-gaussian-motion | mbxai-task-1A-gaussian | 0 | GaussianMotionDataset + GaussianOracle ported. Covariance factories (AR1/equicorr), KroneckerProduct, true_shapley (M≤12). 97 tests passing. BACKLOG B-001: M>12 path needed for J=17 spatial players. |
 | 1B | 1 | Port Burr / Gaussian-copula generator + CopulaOracle | todo | — | — | 0 | [needs thinking] Source: CARE-PD/synthetic/burr_motion.py |
 | 1C | 1 | Skeleton-structured and gait-periodic synthetics | todo | — | — | 1A | [needs thinking] Source: CARE-PD/synthetic/diagnostic_motion.py |
-| 1D | 1 | Label function library | todo | — | — | 0 | [mechanical] Extract from CARE-PD/synthetic/gaussian_motion.py |
+| 1D | 1 | Label function library | done | task/1D-label-functions | mbxai-task-1D-labels | 0 | LabelFunction ABC + 6 implementations (Linear, OlsenInteraction, SpatialOlsen, LocalizedTemporal/Spatial/Spatiotemporal) ported from CARE-PD; lazy calibration of sigma on first call. important_players() uses PlayerSet.coalition_mask for Linear; hardcoded for Olsen/Localized variants. Pre-existing ruff/mypy errors in frozen base.py files not fixed per AGENTS.md rules. |
 
 ---
 
