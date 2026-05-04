@@ -18,10 +18,11 @@ dependencies:
   - tqdm>=4.66
   - pip:
     - captum>=0.7.0
-    - shap>=0.46.0
-    - quantus>=0.5.5
     - zennit>=0.4.6
+    - quantus>=0.5.5
+    - shap>=0.46.0
     - timeshap>=0.4.0
+    - windowshap>=1.0
     - pyvinecopulib>=0.6.3
     - hydra-core>=1.3
     - omegaconf>=2.3
