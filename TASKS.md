@@ -29,7 +29,7 @@
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 1A | 1 | Port Gaussian generator + GaussianOracle | done | task/1A-gaussian-motion | mbxai-task-1A-gaussian | 0 | GaussianMotionDataset + GaussianOracle ported. Covariance factories (AR1/equicorr), KroneckerProduct, true_shapley (M≤12). 97 tests passing. BACKLOG B-001: M>12 path needed for J=17 spatial players. |
 | 1B | 1 | Port Burr / Gaussian-copula generator + CopulaOracle | todo | — | — | 0 | [needs thinking] Source: CARE-PD/synthetic/burr_motion.py |
-| 1C | 1 | Skeleton-structured and gait-periodic synthetics | todo | — | — | 1A | [needs thinking] Source: CARE-PD/synthetic/diagnostic_motion.py |
+| 1C | 1 | Skeleton-structured and gait-periodic synthetics | done | task/1C-skeleton-gait | mbxai-task-1C-skeleton | 1A | (1) `SkeletonStructuredDataset` (skeleton-adjacency Σ_joint via BFS decay + AR(1) Σ_time) and `GaitPeriodicDataset` (sum-of-cosines Toeplitz Σ_time) implemented; both conform to `GroundTruthDataset` protocol with `GaussianOracle`. (2) `period_std` stored as metadata only; per-sequence period variability deferred to BACKLOG B-005. (3) Pre-existing mypy errors in copied 1A files (gaussian_motion, gaussian_oracle, coalitions) logged as BACKLOG B-004. 8 tests passing. |
 | 1D | 1 | Label function library | todo | — | — | 0 | [mechanical] Extract from CARE-PD/synthetic/gaussian_motion.py |
 
 ---
