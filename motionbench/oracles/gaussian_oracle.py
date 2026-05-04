@@ -41,7 +41,11 @@ from torch import Tensor
 
 from motionbench.imputers.base import BaseImputer
 from motionbench.oracles.base import Oracle
-from motionbench.utils.coalitions import enumerate_coalitions, solve_shapley_wls
+from motionbench.utils.coalitions import (
+    enumerate_coalitions,
+    sample_kernelshap_coalitions,
+    solve_shapley_wls,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -416,14 +420,18 @@ class GaussianOracle(Oracle, BaseImputer):
         classifier: Callable[[Tensor], Tensor],
         players: PlayerSet,
         n_mc: int = 1000,
+        n_coalitions: int = 2000,
         seed: int | None = None,
     ) -> Tensor:
-        """Compute ground-truth Shapley values via full coalition enumeration.
+        """Compute ground-truth Shapley values via coalition enumeration or sampling.
 
-        Enumerates all 2^M coalitions and computes the conditional
-        expectation ``v(S) = E[f(x) | x_S]`` via Monte Carlo sampling.
-        The KernelSHAP WLS system (Lundberg & Lee 2017) is then solved
-        to extract the M Shapley values.
+        For ``M <= 12``, enumerates all 2^M coalitions exactly.
+        For ``M > 12``, uses paired KernelSHAP sampling (Covert & Lee 2021)
+        with ``n_coalitions // 2`` complementary pairs.
+
+        In both cases the conditional expectation ``v(S) = E[f(x) | x_S]``
+        is evaluated via exact Gaussian conditional sampling, so the values
+        remain ground-truth despite the sampling approximation for M > 12.
 
         Args:
             x: ``(J, F, T)`` or ``(1, J, F, T)`` float32 sequence.
@@ -431,28 +439,32 @@ class GaussianOracle(Oracle, BaseImputer):
                 (e.g. class probability for a fixed class).
             players: :class:`~motionbench.players.base.PlayerSet` with
                 ``n_players == M`` and ``coalition_mask(z) → (J, F, T)``.
-            n_mc: Monte Carlo samples per coalition.
+            n_mc: Monte Carlo samples per coalition (conditional sampling).
+            n_coalitions: Number of paired coalition samples when M > 12.
+                Ignored for M <= 12.  Must be even; rounded down if odd.
             seed: Optional random seed.
 
         Returns:
             ``(M,)`` float32 Tensor of Shapley values.  Satisfies the
             efficiency axiom: ``phi.sum() ≈ v(full) − v(empty)``.
-
-        Raises:
-            NotImplementedError: if ``M > 12`` (enumeration intractable).
         """
         x = x.squeeze(0) if x.ndim == 4 and x.shape[0] == 1 else x
         if x.ndim != 3:
             raise ValueError(f"x must be (J, F, T) or (1, J, F, T); got {x.shape}.")
         M = players.n_players
-        if M > 12:
-            raise NotImplementedError(
-                f"true_shapley: M={M} > 12.  Full enumeration of 2^{M} coalitions "
-                "is intractable.  Use an approximate Shapley method instead."
-            )
 
         rng = np.random.default_rng(seed)
-        coalitions, weights = enumerate_coalitions(M)
+
+        if M <= 12:
+            coalitions, weights = enumerate_coalitions(M)
+        else:
+            n_pairs = max(1, n_coalitions // 2)
+            inner_coalitions, inner_weights = sample_kernelshap_coalitions(M, n_pairs, rng)
+            boundary_z = np.array([[0] * M, [1] * M], dtype=int)
+            boundary_w = np.zeros(2, dtype=np.float64)
+            coalitions = np.vstack([boundary_z, inner_coalitions])
+            weights = np.concatenate([boundary_w, inner_weights])
+
         values = np.zeros(len(coalitions), dtype=np.float64)
 
         for i, z_row in enumerate(coalitions):
@@ -460,13 +472,11 @@ class GaussianOracle(Oracle, BaseImputer):
             mask = players.coalition_mask(z_t)  # (J, F, T) bool
 
             if int(z_row.sum()) == M:
-                # Full coalition: v = f(x).
                 with torch.no_grad():
                     val = float(
                         _eval_classifier(classifier, x.unsqueeze(0)).mean().item()
                     )
             elif int(z_row.sum()) == 0:
-                # Empty coalition: marginal expectation.
                 J, F, T = x.shape
                 x_marg_np = self._sample_unconditional(
                     n_mc, J, F, T, np.random.default_rng(int(rng.integers(1 << 31)))

@@ -387,26 +387,35 @@ def test_oracle_is_on_manifold() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 5 — NotImplementedError for M > 12 (NOT slow)
+# Test 5 — M > 12 uses KernelSHAP sampling path (NOT slow)
 # ---------------------------------------------------------------------------
 
 
-def test_true_shapley_raises_for_large_m() -> None:
-    """true_shapley raises NotImplementedError when M > 12."""
+def test_true_shapley_large_m_sampling_path() -> None:
+    """true_shapley uses sampling for M > 12 and returns correct shape/efficiency."""
     J, F, T = 5, 3, 16
     oracle = _make_oracle(J=J, T=T)
 
     rng = np.random.default_rng(0)
     x = torch.tensor(rng.standard_normal((J, F, T)).astype(np.float32))
 
-    # Build a players stub with n_players = 13.
     players = _TemporalPlayers(K=13, J=J, F=F, T=T)
 
     def classifier(xb: Tensor) -> Tensor:
         return xb.mean(dim=(1, 2, 3))
 
-    with pytest.raises(NotImplementedError):
-        oracle.true_shapley(x, classifier, players, n_mc=10, seed=0)
+    phi = oracle.true_shapley(
+        x, classifier, players, n_mc=20, n_coalitions=200, seed=42
+    )
+    assert phi.shape == (13,), f"Expected shape (13,), got {phi.shape}"
+    assert phi.dtype == torch.float32
+
+    # Efficiency check: sum(phi) ≈ v(full) - v(empty) (loose tolerance for MC)
+    v_full = float(classifier(x.unsqueeze(0)).mean().item())
+    empty_np = oracle._sample_unconditional(200, J, F, T, np.random.default_rng(99))
+    v_empty = float(classifier(torch.tensor(empty_np)).mean().item())
+    eff_err = abs(phi.sum().item() - (v_full - v_empty))
+    assert eff_err < 0.5, f"Efficiency error {eff_err:.4f} too large"
 
 
 # ---------------------------------------------------------------------------
