@@ -62,7 +62,7 @@
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 4A | 4 | Synthetic classifiers (MLP, CNN, Transformer) | done | task/4A-synthetic-classifiers | mbxai-task-4A-synthetic-clf | 0 | SyntheticMLPClassifier (temporal K-window), SyntheticCNNClassifier, SyntheticTransformerClassifier. Checkpoints trained on A100 GPU (16s). Val acc: MLP 0.40, CNN 0.71, Transformer 0.94 (bootstrap label — see BACKLOG B-001). |
-| 4B | 4 | Port CARE-PD encoders + reproducibility check | todo | — | — | 0 | [needs thinking, verify against literature] Priority: PoseFormerV2, POTR, MotionBERT |
+| 4B | 4 | Port CARE-PD encoders + reproducibility check | blocked | task/4B-ported-classifiers | mbxai-task-4B-ported-clf | 0 | All 5 encoders ported (PoseFormerV2, MotionBERT, POTR, MotionAGFormer, BiLSTM) + BMCLabDataset + 33 tests passing. BLOCKED: only pretrained backbone weights exist in assets/Pretrained_checkpoints/; fine-tuned CARE-PD classifier checkpoints are missing so paper F1 scores cannot be reproduced. Unblock by providing fine-tuned classifier checkpoints and running @pytest.mark.manual tests. |
 
 ---
 
