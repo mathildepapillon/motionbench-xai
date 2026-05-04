@@ -21,7 +21,10 @@
 
 ## Deferred items
 
-*Empty at Phase 0 — add entries here as you work.*
+| ID | Discoverer | Task | Title | Details |
+|----|-----------|------|-------|---------|
+| B-001 | 4A | task/4A-synthetic-classifiers | Full-size canonical checkpoints (J=17, F=3, T=81) | Checkpoints committed are trained on J=5,F=3,T=16 for CI speed. Re-run `scripts/train_synthetic_clf.py --J 17 --F 3 --T 81 --epochs 30` on a machine with reasonable CPU (needs ~10 min) to produce canonical weights. |
+| B-002 | 4A | task/4A-synthetic-classifiers | CPU thread contention with default PyTorch settings | On this machine, PyTorch CPU training is ~1700× slower without `torch.set_num_threads(1)`. Added workaround to train script. Investigate root cause (likely OpenBLAS thread oversubscription). |
 
 <!-- Template:
 | ID | Discoverer | Task | Title | Details |

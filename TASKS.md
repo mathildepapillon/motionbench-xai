@@ -61,7 +61,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 4A | 4 | Synthetic classifiers (MLP, CNN, Transformer) | in-progress | task/4A-synthetic-classifiers | mbxai-task-4A-synthetic-clf | 0 | [mechanical] Extract SyntheticMLPClassifier from CARE-PD/synthetic/gaussian_motion.py |
+| 4A | 4 | Synthetic classifiers (MLP, CNN, Transformer) | done | task/4A-synthetic-classifiers | mbxai-task-4A-synthetic-clf | 0 | Implemented Classifier ABC + MLP/CNN/Transformer classifiers. MLP ported from CARE-PD with temporal/spatial modes; CNN uses 3×Conv1d+AdaptiveAvgPool; Transformer uses 4-layer encoder with sinusoidal PE. Checkpoints trained on J=5,F=3,T=16 (fast test); full J=17 training deferred to BACKLOG. 13/13 tests pass; ruff clean. |
 | 4B | 4 | Port CARE-PD encoders + reproducibility check | todo | — | — | 0 | [needs thinking, verify against literature] Priority: PoseFormerV2, POTR, MotionBERT |
 
 ---
