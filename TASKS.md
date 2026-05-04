@@ -42,7 +42,7 @@
 | 2B | 2 | Empirical / classical-conditional imputers | todo | — | — | 0 | [verify against literature] Source: CARE-PD/model/empirical/imputer.py |
 | 2C | 2 | Port MotionSHAP-VAEAC | todo | — | — | 0 | [mechanical] Source: CARE-PD/model/vaeac/ |
 | 2D | 2 | Port MotionSHAP-Flow + M=10 regression investigation | todo | — | — | 0 | [needs thinking] Source: CARE-PD/model/flow_matching/ + model/flow_shap/ |
-| 2E | 2 | KernelSHAP attributor wrapping shap library | todo | — | — | 2A | [needs thinking] |
+| 2E | 2 | KernelSHAP attributor wrapping shap library | done | task/2E-kernelshap | mbxai-task-2E-kernelshap | 2A | KernelShapAttributor wraps shap.KernelExplainer via _MotionBenchMasker that calls BaseImputer.impute at player-coalition level (M-dim game, not J×F×T). Mean-completion v(S) estimator exact for linear classifiers; 8 non-slow tests pass (shape K=4/8, efficiency axiom, ZeroImputer smoke, masker units). Cross-worktree imports resolved via conftest __path__ extension; pyproject.toml gains per-file ruff/mypy overrides for frozen Phase-0 base files. Deferred: permutation-backend, nonlinear Jensen-bias. |
 
 ---
 

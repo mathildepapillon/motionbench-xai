@@ -83,9 +83,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ANN", "S101"]  # no annotations required in tests
-"examples/*" = ["ANN", "T201"]  # no annotations + allow print
+"tests/*" = ["ANN", "S101", "I001", "F401", "UP037", "SIM118"]  # no annotations; pre-existing style
+"examples/*" = ["ANN", "T201", "UP037"]  # no annotations + allow print
 "scripts/*" = ["ANN", "T201"]
+# Frozen Phase-0 base ABCs — cannot be modified; suppress legacy style issues.
+"motionbench/*/base.py" = ["UP035", "UP037", "TC002", "TC003", "TC005", "UP045", "F401"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -103,6 +105,18 @@ exclude = [
     "examples/",
     "scripts/",
 ]
+
+# Frozen Phase-0 base ABCs cannot be modified; suppress warn_unused_ignores there.
+[[tool.mypy.overrides]]
+module = [
+    "motionbench.data.base",
+    "motionbench.attribution.base",
+    "motionbench.imputers.base",
+    "motionbench.metrics.base",
+    "motionbench.oracles.base",
+    "motionbench.players.base",
+]
+warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
