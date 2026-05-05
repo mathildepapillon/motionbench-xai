@@ -78,6 +78,23 @@ class Classifier(nn.Module, ABC):
         """
         ...
 
+    def predict_proba(self, x: Tensor, class_idx: int | None = None) -> Tensor:
+        """Return class probabilities (softmax over logits).
+
+        Args:
+            x: Float32 tensor of shape ``(B, J, F, T)``.
+            class_idx: If given, return only the probability for this class
+                as a ``(B,)`` tensor.  Otherwise return ``(B, n_classes)``.
+
+        Returns:
+            Float32 probability tensor.
+        """
+        logits = self.forward(x)
+        proba = torch.softmax(logits, dim=-1)
+        if class_idx is not None:
+            return proba[:, class_idx]
+        return proba
+
     # ------------------------------------------------------------------
     # Checkpoint helpers
     # ------------------------------------------------------------------
