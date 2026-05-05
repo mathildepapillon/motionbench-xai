@@ -11,9 +11,9 @@
 
 | # | Risk | Status | Mitigation |
 |---|------|--------|------------|
-| R1 | CARE-PD encoder reproducibility | open | Contact CARE-PD authors if Task 4B cannot reproduce F1 within 0.02 |
+| R1 | CARE-PD encoder reproducibility | open | Contact CARE-PD authors if Task 4B cannot reproduce F1 within 0.02. ST-GCN descoped — not pursuing. |
 | R2 | M=10 Burr Flow regression (EC2=0.269) | open | Task 2D to investigate; never silent |
-| R3 | Quantus perturb_func integration | open | Spike in first week of Phase 5 before committing |
+| R3 | Quantus perturb_func integration | **triggered** | Spike complete: perturb_func API is compatible with BaseImputer; env-level TF/NumPy2 import crash blocks all Quantus usage. See B-5B-01. |
 | R4 | shap.KernelExplainer performance on long sequences | open | Benchmark in Task 2E; fallback: shap permutation or tscaptum segmented |
 | R5 | Scope creep | monitoring | Anything not in TASKS.md goes here |
 
@@ -37,5 +37,6 @@
 | B-001 | 1A | task/1A | Spatial oracle for J>12 | true_shapley raises NotImplementedError for J>12 — need KernelSHAP estimation path |
 -->
 | B-008 | parent | 4B | PoseFormerV2 CARE-PD checkpoint requires F=2 input | The CARE-PD Hypertune checkpoints for PoseFormerV2 were trained with in_chans=2 (2D keypoints). The motionbench format uses F=3 (3D). Loading the checkpoint into the current `PoseFormerV2Classifier(in_chans=3)` raises a shape mismatch on `Joint_embedding.weight` ([32,2] vs [32,3]). To unblock: either (a) add `in_chans=2` constructor option and project 3D→2D in forward(), or (b) retrain PoseFormerV2 from the Hypertune best config with F=3 BMCLab data. The checkpoint is archived at `CARE-PD/experiment_outs/Hypertune/poseformerv2_BMCLab/0/models/train_BMCLab_23fold/fold*/latest_epoch.pth.tr`. |
-| B-5C-01 | task/5C-stability-sanity | 5C | Stability explain_func should use the actual attribution method | `_gradient_explain_func` (input gradient) is a simplification used to re-compute attributions on perturbed inputs for MaxSensitivity, Continuity, and RelativeInputStability. For production evaluation, callers should pass the same attribution method used to produce `phi` via `quantus_kwargs={"explain_func": ...}`. The gradient proxy underestimates sensitivity for methods like IG or SHAP. |
-| B-5C-02 | task/5C-stability-sanity | 5C | Continuity metric has nr_steps boundary constraint with small T | Quantus Continuity uses `dx=(2T+1)//nr_steps` shifts; with T=16, only certain nr_steps values avoid out-of-bounds translation. nr_steps=3 causes IndexError. Validate nr_steps in ContinuityMetric constructor or document the constraint. |
+| B-5B-01 | mbxai-task-5B-fidelity | 5B | RESOLVED: Quantus 0.6.0 unimportable in base env | TF+NumPy2+protobuf crash in base Python. Resolution: always use `conda run -n motionbench-xai`. |
+| B-5C-01 | task/5C-stability-sanity | 5C | Stability explain_func should use the actual attribution method | `_gradient_explain_func` is a simplification. For production, callers should pass the same attribution method via `quantus_kwargs={"explain_func": ...}`. |
+| B-5C-02 | task/5C-stability-sanity | 5C | Continuity metric has nr_steps boundary constraint with small T | Quantus Continuity uses `dx=(2T+1)//nr_steps`; with T=16, only certain nr_steps values work. Validate in constructor. |

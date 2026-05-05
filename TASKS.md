@@ -70,9 +70,9 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 5A | 5 | Ground-truth attribution metrics (EC1-3, TopK, Spearman, Kendall, EfficiencyError) | done | mbxai-task-5A-gt-metrics | mbxai-task-5A-gt-metrics | 0 | (1) EC1/EC2/EC3/EC1_norm, TopKRecovery (top1+topk_overlap), SpearmanRank, KendallRank, EfficiencyError all implemented in motionbench/metrics/ground_truth.py; all subclass BaseMetric with requires_oracle=True. (2) EfficiencyErrorMetric uses oracle.true_shapley.sum() as reference v(N)-v(∅) (not independent MC) to avoid variance inflation; slow test uses x=50*ones so |f(x)|=50 >> MC noise, ensuring < 1e-3 reliably. (3) No backlog items; pre-existing ruff errors in frozen base.py suppressed via per-file-ignores (following 2E worktree pattern). 23 tests pass (22 non-slow + 1 slow); ruff + mypy clean. |
-| 5B | 5 | Fidelity metrics with on/off-manifold variants | todo | — | — | 2A, 2B | [needs thinking] Quantus integration |
-| 5C | 5 | Stability and sanity-check metrics | done | mbxai-task-5C-stability | task/5C-stability-sanity | 0 | Wrapped quantus.MaxSensitivity, quantus.Continuity, quantus.RelativeInputStability (stability.py) and quantus.MPRT, quantus.RandomLogit (sanity_checks.py). _QuantusWrapper pads scalar output to (B,2) for Continuity compatibility and handles 4-D input. Default explain_func uses input-gradient as a simplification (BACKLOG B-5C-01). Continuity has nr_steps boundary constraint on small T (BACKLOG B-5C-02). 15 tests pass; ruff+mypy clean. |
+| 5A | 5 | Ground-truth attribution metrics (EC1-3, TopK, Spearman, Kendall, EfficiencyError) | done | mbxai-task-5A-gt-metrics | mbxai-task-5A-gt-metrics | 0 | EC1/EC2/EC3/EC1_norm, TopKRecovery, SpearmanRank, KendallRank, EfficiencyError. 23 tests pass; ruff + mypy clean. |
+| 5B | 5 | Fidelity metrics with on/off-manifold variants | done | mbxai-task-5B-fidelity | mbxai-task-5B-fidelity | 2A, 2B | Four Quantus-backed fidelity metrics (FaithfulnessCorrelation, MonotonicityCorrelation, PixelFlipping, Selectivity) with on/off-manifold imputer support via _make_perturb_func adapter. 15 tests pass; ruff + mypy clean. |
+| 5C | 5 | Stability and sanity-check metrics | done | mbxai-task-5C-stability | task/5C-stability-sanity | 0 | Wrapped quantus.MaxSensitivity, quantus.Continuity, quantus.RelativeInputStability, quantus.MPRT, quantus.RandomLogit. 17 tests pass; ruff+mypy clean. |
 | 5D | 5 | Cross-protocol ranking agreement | todo | — | — | 5A, 5B, 5C | [needs thinking] Bootstrap CIs |
 
 ---
@@ -83,6 +83,17 @@
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 6A | 6 | Hydra configs and pipelines | todo | — | — | Phase 5 | [needs thinking] |
 | 6B | 6 | Leaderboard generation | todo | — | — | 6A | [mechanical] |
+
+---
+
+## Phase 7 — Paper experiments and documentation
+
+| ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
+|----|-------|-------|--------|-------|----------|------------|-------|
+| 7.0 | 7 | README and user documentation | todo | — | — | Phase 6 | Comprehensive README: install, quickstart, CLI reference, dataset/method/metric tables, citation, leaderboard link |
+| 7.1 | 7 | Generate paper tables (Tables 1–4) | todo | — | — | 6A | Full benchmark sweep |
+| 7.2 | 7 | Generate paper figures (Figures 1–4) | todo | — | — | 7.1 | Architecture diagram, difficulty sweep, qualitative comparison, sanity-check randomization |
+| 7.3 | 7 | Reproducibility checklist | todo | — | — | 7.1 | Seeds, Docker/Conda envs, D&B reviewer checklist |
 
 ---
 
