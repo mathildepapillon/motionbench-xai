@@ -72,7 +72,7 @@
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 5A | 5 | Ground-truth attribution metrics (EC1-3, TopK, Spearman, Kendall, EfficiencyError) | todo | — | — | 0 | [mechanical] Source: CARE-PD/scripts/compute_attribution_quality_metrics.py |
 | 5B | 5 | Fidelity metrics with on/off-manifold variants | todo | — | — | 2A, 2B | [needs thinking] Quantus integration |
-| 5C | 5 | Stability and sanity-check metrics | todo | — | — | 0 | [mechanical] Quantus wrappers |
+| 5C | 5 | Stability and sanity-check metrics | done | mbxai-task-5C-stability | task/5C-stability-sanity | 0 | Wrapped quantus.MaxSensitivity, quantus.Continuity, quantus.RelativeInputStability (stability.py) and quantus.MPRT, quantus.RandomLogit (sanity_checks.py). _QuantusWrapper pads scalar output to (B,2) for Continuity compatibility and handles 4-D input. Default explain_func uses input-gradient as a simplification (BACKLOG B-5C-01). Continuity has nr_steps boundary constraint on small T (BACKLOG B-5C-02). 15 tests pass; ruff+mypy clean. |
 | 5D | 5 | Cross-protocol ranking agreement | todo | — | — | 5A, 5B, 5C | [needs thinking] Bootstrap CIs |
 
 ---
