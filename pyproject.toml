@@ -104,6 +104,10 @@ exclude = [
     "scripts/",
 ]
 
+[[tool.mypy.overrides]]
+module = "motionbench.data.base"
+warn_unused_ignores = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"

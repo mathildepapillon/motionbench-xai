@@ -28,7 +28,7 @@
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 1A | 1 | Port Gaussian generator + GaussianOracle | done | task/1A-gaussian-motion | mbxai-task-1A-gaussian | 0 | GaussianMotionDataset + GaussianOracle ported. Covariance factories (AR1/equicorr), KroneckerProduct, true_shapley (M≤12). 97 tests passing. BACKLOG B-001: M>12 path needed for J=17 spatial players. |
-| 1B | 1 | Port Burr / Gaussian-copula generator + CopulaOracle | todo | — | — | 0 | [needs thinking] Source: CARE-PD/synthetic/burr_motion.py |
+| 1B | 1 | Port Burr / Gaussian-copula generator + CopulaOracle | done | task/1B-burr-oracle | mbxai-task-1B-burr | 0 | BurrMotionBenchmark with Marginal ABC (BurrXII, StudentT, GaussianMarginal, MixtureOfGaussians, SkewNormal) + CopulaOracle (Gaussian copula, Kronecker conditional, true_shapley with KernelSHAP for M>12). 34 tests passing; ruff + mypy clean on all new files. |
 | 1C | 1 | Skeleton-structured and gait-periodic synthetics | todo | — | — | 1A | [needs thinking] Source: CARE-PD/synthetic/diagnostic_motion.py |
 | 1D | 1 | Label function library | todo | — | — | 0 | [mechanical] Extract from CARE-PD/synthetic/gaussian_motion.py |
 

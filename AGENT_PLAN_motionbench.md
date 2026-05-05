@@ -447,7 +447,7 @@ The agent must read Aas et al. (2021) and cite specific equations in docstrings.
 **Depends on:** Phase 0
 **Files:** `motionbench/imputers/vaeac.py`, `scripts/train_vaeac.py`, `tests/test_vaeac.py`
 
-**Inputs from old code:** `motionshap_draft/imputers/vaeac/*`.
+**Inputs from old code:** `motionshap_draft/imputers/vaeac/`*.
 
 **Spec:** Port the VAEAC implementation from the draft. Wrap as a `BaseImputer`:
 
@@ -471,7 +471,7 @@ Tests:
 **Depends on:** Phase 0
 **Files:** `motionbench/imputers/flow_matching.py`, `scripts/train_flow.py`, `tests/test_flow.py`
 
-**Inputs from old code:** `motionshap_draft/imputers/flow/*`.
+**Inputs from old code:** `motionshap_draft/imputers/flow/`*.
 
 **Spec:** Port flow-matching imputer with RePaint harmonization. Same interface as Task 2C.
 
