@@ -1,0 +1,4 @@
+_target_: motionbench.classifiers.ported_care_pd.poseformerv2.PoseFormerV2Classifier
+# CARE-PD ported encoder; expects F=2 (2-D projected coordinates)
+n_classes: 4
+checkpoint_path: null   # set to CARE-PD checkpoint path for real experiments

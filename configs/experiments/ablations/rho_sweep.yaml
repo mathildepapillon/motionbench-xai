@@ -1,0 +1,38 @@
+pipeline: synthetic
+
+# Ablation: vary spatial equicorrelation rho in GaussianMotionDataset
+datasets:
+  - gaussian_k4
+
+# Override rho values via Hydra multirun:
+#   motionbench pipeline=synthetic datasets=[gaussian_k4] rho=0.0,0.2,0.5,0.8,0.95 -m
+rho: 0.5
+
+methods:
+  - kernelshap_zero
+  - kernelshap_empirical
+  - ig_zero
+
+classifiers:
+  - synthetic_mlp
+
+metrics:
+  gt:
+    - ec1
+    - ec2
+    - ec3
+    - topk
+    - spearman
+
+n_sequences: 50
+n_jobs: 4
+results_dir: results/ablations/rho_sweep
+device: cpu
+
+wandb:
+  project: motionbench-xai
+  entity: null
+  tags:
+    - ablation
+    - rho_sweep
+  mode: disabled

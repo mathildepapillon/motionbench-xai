@@ -81,7 +81,7 @@
 
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
-| 6A | 6 | Hydra configs and pipelines | todo | — | — | Phase 5 | [needs thinking] |
+| 6A | 6 | Hydra configs and pipelines | in-progress | task/6A-pipelines | mbxai-task-6A-pipelines | Phase 5 | [needs thinking] |
 | 6B | 6 | Leaderboard generation | todo | — | — | 6A | [mechanical] |
 
 ---

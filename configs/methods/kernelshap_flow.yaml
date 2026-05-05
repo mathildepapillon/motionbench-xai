@@ -1,0 +1,18 @@
+name: kernelshap_flow
+attributor:
+  _target_: motionbench.attribution.kernel_shap.KernelShapAttributor
+imputer:
+  _target_: motionbench.imputers.flow_matching.FlowMatchingImputer
+  # J, F, T filled at runtime from dataset shape
+  hidden_dim: 64
+  num_steps: 4
+  noise_init_scale: 1.0
+  n_epochs: 0             # 0 = skip training (smoke test); set >0 for production
+  batch_size: 16
+  lr: 1.0e-3
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows
+n_kernel_samples: 64
+n_completion_samples: 5
+seed: 42
+device: cpu

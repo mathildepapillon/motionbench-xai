@@ -1,0 +1,3 @@
+_target_: motionbench.classifiers.ported_care_pd.potr.POTRClassifier
+n_classes: 4
+checkpoint_path: null

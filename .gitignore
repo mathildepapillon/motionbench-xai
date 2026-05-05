@@ -49,10 +49,13 @@ results/synthetic/*.pkl
 results/synthetic/*.json
 results/care_pd/*.pkl
 results/care_pd/*.json
+results/synthetic/
+results/care_pd/
 
 # Hydra outputs
 outputs/
 multirun/
+.hydra_outputs/
 
 # Data (too large to commit) — raw top-level data dirs only
 /data/

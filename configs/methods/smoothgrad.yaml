@@ -1,0 +1,7 @@
+name: smoothgrad
+attributor:
+  _target_: motionbench.attribution.captum_methods.SmoothGradAttributor
+  nt_samples: 10
+  stdevs: 0.1
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows

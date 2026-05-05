@@ -1,0 +1,7 @@
+name: gradientshap
+attributor:
+  _target_: motionbench.attribution.captum_methods.GradientShapAttributor
+  baseline: gaussian
+  n_samples: 10
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows

@@ -1,0 +1,44 @@
+# @package _global_
+# Pipeline routing key
+pipeline: real
+
+datasets:
+  - care_pd_bmclab
+
+methods:
+  - kernelshap_zero
+  - kernelshap_mean
+  - kernelshap_marginal
+  - ig_zero
+  - ig_mean
+  - deeplift
+  - gradientshap
+  - smoothgrad
+  - lrp
+  - gradcam
+
+classifiers:
+  - motionbert
+  - motionagformer
+  - bilstm
+
+metrics:
+  fidelity:
+    - faithfulness_correlation
+    - pixel_flipping
+  stability:
+    - max_sensitivity
+  sanity:
+    - model_parameter_randomisation
+
+results_dir: results/care_pd
+device: cpu   # override to cuda:0 for real experiments
+
+wandb:
+  project: motionbench-xai
+  entity: null
+  tags:
+    - care_pd
+    - real_data
+  mode: online
+

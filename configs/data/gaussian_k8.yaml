@@ -1,0 +1,12 @@
+_target_: motionbench.data.synthetic.gaussian_motion.GaussianMotionDataset
+# Shape parameters
+J: 5
+F: 3
+T: 16
+K: 8          # T must be divisible by K: 16 / 8 = 2 ✓
+# Dataset size
+N: 200
+# Covariance structure
+rho: 0.5
+alpha: 0.8
+seed: 43

@@ -1,0 +1,12 @@
+_target_: motionbench.data.synthetic.gaussian_motion.GaussianMotionDataset
+# Shape parameters
+J: 5
+F: 3
+T: 16
+K: 4          # number of temporal-window players; also passed to constructor
+# Dataset size
+N: 200
+# Covariance structure
+rho: 0.5      # equicorrelation off-diagonal
+alpha: 0.8    # AR(1) temporal autocorrelation
+seed: 42

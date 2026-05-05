@@ -1,0 +1,9 @@
+defaults:
+  - experiments: full_synthetic_sweep
+  - _self_
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: .hydra_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}

@@ -1,0 +1,3 @@
+_target_: motionbench.classifiers.ported_care_pd.motionbert.MotionBERTClassifier
+n_classes: 4
+checkpoint_path: null
