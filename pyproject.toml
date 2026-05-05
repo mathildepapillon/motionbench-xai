@@ -86,6 +86,7 @@ ignore = [
 "tests/*" = ["ANN", "S101"]  # no annotations required in tests
 "examples/*" = ["ANN", "T201"]  # no annotations + allow print
 "scripts/*" = ["ANN", "T201"]
+"motionbench/*/base.py" = ["UP035", "UP037", "TC002", "TC003", "TC005", "UP045", "F401"]
 
 [tool.ruff.format]
 quote-style = "double"
