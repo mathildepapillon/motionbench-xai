@@ -53,7 +53,7 @@
 | 3A | 3 | Captum-based methods (IG, DeepLift, GradShap, Saliency, SmoothGrad, IxG) | todo | — | — | 0 | [mechanical] |
 | 3B | 3 | LRP via Zennit | todo | — | — | 0 | [mechanical] |
 | 3C | 3 | Time-series SHAP variants (TimeSHAP, WindowSHAP, ShaTS, GroupSeg) | todo | — | — | 0 | [mechanical] |
-| 3D | 3 | Grad-CAM and attention-based methods | todo | — | — | 4B | [mechanical] Depends on ported classifier |
+| 3D | 3 | Grad-CAM and attention-based methods | done | task/3D-cam | mbxai-task-3D-cam | 4B | GradCAMAttributor (Captum LayerGradCam, upsample to (J,F,T), aggregate to (M,)). AttentionRolloutAttributor (Abnar & Zuidema 2020, requires get_attention_weights() method). Both tested on tiny inline CNN/Transformer (4B still blocked). 10 tests pass. |
 
 ---
 
