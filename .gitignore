@@ -39,7 +39,9 @@ wandb/
 # Model checkpoints (download, don't commit)
 motionbench/classifiers/checkpoints/*.pt
 motionbench/classifiers/checkpoints/*.pth
+motionbench/classifiers/checkpoints/*.pth.tr
 motionbench/classifiers/checkpoints/*.ckpt
+motionbench/classifiers/checkpoints/care_pd/
 !motionbench/classifiers/checkpoints/.gitkeep
 
 # Results (generated, don't commit raw results)
