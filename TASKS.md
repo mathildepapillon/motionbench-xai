@@ -41,7 +41,7 @@
 | 2A | 2 | Off-manifold imputers (Zero, Mean, Marginal, GaussNoise) | done | task/2A-off-manifold-imputers | mbxai-task-2A-offmanifold | 0 | ZeroImputer, MeanImputer, MarginalDonorImputer, GaussianNoiseImputer + masking utils. All observe-preservation contracts verified. 86 tests passing. |
 | 2B | 2 | Empirical / classical-conditional imputers | todo | — | — | 0 | [verify against literature] Source: CARE-PD/model/empirical/imputer.py |
 | 2C | 2 | Port MotionSHAP-VAEAC | todo | — | — | 0 | [mechanical] Source: CARE-PD/model/vaeac/ |
-| 2D | 2 | Port MotionSHAP-Flow + M=10 regression investigation | todo | — | — | 0 | [needs thinking] Source: CARE-PD/model/flow_matching/ + model/flow_shap/ |
+| 2D | 2 | Port MotionSHAP-Flow + M=10 regression investigation | in-progress | task/2D-flow | mbxai-task-2D-flow | 0 | [needs thinking] Source: CARE-PD/model/flow_matching/ + model/flow_shap/ |
 | 2E | 2 | KernelSHAP attributor wrapping shap library | todo | — | — | 2A | [needs thinking] |
 
 ---
