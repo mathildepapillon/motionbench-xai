@@ -39,7 +39,7 @@
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 2A | 2 | Off-manifold imputers (Zero, Mean, Marginal, GaussNoise) | done | task/2A-off-manifold-imputers | mbxai-task-2A-offmanifold | 0 | ZeroImputer, MeanImputer, MarginalDonorImputer, GaussianNoiseImputer + masking utils. All observe-preservation contracts verified. 86 tests passing. |
-| 2B | 2 | Empirical / classical-conditional imputers | todo | — | — | 0 | [verify against literature] Source: CARE-PD/model/empirical/imputer.py |
+| 2B | 2 | Empirical / classical-conditional imputers | done | task/2B-empirical-imputers | mbxai-task-2B-empirical | 0 | Implemented KNNConditionalImputer (Euclidean kNN + inverse-distance weighting), EmpiricalConditionalImputer (Aas et al. 2021 §3.3 Alg. 2: LW Mahalanobis kernel, η-truncation, cites Eq. 6–8), VineCopulaImputer (Gaussian copula + empirical ECDF marginals, pyvinecopulib for d≤max_vine_dim). Design: z-score per flat feature (shapr convention), Cholesky cache per coalition. 13 non-slow tests pass; 1 slow convergence test (EmpiricalConditional vs GaussianOracle, tol=0.15). Mypy 1 pre-existing error in frozen data/base.py. BACKLOG B-2B-01: full vine copula fitting for d>max_vine_dim. |
 | 2C | 2 | Port MotionSHAP-VAEAC | todo | — | — | 0 | [mechanical] Source: CARE-PD/model/vaeac/ |
 | 2D | 2 | Port MotionSHAP-Flow + M=10 regression investigation | todo | — | — | 0 | [needs thinking] Source: CARE-PD/model/flow_matching/ + model/flow_shap/ |
 | 2E | 2 | KernelSHAP attributor wrapping shap library | todo | — | — | 2A | [needs thinking] |
