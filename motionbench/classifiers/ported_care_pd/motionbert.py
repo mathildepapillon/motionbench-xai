@@ -327,9 +327,9 @@ class MotionBERTClassifier(Classifier):
     classifier interface ``(B, J, F, T) → (B, n_classes)``.
 
     Args:
-        checkpoint_path: Path to the pre-trained backbone checkpoint
-            (``motionbert/motionbert.bin``).  If ``None``, weights are
-            randomly initialised.
+        checkpoint_path: Path to a checkpoint.  Pass a ``.pth.tr`` path to
+            load a CARE-PD fine-tuned checkpoint; any other extension loads
+            only the backbone (pre-trained 3D-HPE weights).
         n_classes: Number of output logit dimensions (default 4).
         dim_feat: Feature dimension of the transformer (default 512).
         dim_rep: Representation dimension after pre-logit projection
@@ -340,6 +340,10 @@ class MotionBERTClassifier(Classifier):
         maxlen: Maximum sequence length for temporal positional embedding
             (default 243).
         num_joints: Number of skeletal joints (default 17).
+        merge_joints: If ``True``, mean-pool over joints before the
+            classifier head (head input dim = ``dim_rep``).  If ``False``
+            (default, matches CARE-PD training), keep joints separate and
+            flatten (head input dim = ``num_joints * dim_rep``).
     """
 
     def __init__(
@@ -353,8 +357,10 @@ class MotionBERTClassifier(Classifier):
         mlp_ratio: int = 2,
         maxlen: int = 243,
         num_joints: int = 17,
+        merge_joints: bool = False,
     ) -> None:
         super().__init__(checkpoint_path=checkpoint_path, n_classes=n_classes)
+        self._merge_joints = merge_joints
 
         self.backbone = _DSTformerBackbone(
             dim_in=3,
@@ -368,20 +374,25 @@ class MotionBERTClassifier(Classifier):
             maxlen=maxlen,
             drop_path_rate=0.,
         )
-        self.cls_head = nn.Linear(dim_rep, n_classes)
+        head_dim = dim_rep if merge_joints else dim_rep * num_joints
+        self.cls_head = nn.Linear(head_dim, n_classes)
 
         if self._checkpoint_path is not None:
-            matched, discarded = self._load_checkpoint(
-                self._checkpoint_path,
-                self.backbone,
-                ckpt_key=None,
-                strict=False,
-            )
-            logger.info(
-                "MotionBERT: loaded %d layers, discarded %d.",
-                len(matched),
-                len(discarded),
-            )
+            if str(self._checkpoint_path).endswith(".pth.tr"):
+                self._load_care_pd_checkpoint(self._checkpoint_path)
+                logger.info("MotionBERT: loaded CARE-PD fine-tuned checkpoint.")
+            else:
+                matched, discarded = self._load_checkpoint(
+                    self._checkpoint_path,
+                    self.backbone,
+                    ckpt_key=None,
+                    strict=False,
+                )
+                logger.info(
+                    "MotionBERT: loaded %d layers, discarded %d.",
+                    len(matched),
+                    len(discarded),
+                )
 
     def forward(self, x: Tensor) -> Tensor:
         """Map a batch of 3D pose sequences to class logits.
@@ -395,5 +406,9 @@ class MotionBERTClassifier(Classifier):
         # (B, J, F=3, T) → (B, T, J, F=3)
         x = x.permute(0, 3, 1, 2)
         rep = self.backbone(x, return_rep=True)  # (B, T, J, dim_rep)
-        rep = rep.mean(dim=(1, 2))  # (B, dim_rep)
+        rep = rep.mean(dim=1)  # mean over T: (B, J, dim_rep)
+        if self._merge_joints:
+            rep = rep.mean(dim=1)  # mean over J: (B, dim_rep)
+        else:
+            rep = rep.flatten(1)  # flatten J: (B, J * dim_rep)
         return self.cls_head(rep)

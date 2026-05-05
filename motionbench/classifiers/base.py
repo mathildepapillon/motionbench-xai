@@ -32,12 +32,15 @@ Shape conventions
 from __future__ import annotations
 
 import collections
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 from torch import Tensor
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["Classifier"]
 
@@ -167,3 +170,57 @@ class Classifier(nn.Module, ABC):
         model_dict.update(new_state_dict)
         model.load_state_dict(model_dict, strict=strict)
         return matched, discarded
+
+    def _load_care_pd_checkpoint(self, path: str | Path) -> None:
+        """Load a CARE-PD fine-tuned ``.pth.tr`` checkpoint into ``self``.
+
+        CARE-PD Hypertune checkpoints have the structure::
+
+            {
+                "epoch": int,
+                "lr": float,
+                "optimizer": ...,
+                "model": {
+                    "backbone.<layer>.*": Tensor,   # encoder weights
+                    "head.fc_layers.0.weight": Tensor,  # classifier head
+                    "head.fc_layers.0.bias":   Tensor,
+                },
+            }
+
+        Some checkpoints are wrapped in DataParallel (``module.`` prefix).
+        This method:
+
+        1. Extracts ``ckpt["model"]``.
+        2. Strips any ``module.`` DataParallel prefix.
+        3. Remaps ``head.fc_layers.0.*`` → ``cls_head.*``.
+        4. Calls ``self.load_state_dict(..., strict=False)``.
+
+        Args:
+            path: Path to the ``.pth.tr`` checkpoint file.
+        """
+        raw = torch.load(
+            path,
+            map_location=lambda storage, _: storage,
+            weights_only=False,
+        )
+        state_dict: dict[str, Tensor] = raw["model"]
+
+        remapped: dict[str, Tensor] = {}
+        for k, v in state_dict.items():
+            # Strip DataParallel prefix
+            if k.startswith("module."):
+                k = k[7:]
+            # Remap CARE-PD head key to the motionbench cls_head attribute
+            if k.startswith("head.fc_layers.0."):
+                k = "cls_head." + k[len("head.fc_layers.0."):]
+            remapped[k] = v
+
+        result = self.load_state_dict(remapped, strict=False)
+        matched = [k for k in remapped if k not in result.missing_keys]
+        logger.info(
+            "_load_care_pd_checkpoint: loaded %d tensors, missing=%s, unexpected=%s",
+            len(matched),
+            result.missing_keys,
+            result.unexpected_keys,
+        )
+

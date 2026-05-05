@@ -36,3 +36,4 @@
 |----|-----------|------|-------|---------|
 | B-001 | 1A | task/1A | Spatial oracle for J>12 | true_shapley raises NotImplementedError for J>12 — need KernelSHAP estimation path |
 -->
+| B-008 | parent | 4B | PoseFormerV2 CARE-PD checkpoint requires F=2 input | The CARE-PD Hypertune checkpoints for PoseFormerV2 were trained with in_chans=2 (2D keypoints). The motionbench format uses F=3 (3D). Loading the checkpoint into the current `PoseFormerV2Classifier(in_chans=3)` raises a shape mismatch on `Joint_embedding.weight` ([32,2] vs [32,3]). To unblock: either (a) add `in_chans=2` constructor option and project 3D→2D in forward(), or (b) retrain PoseFormerV2 from the Hypertune best config with F=3 BMCLab data. The checkpoint is archived at `CARE-PD/experiment_outs/Hypertune/poseformerv2_BMCLab/0/models/train_BMCLab_23fold/fold*/latest_epoch.pth.tr`. |

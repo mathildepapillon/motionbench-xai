@@ -378,19 +378,23 @@ class PoseFormerV2Classifier(Classifier):
         self.cls_head = nn.Linear(encoder_dim, n_classes)
 
         if self._checkpoint_path is not None:
-            matched, discarded = self._load_checkpoint(
-                self._checkpoint_path,
-                self.backbone,
-                ckpt_key="model_pos",
-                strict=False,
-            )
-            logger.info(
-                "PoseFormerV2: loaded %d layers, discarded %d "
-                "(expected: Joint_embedding/Freq_embedding discarded due to "
-                "in_chans 2→3 mismatch).",
-                len(matched),
-                len(discarded),
-            )
+            if str(self._checkpoint_path).endswith(".pth.tr"):
+                self._load_care_pd_checkpoint(self._checkpoint_path)
+                logger.info("PoseFormerV2: loaded CARE-PD fine-tuned checkpoint.")
+            else:
+                matched, discarded = self._load_checkpoint(
+                    self._checkpoint_path,
+                    self.backbone,
+                    ckpt_key="model_pos",
+                    strict=False,
+                )
+                logger.info(
+                    "PoseFormerV2: loaded %d layers, discarded %d "
+                    "(expected: Joint_embedding/Freq_embedding discarded due to "
+                    "in_chans 2→3 mismatch).",
+                    len(matched),
+                    len(discarded),
+                )
 
     def forward(self, x: Tensor) -> Tensor:
         """Map a batch of 3D pose sequences to class logits.

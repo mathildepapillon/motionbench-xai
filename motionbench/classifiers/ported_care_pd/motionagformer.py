@@ -395,9 +395,8 @@ class MotionAGFormerClassifier(Classifier):
     motionbench classifier interface ``(B, J, F, T) → (B, n_classes)``.
 
     Args:
-        checkpoint_path: Path to the pre-trained backbone checkpoint
-            (``motionagformer/motionagformer-s-h36m.pth.tr``).  If
-            ``None``, weights are randomly initialised.
+        checkpoint_path: Path to a checkpoint.  Pass a ``.pth.tr`` path to
+            load a CARE-PD fine-tuned checkpoint.
         n_classes: Number of output logit dimensions (default 4).
         n_layers: Number of MotionAGFormer blocks (default 26).
         dim_feat: Per-joint feature dimension (default 64).
@@ -405,6 +404,10 @@ class MotionAGFormerClassifier(Classifier):
         num_heads: Number of attention heads (default 8).
         num_joints: Number of skeletal joints (default 17).
         n_frames: Number of input frames (default 81 for motionbench).
+        merge_joints: If ``True``, mean-pool over joints before the head
+            (head input dim = ``dim_rep``).  If ``False`` (default, matches
+            CARE-PD training), flatten joints (head input dim =
+            ``num_joints * dim_rep``).
     """
 
     def __init__(
@@ -417,8 +420,10 @@ class MotionAGFormerClassifier(Classifier):
         num_heads: int = 8,
         num_joints: int = 17,
         n_frames: int = 81,
+        merge_joints: bool = False,
     ) -> None:
         super().__init__(checkpoint_path=checkpoint_path, n_classes=n_classes)
+        self._merge_joints = merge_joints
 
         self.backbone = _MotionAGFormerBackbone(
             n_layers=n_layers,
@@ -437,20 +442,25 @@ class MotionAGFormerClassifier(Classifier):
             num_joints=num_joints,
             n_frames=n_frames,
         )
-        self.cls_head = nn.Linear(dim_rep, n_classes)
+        head_dim = dim_rep if merge_joints else dim_rep * num_joints
+        self.cls_head = nn.Linear(head_dim, n_classes)
 
         if self._checkpoint_path is not None:
-            matched, discarded = self._load_checkpoint(
-                self._checkpoint_path,
-                self.backbone,
-                ckpt_key="model",
-                strict=False,
-            )
-            logger.info(
-                "MotionAGFormer: loaded %d layers, discarded %d.",
-                len(matched),
-                len(discarded),
-            )
+            if str(self._checkpoint_path).endswith(".pth.tr"):
+                self._load_care_pd_checkpoint(self._checkpoint_path)
+                logger.info("MotionAGFormer: loaded CARE-PD fine-tuned checkpoint.")
+            else:
+                matched, discarded = self._load_checkpoint(
+                    self._checkpoint_path,
+                    self.backbone,
+                    ckpt_key="model",
+                    strict=False,
+                )
+                logger.info(
+                    "MotionAGFormer: loaded %d layers, discarded %d.",
+                    len(matched),
+                    len(discarded),
+                )
 
     def forward(self, x: Tensor) -> Tensor:
         """Map a batch of 3D pose sequences to class logits.
@@ -464,5 +474,9 @@ class MotionAGFormerClassifier(Classifier):
         # (B, J, F=3, T) → (B, T, J, F=3)
         x = x.permute(0, 3, 1, 2)
         rep = self.backbone(x, return_rep=True)  # (B, T, J, dim_rep)
-        rep = rep.mean(dim=(1, 2))  # (B, dim_rep)
+        rep = rep.mean(dim=1)  # mean over T: (B, J, dim_rep)
+        if self._merge_joints:
+            rep = rep.mean(dim=1)  # mean over J: (B, dim_rep)
+        else:
+            rep = rep.flatten(1)  # flatten J: (B, J * dim_rep)
         return self.cls_head(rep)
