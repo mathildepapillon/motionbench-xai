@@ -530,6 +530,7 @@ def _evaluate_metrics(
     classifier = classifier.to(clf_device)
     classifier.eval()
 
+    # clf_fn: efficient no_grad wrapper for GT and fidelity metrics.
     def clf_fn(b: Tensor) -> Tensor:
         with torch.no_grad():
             logits = classifier(b.to(clf_device))
@@ -537,6 +538,12 @@ def _evaluate_metrics(
         if proba.ndim == 2:
             return proba[:, target]
         return proba
+
+    # Metrics that need gradient flow or parameter enumeration (stability /
+    # sanity) must receive the raw nn.Module so that:
+    #   (a) _gradient_explain_func can call loss.backward(), and
+    #   (b) Quantus MPRT can enumerate / randomise model parameters.
+    _NEEDS_MODULE: frozenset[str] = frozenset(_STABILITY_METRICS) | frozenset(_SANITY_METRICS)
 
     scores: dict[str, float] = {}
     for name in metric_names:
@@ -562,11 +569,14 @@ def _evaluate_metrics(
         else:
             metric = metric_cls()
 
+        # Stability/sanity metrics receive the raw module; others get clf_fn.
+        clf_arg = classifier if name in _NEEDS_MODULE else clf_fn
+
         try:
             result = metric.evaluate(
                 phi=phi,
                 x=x,
-                classifier=clf_fn,
+                classifier=clf_arg,
                 players=players,
                 target=target,
                 oracle=oracle,

@@ -87,11 +87,13 @@ class _QuantusWrapper(nn.Module):
         J: int,
         F: int,
         n_classes: int = 2,
+        target: int = 0,
     ) -> None:
         super().__init__()
         self._J = J
         self._F = F
         self._n_classes = n_classes
+        self._target = target
         if isinstance(classifier, nn.Module):
             self._module_clf: nn.Module | None = classifier
             self._fn_clf: Callable[..., Tensor] | None = None
@@ -109,8 +111,9 @@ class _QuantusWrapper(nn.Module):
             x: ``(B, J*F, T)`` or ``(B, J*F, 1, T)`` float32 tensor.
 
         Returns:
-            ``(B, n_classes)`` float32 tensor; column 0 is the classifier
-            output, remaining columns are zero.
+            ``(B, n_classes)`` float32 tensor; column 0 is the scalar
+            classifier output (or the target-class probability for
+            multi-output classifiers), remaining columns are zero.
         """
         if x.ndim == 4:
             x = x.squeeze(2)
@@ -121,7 +124,11 @@ class _QuantusWrapper(nn.Module):
             if self._module_clf is not None
             else self._fn_clf  # type: ignore[assignment]
         )
-        scalar_out = clf(x_4d)  # (B,)
+        raw_out = clf(x_4d)  # (B,) or (B, n_classes)
+        if raw_out.ndim == 2:
+            scalar_out = torch.softmax(raw_out, dim=-1)[:, self._target]
+        else:
+            scalar_out = raw_out
         out = torch.zeros(
             B, self._n_classes, dtype=scalar_out.dtype, device=scalar_out.device
         )
@@ -154,7 +161,7 @@ def _gradient_explain_func(
     grad = x_t.grad
     if grad is None:
         return np.zeros_like(inputs)
-    return grad.detach().cpu().numpy()
+    return np.abs(grad.detach().cpu().numpy())
 
 
 def _expand_phi(phi: Tensor, players: PlayerSet) -> Tensor:
@@ -204,7 +211,7 @@ def _prepare_quantus_inputs(
     y_batch = np.array([target])
     phi_coords = _expand_phi(phi.detach().cpu(), players)
     a_batch = phi_coords.numpy().reshape(1, J * F, T).astype(np.float32)
-    wrapped = _QuantusWrapper(classifier, J, F)
+    wrapped = _QuantusWrapper(classifier, J, F, target=target)
     wrapped.eval()
     return x_batch, a_batch, y_batch, wrapped
 

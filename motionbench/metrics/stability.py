@@ -100,11 +100,13 @@ class _QuantusWrapper(nn.Module):
         J: int,
         F: int,
         n_classes: int = 2,
+        target: int = 0,
     ) -> None:
         super().__init__()
         self._J = J
         self._F = F
         self._n_classes = n_classes
+        self._target = target
         if isinstance(classifier, nn.Module):
             # Assignment to nn.Module attribute registers it as a tracked
             # sub-module, enabling Quantus MPRT to enumerate / randomise params.
@@ -125,8 +127,9 @@ class _QuantusWrapper(nn.Module):
             x: ``(B, J*F, T)`` or ``(B, J*F, 1, T)`` float32 tensor.
 
         Returns:
-            ``(B, n_classes)`` float32 tensor; column 0 is the classifier
-            output, remaining columns are zero.
+            ``(B, n_classes)`` float32 tensor; column 0 is the scalar
+            classifier output (or the target-class probability for multi-output
+            classifiers), remaining columns are zero.
         """
         if x.ndim == 4:
             # Continuity inserts H=1: (B, C, 1, T) -> (B, C, T)
@@ -138,7 +141,12 @@ class _QuantusWrapper(nn.Module):
             if self._module_clf is not None
             else self._fn_clf  # type: ignore[assignment]
         )
-        scalar_out = clf(x_4d)  # (B,)
+        raw_out = clf(x_4d)  # (B,) or (B, n_classes)
+        # Multi-class modules return (B, n_classes); extract target class.
+        if raw_out.ndim == 2:
+            scalar_out = torch.softmax(raw_out, dim=-1)[:, self._target]
+        else:
+            scalar_out = raw_out
         out = torch.zeros(
             B, self._n_classes, dtype=scalar_out.dtype, device=scalar_out.device
         )
@@ -178,7 +186,10 @@ def _gradient_explain_func(
     grad = x_t.grad
     if grad is None:
         return np.zeros_like(inputs)
-    return grad.detach().cpu().numpy()
+    # Return absolute gradient magnitudes: Quantus assertions require
+    # attributions to not be all-negative; magnitude is the correct
+    # quantity for Max Sensitivity (measures size of change, not sign).
+    return np.abs(grad.detach().cpu().numpy())
 
 
 def _expand_phi(phi: Tensor, players: PlayerSet) -> Tensor:
@@ -216,6 +227,9 @@ def _prepare_quantus_inputs(
         phi: ``(M,)`` per-player attribution.
         x: ``(J, F, T)`` input sequence.
         classifier: Callable ``(B, J, F, T) -> (B,)`` or :class:`~torch.nn.Module`.
+            Passing a raw ``nn.Module`` is strongly preferred: it enables
+            gradient flow (required by :func:`_gradient_explain_func`) and
+            parameter enumeration (required by Quantus MPRT).
         players: :class:`~motionbench.players.base.PlayerSet`.
         target: Class / label index.
 
@@ -230,7 +244,7 @@ def _prepare_quantus_inputs(
     y_batch = np.array([target])
     phi_coords = _expand_phi(phi.detach().cpu(), players)
     a_batch = phi_coords.numpy().reshape(1, J * F, T).astype(np.float32)
-    wrapped = _QuantusWrapper(classifier, J, F)
+    wrapped = _QuantusWrapper(classifier, J, F, target=target)
     wrapped.eval()
     return x_batch, a_batch, y_batch, wrapped
 
