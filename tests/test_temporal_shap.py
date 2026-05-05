@@ -1,9 +1,9 @@
 """Tests for motionbench.attribution temporal SHAP wrappers (Task 3C).
 
 Covers:
-- TimeSHAPAttributor  (timeshap_attr.py)
-- WindowSHAPAttributor (windowshap_attr.py)
-- ShaTSAttributor      (shats_attr.py)
+- TimeSHAPAttributor  (timeshap.py)
+- WindowSHAPAttributor (windowshap.py)
+- ShaTSAttributor      (shats.py)
 - GroupSegmentSHAPAttributor (group_segment_shap.py)
 - Pure-math helpers in group_segment_shap.py
 
@@ -25,9 +25,9 @@ from motionbench.attribution.group_segment_shap import (
     direct_group_shapley,
     shapley_from_value_table,
 )
-from motionbench.attribution.shats_attr import ShaTSAttributor
-from motionbench.attribution.timeshap_attr import TimeSHAPAttributor
-from motionbench.attribution.windowshap_attr import WindowSHAPAttributor
+from motionbench.attribution.shats import ShaTSAttributor
+from motionbench.attribution.timeshap import TimeSHAPAttributor
+from motionbench.attribution.windowshap import WindowSHAPAttributor
 from motionbench.imputers.base import BaseImputer
 from tests.conftest import F, J, M, T
 

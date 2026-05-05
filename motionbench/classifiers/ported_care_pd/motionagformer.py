@@ -49,7 +49,7 @@ except ImportError as exc:
         "timm is required for MotionAGFormer. Install with: pip install timm"
     ) from exc
 
-from motionbench.classifiers.base import Classifier
+from motionbench.classifiers.base import Classifier, crop_scale_and_conf
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +126,8 @@ class _Attention(nn.Module):
             attn = (qt @ kt.transpose(-2, -1)) * self.scale  # (B, H, J, T, T)
             attn = attn.softmax(dim=-1)
             attn = self.attn_drop(attn)
-            x = (attn @ vt).permute(0, 2, 3, 1, 4).reshape(B, T, J, C)
+            # permute (B, H, J, T, C//H) → (B, T, J, H, C//H) then reshape to (B, T, J, C)
+            x = (attn @ vt).permute(0, 3, 2, 1, 4).reshape(B, T, J, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
@@ -462,18 +463,32 @@ class MotionAGFormerClassifier(Classifier):
                     len(discarded),
                 )
 
-    def forward(self, x: Tensor) -> Tensor:
-        """Map a batch of 3D pose sequences to class logits.
+    def _preprocess(self, x: Tensor) -> Tensor:
+        """Apply CARE-PD preprocessing: crop_scale + confidence channel.
+
+        Mirrors MotionAGFormerPreprocessor in CARE-PD/data/dataloaders.py.
 
         Args:
-            x: Float32 tensor of shape ``(B, J, F=3, T)``.
+            x: ``(B, J, 3, T)`` raw 3-D world-to-camera coordinates.
+
+        Returns:
+            ``(B, T, J, 3)`` preprocessed tensor.
+        """
+        x_btjf = x.permute(0, 3, 1, 2).contiguous()  # (B, T, J, 3)
+        return crop_scale_and_conf(x_btjf)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Map a batch of raw 3D pose sequences to class logits.
+
+        Args:
+            x: Raw float32 tensor of shape ``(B, J, F=3, T)`` — 3-D
+               world-to-camera coordinates.  Padded frames should be all-zero.
 
         Returns:
             Float32 tensor of shape ``(B, n_classes)`` — raw logits.
         """
-        # (B, J, F=3, T) → (B, T, J, F=3)
-        x = x.permute(0, 3, 1, 2)
-        rep = self.backbone(x, return_rep=True)  # (B, T, J, dim_rep)
+        x_proc = self._preprocess(x)              # (B, T, J, 3)
+        rep = self.backbone(x_proc, return_rep=True)  # (B, T, J, dim_rep)
         rep = rep.mean(dim=1)  # mean over T: (B, J, dim_rep)
         if self._merge_joints:
             rep = rep.mean(dim=1)  # mean over J: (B, dim_rep)

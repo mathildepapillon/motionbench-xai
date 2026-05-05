@@ -7,60 +7,12 @@ The canonical test shapes are:
 
 These are small enough that tests run fast on CPU and large enough to catch
 shape-regression bugs.
-
-Cross-worktree imports
-----------------------
-The 2E worktree depends on modules from 2A (imputers) and 1A (oracles, utils).
-Because all worktrees share the same ``motionbench-xai`` package name, only the
-last ``pip install -e`` registers its source tree with the editable finder.
-The block below extends each relevant subpackage's ``__path__`` so that
-Python finds modules from sibling worktrees without reinstalling.
 """
 from __future__ import annotations
-
-from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
-
-# ---------------------------------------------------------------------------
-# Extend motionbench subpackage __path__ to include sibling worktrees.
-# This lets `from motionbench.imputers.off_manifold import ZeroImputer`
-# and similar cross-worktree imports work regardless of install order.
-# ---------------------------------------------------------------------------
-
-_WORKSPACE = Path(__file__).parent.parent.parent  # /home/papillon/code
-
-_CROSS_WORKTREE_PATHS: dict[str, list[str]] = {
-    "motionbench.imputers": [
-        str(_WORKSPACE / "mbxai-task-2A-offmanifold" / "motionbench" / "imputers"),
-    ],
-    "motionbench.oracles": [
-        str(_WORKSPACE / "mbxai-task-1A-gaussian" / "motionbench" / "oracles"),
-    ],
-    "motionbench.utils": [
-        str(_WORKSPACE / "mbxai-task-1A-gaussian" / "motionbench" / "utils"),
-    ],
-}
-
-
-def _extend_cross_worktree_paths() -> None:
-    """Extend motionbench subpackage __path__ with sibling worktree sources."""
-    import importlib
-
-    for pkg_name, extra_paths in _CROSS_WORKTREE_PATHS.items():
-        # Ensure the package is importable (it must already exist in 2E)
-        try:
-            mod = importlib.import_module(pkg_name)
-        except ImportError:
-            continue
-        for ep in extra_paths:
-            if Path(ep).is_dir() and ep not in mod.__path__:  # type: ignore[union-attr]
-                mod.__path__.append(ep)  # type: ignore[union-attr]
-
-
-_extend_cross_worktree_paths()
 
 
 # ---------------------------------------------------------------------------
