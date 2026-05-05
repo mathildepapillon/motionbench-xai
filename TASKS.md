@@ -51,7 +51,7 @@
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 3A | 3 | Captum-based methods (IG, DeepLift, GradShap, Saliency, SmoothGrad, IxG) | done | task/3A-captum | mbxai-task-3A-captum | 0 | (1) Six BaseAttributor subclasses wrapping Captum: IG, DeepLift, GradientShap, Saliency, SmoothGrad (NoiseTunnel), InputXGradient; all aggregate (J,F,T) coords to (M,) via players.aggregate. (2) Classifier wrapped in _ModuleWrapper(nn.Module) to satisfy Captum API; target slicing handled inside wrapper to support both (B,) and (B,n_classes) classifiers; baseline kwarg accepted by all 6 methods. (3) No deferrals; tsCaptum (for T>200) noted in TASK_3A.md but not required by spec — deferred to BACKLOG if needed. 17 tests, 1.14 s CPU. |
-| 3B | 3 | LRP via Zennit | todo | — | — | 0 | [mechanical] |
+| 3B | 3 | LRP via Zennit | done | task/3B-lrp | mbxai-task-3B-lrp | 0 | LRPAttributor wraps Zennit Gradient+LayerMapComposite for epsilon/gamma/alpha_beta rules. Rule instances (Epsilon, Gamma, AlphaBeta) are hooks not composites in this zennit version, so each is registered via LayerMapComposite; coordinate relevances aggregated with players.aggregate. No deferred items. |
 | 3C | 3 | Time-series SHAP variants (TimeSHAP, WindowSHAP, ShaTS, GroupSeg) | todo | — | — | 0 | [mechanical] |
 | 3D | 3 | Grad-CAM and attention-based methods | todo | — | — | 4B | [mechanical] Depends on ported classifier |
 
