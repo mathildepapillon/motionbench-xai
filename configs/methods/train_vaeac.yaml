@@ -1,0 +1,38 @@
+# configs/methods/train_vaeac.yaml
+#
+# Hydra configuration stub for VAEACImputer training.
+# This file is a stub for future Hydra pipeline integration (Task 6A).
+# Active training is driven by scripts/train_vaeac.py (argparse-based).
+#
+# Shared base: this config structure is intended to be compatible with
+# the analogous configs/methods/train_flow.yaml (Task 2D) so both can
+# be invoked from the same pipeline entry point.
+
+# ------------------------------------------------------------------ #
+# Model architecture                                                   #
+# ------------------------------------------------------------------ #
+J: 17               # number of skeletal joints
+F: 3                # coordinates per joint (xyz)
+T: 81               # frames per clip  (3 s @ 27 fps)
+latent_dim: 64      # per-frame latent dimension
+hidden_dim: 256     # transformer d_model
+
+# ------------------------------------------------------------------ #
+# Training                                                             #
+# ------------------------------------------------------------------ #
+epochs: 50
+batch_size: 16
+lr: 1.0e-3
+seed: 42
+
+# ------------------------------------------------------------------ #
+# Data                                                                 #
+# ------------------------------------------------------------------ #
+data_path: null             # path to .npz with x_train or x1_train
+n_synthetic: 256            # synthetic samples when data_path is null
+
+# ------------------------------------------------------------------ #
+# Output                                                               #
+# ------------------------------------------------------------------ #
+checkpoint_path: checkpoints/vaeac.pt
+device: auto
