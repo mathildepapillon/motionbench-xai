@@ -10,9 +10,19 @@ from motionbench.metrics.ground_truth import (
     SpearmanRankMetric,
     TopKRecovery,
 )
+from motionbench.metrics.sanity_checks import (
+    ModelParameterRandomisationMetric,
+    RandomLogitMetric,
+)
+from motionbench.metrics.stability import (
+    ContinuityMetric,
+    LipschitzEstimateMetric,
+    MaxSensitivityMetric,
+)
 
 __all__ = [
     "BaseMetric",
+    # Ground-truth metrics
     "EC1Metric",
     "EC2Metric",
     "EC3Metric",
@@ -20,4 +30,11 @@ __all__ = [
     "SpearmanRankMetric",
     "KendallRankMetric",
     "EfficiencyErrorMetric",
+    # Stability metrics
+    "MaxSensitivityMetric",
+    "ContinuityMetric",
+    "LipschitzEstimateMetric",
+    # Sanity-check metrics
+    "ModelParameterRandomisationMetric",
+    "RandomLogitMetric",
 ]

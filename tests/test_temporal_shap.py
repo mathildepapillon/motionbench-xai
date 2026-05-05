@@ -329,6 +329,14 @@ def test_timeshap_attribute_target_ignored_gracefully() -> None:
 
 
 @pytest.mark.slow
+@pytest.mark.xfail(
+    reason=(
+        "windowshap library bug: shap_values() returns a 2-D array but "
+        "windowshap.py:255 indexes it as 3-D (`shap_values[:, :, :num_dem_ftr]`). "
+        "Tracked in BACKLOG B-3C-01. Fix upstream or vendor a patched copy."
+    ),
+    strict=True,
+)
 def test_windowshap_attribute_shape_dtype() -> None:
     """WindowSHAP returns (M,) float32."""
     clf = _make_classifier()
