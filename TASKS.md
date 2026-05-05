@@ -52,7 +52,7 @@
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 3A | 3 | Captum-based methods (IG, DeepLift, GradShap, Saliency, SmoothGrad, IxG) | todo | — | — | 0 | [mechanical] |
 | 3B | 3 | LRP via Zennit | todo | — | — | 0 | [mechanical] |
-| 3C | 3 | Time-series SHAP variants (TimeSHAP, WindowSHAP, ShaTS, GroupSeg) | todo | — | — | 0 | [mechanical] |
+| 3C | 3 | Time-series SHAP variants (TimeSHAP, WindowSHAP, ShaTS, GroupSeg) | done | task/3C-temporal-shap | mbxai-task-3C-temporal-shap | 0 | TimeSHAPAttributor (temporal KernelSHAP surrogate — real timeshap library broken on shap>=0.42; BACKLOG B-3C-01). WindowSHAPAttributor wraps SlidingWindowSHAP from windowshap.windowshap. ShaTSAttributor stub (library not yet on PyPI; BACKLOG B-3C-02). GroupSegmentSHAPAttributor ported from CARE-PD/model/empirical/group_baselines.py (direct_group_shapley + Owen values). 19 non-slow tests pass. |
 | 3D | 3 | Grad-CAM and attention-based methods | todo | — | — | 4B | [mechanical] Depends on ported classifier |
 
 ---
