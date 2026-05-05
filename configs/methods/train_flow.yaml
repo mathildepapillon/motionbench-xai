@@ -1,0 +1,36 @@
+# configs/methods/train_flow.yaml
+# Hydra configuration for scripts/train_flow.py
+#
+# Usage:
+#   python scripts/train_flow.py --config-name train_flow \
+#       data_path=data/burr_motion.pt save_path=checkpoints/flow.pt
+#
+# All keys map 1:1 to argparse flags in scripts/train_flow.py.
+
+# ---- Data ----------------------------------------------------------------
+data_path: null           # path to (N, J, F, T) tensor (.pt)
+synthetic: false          # set true to generate synthetic Gaussian data
+n_synthetic: 500
+
+# ---- Shape ---------------------------------------------------------------
+J: 5
+F: 3
+T: 16
+
+# ---- Model ---------------------------------------------------------------
+hidden_dim: 256           # VelocityNet d_model
+num_steps: 100            # ODE integration steps
+noise_init_scale: 1.0     # Gaussian source std (increase to mitigate H2 for Burr)
+solver: midpoint          # ODE solver: midpoint | euler
+
+# ---- Training ------------------------------------------------------------
+n_epochs: 200
+batch_size: 32
+lr: 0.001
+
+# ---- Output --------------------------------------------------------------
+save_path: checkpoints/flow.pt
+
+# ---- Misc ----------------------------------------------------------------
+seed: 42
+log_every: 10
