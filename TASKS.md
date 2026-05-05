@@ -71,7 +71,7 @@
 | ID | Phase | Title | Status | Agent | Worktree | Depends on | Notes |
 |----|-------|-------|--------|-------|----------|------------|-------|
 | 5A | 5 | Ground-truth attribution metrics (EC1-3, TopK, Spearman, Kendall, EfficiencyError) | todo | — | — | 0 | [mechanical] Source: CARE-PD/scripts/compute_attribution_quality_metrics.py |
-| 5B | 5 | Fidelity metrics with on/off-manifold variants | todo | — | — | 2A, 2B | [needs thinking] Quantus integration |
+| 5B | 5 | Fidelity metrics with on/off-manifold variants | blocked | mbxai-task-5B-fidelity | mbxai-task-5B-fidelity | 2A, 2B | Risk R3 triggered. Spike complete: Quantus 0.6.0 is unimportable on this machine (TF+NumPy2 protobuf crash; every import path triggers __init__.py). Quantus perturb_func API was audited from source and is compatible with BaseImputer (clean (arr,**kwargs)->arr interface; batch-flatten bridge is straightforward). Blocker is environment-only, not design. See BACKLOG B-5B-01. |
 | 5C | 5 | Stability and sanity-check metrics | todo | — | — | 0 | [mechanical] Quantus wrappers |
 | 5D | 5 | Cross-protocol ranking agreement | todo | — | — | 5A, 5B, 5C | [needs thinking] Bootstrap CIs |
 
