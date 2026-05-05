@@ -1,0 +1,9 @@
+name: gradcam
+attributor:
+  _target_: motionbench.attribution.grad_cam.GradCAMAttributor
+  # 'layer' must be passed at runtime (classifier-specific); the pipeline
+  # uses the first Conv1d layer from SyntheticCNNClassifier.conv_layers[0].
+  # GradCAM is skipped for classifiers without a convolutional layer.
+  interpolate_mode: nearest
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows

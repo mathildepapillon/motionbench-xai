@@ -1,0 +1,62 @@
+# @package _global_
+# Pipeline routing key: "synthetic" | "real"
+pipeline: synthetic
+
+datasets:
+  - gaussian_k4
+  - gaussian_k8
+  - burr_m5
+  - burr_m10
+  - skeleton_structured
+  - gait_periodic
+
+methods:
+  - kernelshap_zero
+  - kernelshap_mean
+  - kernelshap_marginal
+  - kernelshap_empirical
+  - kernelshap_vaeac
+  - kernelshap_flow
+  - ig_zero
+  - ig_mean
+  - deeplift
+  - gradientshap
+  - smoothgrad
+  - lrp
+  - timeshap
+  - windowshap
+  - shats
+  - gradcam
+
+classifiers:
+  - synthetic_mlp
+  - synthetic_cnn
+  - synthetic_transformer
+
+metrics:
+  gt:
+    - ec1
+    - ec2
+    - ec3
+    - topk
+    - spearman
+    - kendall
+    - efficiency_error
+  fidelity:
+    - faithfulness_correlation
+    - pixel_flipping
+  stability:
+    - max_sensitivity
+  sanity:
+    - model_parameter_randomisation
+
+results_dir: results/synthetic
+device: cpu
+
+wandb:
+  project: motionbench-xai
+  entity: null      # set via env var WANDB_ENTITY or override
+  tags:
+    - synthetic
+    - full_sweep
+  mode: online      # set to "disabled" to skip

@@ -1,0 +1,2 @@
+_target_: motionbench.classifiers.synthetic_cnn.SyntheticCNNClassifier
+# J, F, n_classes filled at runtime from dataset config

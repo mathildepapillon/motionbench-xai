@@ -1,0 +1,11 @@
+name: kernelshap_zero
+attributor:
+  _target_: motionbench.attribution.kernel_shap.KernelShapAttributor
+imputer:
+  _target_: motionbench.imputers.off_manifold.ZeroImputer
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows
+  # K, J, F, T filled at runtime from dataset config
+n_kernel_samples: 64
+n_completion_samples: 5
+seed: 42

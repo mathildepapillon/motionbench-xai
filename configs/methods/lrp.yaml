@@ -1,0 +1,7 @@
+name: lrp
+attributor:
+  _target_: motionbench.attribution.lrp.LRPAttributor
+  lrp_rule: epsilon
+  epsilon: 1.0e-6
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows

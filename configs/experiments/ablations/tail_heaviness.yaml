@@ -1,0 +1,36 @@
+pipeline: synthetic
+
+# Ablation: compare Gaussian (light-tailed) vs Burr (heavy-tailed) marginals
+datasets:
+  - gaussian_k4
+  - burr_m5
+
+methods:
+  - kernelshap_zero
+  - kernelshap_empirical
+  - kernelshap_vaeac
+  - kernelshap_flow
+
+classifiers:
+  - synthetic_mlp
+
+metrics:
+  gt:
+    - ec1
+    - ec2
+    - ec3
+    - spearman
+    - kendall
+
+n_sequences: 50
+n_jobs: 4
+results_dir: results/ablations/tail_heaviness
+device: cpu
+
+wandb:
+  project: motionbench-xai
+  entity: null
+  tags:
+    - ablation
+    - tail_heaviness
+  mode: disabled

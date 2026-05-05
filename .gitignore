@@ -39,7 +39,9 @@ wandb/
 # Model checkpoints (download, don't commit)
 motionbench/classifiers/checkpoints/*.pt
 motionbench/classifiers/checkpoints/*.pth
+motionbench/classifiers/checkpoints/*.pth.tr
 motionbench/classifiers/checkpoints/*.ckpt
+motionbench/classifiers/checkpoints/care_pd/
 !motionbench/classifiers/checkpoints/.gitkeep
 
 # Results (generated, don't commit raw results)
@@ -47,10 +49,13 @@ results/synthetic/*.pkl
 results/synthetic/*.json
 results/care_pd/*.pkl
 results/care_pd/*.json
+results/synthetic/
+results/care_pd/
 
 # Hydra outputs
 outputs/
 multirun/
+.hydra_outputs/
 
 # Data (too large to commit) — raw top-level data dirs only
 /data/

@@ -1,0 +1,13 @@
+_target_: motionbench.data.synthetic.burr_motion.BurrMotionBenchmark
+# Shape parameters
+J: 5
+F: 3
+T: 20         # T divisible by K=10: 20 / 10 = 2 ✓
+# K is pipeline-only (not a BurrMotionBenchmark constructor arg)
+K: 10
+# Dataset size
+N: 200
+# Covariance structure
+rho: 0.5
+alpha: 0.8
+seed: 45

@@ -1,0 +1,9 @@
+_target_: motionbench.data.real.care_pd.BMCLabDataset
+# K is pipeline-only (temporal windows)
+K: 4
+# Data paths — override at runtime or set BMCLAB_DATA_DIR env var
+joints_paths: []          # list of .npz file paths; set at runtime
+labels_path: null         # path to labels .pkl file; set at runtime
+# Clip configuration
+T: 81                     # frames per clip (3 s at 27 fps)
+max_clips_per_walk: 8

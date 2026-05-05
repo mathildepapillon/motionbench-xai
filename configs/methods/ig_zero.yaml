@@ -1,0 +1,7 @@
+name: ig_zero
+attributor:
+  _target_: motionbench.attribution.captum_methods.IntegratedGradientsAttributor
+  baseline: zero
+  n_steps: 20
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows

@@ -1,0 +1,6 @@
+name: shats
+attributor:
+  _target_: motionbench.attribution.shats.ShaTSAttributor
+  # ShaTS library not yet on PyPI; stub raises NotImplementedError
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows
