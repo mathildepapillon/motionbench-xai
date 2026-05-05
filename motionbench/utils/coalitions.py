@@ -1,7 +1,7 @@
 """motionbench.utils.coalitions — Coalition sampling and Shapley WLS utilities.
 
 This module provides shared helpers for Shapley-value computation used by
-:class:`~motionbench.oracles.gaussian_oracle.GaussianOracle` and the
+:class:`~motionbench.oracles.copula_oracle.CopulaOracle` and the
 KernelSHAP attributor.  All functions are stateless and side-effect-free.
 
 The Shapley kernel weight, coalition enumeration, and WLS solver follow:
@@ -30,6 +30,7 @@ import itertools
 from math import comb
 
 import numpy as np
+import numpy.typing as npt
 
 __all__ = [
     "ar1_cov",
@@ -41,7 +42,7 @@ __all__ = [
 ]
 
 
-def ar1_cov(T: int, alpha: float) -> np.ndarray:
+def ar1_cov(T: int, alpha: float) -> npt.NDArray[np.float64]:
     """Compute the T×T AR(1) covariance matrix.
 
     Entry ``C[t, t'] = alpha^|t-t'|``.  This is the temporal covariance
@@ -63,10 +64,10 @@ def ar1_cov(T: int, alpha: float) -> np.ndarray:
                [0.25, 0.5 , 1.  ]])
     """
     t = np.arange(T, dtype=np.float64)
-    return alpha ** np.abs(t[:, None] - t[None, :])
+    return np.asarray(alpha ** np.abs(t[:, None] - t[None, :]), dtype=np.float64)
 
 
-def equicorr(J: int, rho: float) -> np.ndarray:
+def equicorr(J: int, rho: float) -> npt.NDArray[np.float64]:
     """Compute the J×J equicorrelation matrix.
 
     ``C[j, j] = 1`` and ``C[j, j'] = rho`` for ``j != j'``.
@@ -85,7 +86,10 @@ def equicorr(J: int, rho: float) -> np.ndarray:
                [0.5, 1. , 0.5],
                [0.5, 0.5, 1. ]])
     """
-    return rho * np.ones((J, J), dtype=np.float64) + (1.0 - rho) * np.eye(J, dtype=np.float64)
+    return np.asarray(
+        rho * np.ones((J, J), dtype=np.float64) + (1.0 - rho) * np.eye(J, dtype=np.float64),
+        dtype=np.float64,
+    )
 
 
 def shapley_kernel_weight(s: int, M: int) -> float:
@@ -115,7 +119,9 @@ def shapley_kernel_weight(s: int, M: int) -> float:
     return (M - 1) / (comb(M, s) * s * (M - s))
 
 
-def enumerate_coalitions(M: int) -> tuple[np.ndarray, np.ndarray]:
+def enumerate_coalitions(
+    M: int,
+) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
     """Enumerate all 2^M binary coalition vectors with their Shapley weights.
 
     Returns all binary vectors of length M and their corresponding
@@ -139,8 +145,10 @@ def enumerate_coalitions(M: int) -> tuple[np.ndarray, np.ndarray]:
             f"M={M} would enumerate 2^{M} = {2**M:,} coalitions; "
             "refusing.  Use sample_kernelshap_coalitions instead."
         )
-    coalitions = np.array(list(itertools.product([0, 1], repeat=M)), dtype=int)
-    weights = np.array(
+    coalitions: npt.NDArray[np.intp] = np.array(
+        list(itertools.product([0, 1], repeat=M)), dtype=np.intp
+    )
+    weights: npt.NDArray[np.float64] = np.array(
         [shapley_kernel_weight(int(row.sum()), M) for row in coalitions],
         dtype=np.float64,
     )
@@ -151,7 +159,7 @@ def sample_kernelshap_coalitions(
     M: int,
     n_pairs: int,
     rng: np.random.Generator,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
     """Sample paired KernelSHAP coalitions with their kernel weights.
 
     Paired sampling (Covert & Lee 2021) draws a subset size ``s`` from
@@ -184,13 +192,13 @@ def sample_kernelshap_coalitions(
     )
     p = size_weights / size_weights.sum()
 
-    coalitions = np.zeros((2 * n_pairs, M), dtype=int)
-    weights = np.zeros(2 * n_pairs, dtype=np.float64)
+    coalitions: npt.NDArray[np.intp] = np.zeros((2 * n_pairs, M), dtype=np.intp)
+    weights: npt.NDArray[np.float64] = np.zeros(2 * n_pairs, dtype=np.float64)
 
     for i in range(n_pairs):
         s = int(rng.choice(sizes, p=p))
         idx = rng.choice(M, size=s, replace=False)
-        z = np.zeros(M, dtype=int)
+        z = np.zeros(M, dtype=np.intp)
         z[idx] = 1
         coalitions[2 * i] = z
         coalitions[2 * i + 1] = 1 - z
@@ -201,12 +209,12 @@ def sample_kernelshap_coalitions(
 
 
 def solve_shapley_wls(
-    coalitions: np.ndarray,
-    values: np.ndarray,
-    weights: np.ndarray,
+    coalitions: npt.NDArray[np.intp],
+    values: npt.NDArray[np.float64],
+    weights: npt.NDArray[np.float64],
     v_empty: float,
     v_full: float,
-) -> np.ndarray:
+) -> npt.NDArray[np.float64]:
     """Solve for Shapley values via constrained weighted least squares.
 
     Implements the KernelSHAP WLS solve from Lundberg & Lee (2017).  The
@@ -248,18 +256,20 @@ def solve_shapley_wls(
         )
 
     _BIG = 1e6
-    boundary_z = np.array([[0] * M, [1] * M], dtype=int)
-    boundary_v = np.array([v_empty, v_full], dtype=np.float64)
-    boundary_w = np.full(2, _BIG, dtype=np.float64)
+    boundary_z: npt.NDArray[np.intp] = np.array([[0] * M, [1] * M], dtype=np.intp)
+    boundary_v: npt.NDArray[np.float64] = np.array([v_empty, v_full], dtype=np.float64)
+    boundary_w: npt.NDArray[np.float64] = np.full(2, _BIG, dtype=np.float64)
 
-    c_all = np.vstack([coalitions, boundary_z])
-    v_all = np.concatenate([values, boundary_v])
-    w_all = np.concatenate([weights, boundary_w])
+    c_all: npt.NDArray[np.intp] = np.vstack([coalitions, boundary_z])
+    v_all: npt.NDArray[np.float64] = np.concatenate([values, boundary_v])
+    w_all: npt.NDArray[np.float64] = np.concatenate([weights, boundary_w])
 
     keep = w_all > 0
-    Z = np.column_stack([np.ones(keep.sum(), dtype=np.float64), c_all[keep].astype(np.float64)])
+    Z = np.column_stack(
+        [np.ones(keep.sum(), dtype=np.float64), c_all[keep].astype(np.float64)]
+    )
     sq = np.sqrt(w_all[keep])[:, None]
     A = (Z * sq).T @ (Z * sq) + 1e-8 * np.eye(M + 1)
     b = (Z * sq).T @ (v_all[keep] * sq[:, 0])
-    theta = np.linalg.solve(A, b)
+    theta: npt.NDArray[np.float64] = np.asarray(np.linalg.solve(A, b), dtype=np.float64)
     return theta[1:]
