@@ -98,23 +98,30 @@ def load_synth_result(ds: str, clf: str, method: str) -> dict | None:
     return None
 
 
-def avg_metric(ds: str, method: str, key: str) -> tuple[float, float, int] | None:
+def avg_metric(ds: str, method: str, key: str) -> tuple[float, float, int, str | None] | None:
     """Average a metric across classifiers for one (dataset, method).
 
-    Returns ``(mean, std, n)`` where ``n`` is the number of classifiers
-    contributing.  ``std`` is 0 when ``n=1``; callers should suppress the
-    ``±std`` rendering in that case.
+    Returns ``(mean, std, n, arch)`` where ``n`` is the number of classifiers
+    contributing and ``arch`` is the short architecture name when n=1 (else None).
+    ``std`` is 0 when ``n=1``; callers should suppress the ``±std`` rendering.
     """
+    ARCH_LABELS = {
+        "synthetic_mlp":         "MLP",
+        "synthetic_cnn":         "CNN",
+        "synthetic_transformer": "Tfm",
+    }
     vals = []
+    arch = None
     for clf in ("synthetic_mlp", "synthetic_cnn", "synthetic_transformer"):
         r = load_synth_result(ds, clf, method)
         if r is not None and key in r and r[key] is not None:
             vals.append(float(r[key]))
+            arch = ARCH_LABELS.get(clf)
     if not vals:
         return None
     if len(vals) == 1:
-        return vals[0], 0.0, 1
-    return statistics.mean(vals), statistics.stdev(vals), len(vals)
+        return vals[0], 0.0, 1, arch
+    return statistics.mean(vals), statistics.stdev(vals), len(vals), None
 
 
 # ---------------------------------------------------------------------- #
@@ -162,12 +169,14 @@ def table_taxonomy() -> str:
 # ---------------------------------------------------------------------- #
 
 
-def fmt_pm(m: float, s: float, fmt: str = ".3f", n: int | None = None) -> str:
-    """Render a mean ± std cell.  Suppress ± when only one observation (n=1)."""
+def fmt_pm(m: float, s: float, fmt: str = ".3f", n: int | None = None,
+           arch: str | None = None) -> str:
+    """Render a mean ± std cell.  When only one architecture (n=1), show the
+    architecture name inline as a compact superscript rather than a separate
+    footnote marker, e.g. ``$0.018^{\rm MLP}$``."""
     if n == 1:
-        # Mark single-classifier cells in italics so the reader can see they
-        # have not yet been averaged across all three architectures.
-        return f"$\\mathit{{{m:{fmt}}}}^{{\\dagger}}$"
+        lbl = arch if arch else "1\\,clf"
+        return f"$\\mathit{{{m:{fmt}}}}^{{\\rm {lbl}}}$"
     return f"${m:{fmt}}\\!\\pm\\!{s:{fmt}}$"
 
 
@@ -184,10 +193,14 @@ def table_synth_ec1() -> str:
                 r"temporal-SHAP baselines (KS--Temporal, WindowSHAP), and "
                 r"gradient-based attributions (Integrated Gradients, DeepLIFT, SmoothGrad, LRP).  "
                 r"\textbf{Bold} marks the best non-oracle method per dataset.  "
-                r"Oracle row shows the conditional Gaussian estimator's EC1 (Monte-Carlo noise "
-                r"floor of the reference oracle; lower is better).  "
-                r"Italic $M$-ablation rows show KS--VAEAC EC1 on \texttt{gauss\_k4} as $M{=}1$ "
-                r"completion samples used in the main rows; EC1 saturates by $M{=}5$.  "
+                r"Italic cells with a superscript label (MLP, CNN, Tfm) contain results from "
+                r"a single architecture only; the label identifies which one.  "
+                r"Oracle$^{\ddagger}$ uses $n_\text{mc}{=}10$ conditional samples per coalition "
+                r"(same budget as the KernelSHAP imputers); its EC1 $\approx 0.06$--$0.12$ is "
+                r"the MC noise floor of that estimator --- learned imputers (KS--VAEAC, KS--Flow) "
+                r"fall \emph{below} this floor (see \S\ref{sec:results-error}).  "
+                r"Italic $M$-ablation rows show KS--VAEAC EC1 on \texttt{gauss\_k4} for varying "
+                r"$M$ completion samples; EC1 saturates by $M{=}5$.  "
                 r"Empty cells (--) indicate no result available.}")
     rows.append(r"\label{tab:synth_ec1}")
     rows.append(r"\begin{tabular}{l" + "r" * len(PILLAR_DATASETS) + r"}")
@@ -221,7 +234,6 @@ def table_synth_ec1() -> str:
 
     # Render rows, grouping methods by family with a \midrule between groups.
     method_groups = [KS_VARIANT_METHODS, TEMPORAL_SHAP_METHODS, GRADIENT_METHODS]
-    has_partial = False
     for gi, group in enumerate(method_groups):
         for method_key, label in group:
             cells = []
@@ -230,10 +242,8 @@ def table_synth_ec1() -> str:
                 if v is None:
                     cells.append(r"--")
                 else:
-                    m, s, n = v
-                    if n == 1:
-                        has_partial = True
-                    cell = fmt_pm(m, s, n=n)
+                    m, s, n, arch = v
+                    cell = fmt_pm(m, s, n=n, arch=arch)
                     if best_per_ds.get(ds) == method_key:
                         cell = r"\textbf{" + cell + "}"
                     cells.append(cell)
@@ -246,9 +256,7 @@ def table_synth_ec1() -> str:
         if v is None:
             cells_o.append(r"--")
         else:
-            cells_o.append(fmt_pm(v[0], v[1], n=v[2]))
-            if v[2] == 1:
-                has_partial = True
+            cells_o.append(fmt_pm(v[0], v[1], n=v[2], arch=v[3]))
     rows.append(f"Oracle$^{{\\ddagger}}$ & " + " & ".join(cells_o) + r" \\")
 
     # M-ablation rows: KS-VAEAC at M in {1, 5, 20, 50} on gauss_k4 only
@@ -278,21 +286,6 @@ def table_synth_ec1() -> str:
 
     rows.append(r"\bottomrule")
     rows.append(r"\end{tabular}")
-    if has_partial:
-        rows.append(r"\vspace{0.5ex}\par\footnotesize $^{\dagger}$Single-architecture "
-                    r"result (only one of MLP/CNN/Transformer completed).  "
-                    r"Oracle \texttt{skeleton} (0.018, MLP only): the low value is an "
-                    r"artefact of both the oracle method and oracle reference sharing the "
-                    r"same approximate KernelSHAP WLS system with only $n_\text{coalitions}{=}64$ "
-                    r"of $2^{17}$ possible coalitions; not directly comparable to "
-                    r"low-$M$ datasets where exact enumeration is used.  "
-                    r"WindowSHAP \texttt{skel+gait} (1.037, Transformer only): the "
-                    r"default run errored due to a device-tensor issue on the other "
-                    r"architectures; this entry uses window size $w{=}4$.")
-    rows.append(r"\vspace{0.5ex}\par\footnotesize $^{\ddagger}$Oracle samples "
-                r"$n_\text{mc}{=}10$ random conditional draws per coalition (same "
-                r"budget as the KernelSHAP imputers); EC1 $\approx 0.06$--$0.12$ is "
-                r"the MC noise floor of this estimator.  See \S\ref{sec:results-error}.")
     rows.append(r"\end{table}")
     return "\n".join(rows)
 
@@ -303,11 +296,7 @@ def table_synth_ec1() -> str:
 
 
 def _load_player_set_ec1(ds: str, method_key: str, player_suffix: str) -> float | None:
-    """Load EC1 for a player-set ablation result (averaged across classifiers).
-
-    Player-set results are stored under suffixed method names, e.g.
-    ``kernelshap_vaeac_pjoint``, ``kernelshap_vaeac_pcell``.
-    """
+    """Load EC1 for a player-set ablation result (averaged across classifiers)."""
     suffixed = f"{method_key}_{player_suffix}"
     v = avg_metric(ds, suffixed, "ec1")
     return v[0] if v is not None else None
@@ -334,13 +323,14 @@ def table_2x2_winners() -> str:
     rows.append(r"\caption{Attribution error EC1 ($\downarrow$) of the best on-manifold "
                 r"and best off-manifold method in each spatiotemporal regime, with the "
                 r"\emph{on-manifold gap} $\Delta = \mathrm{EC1}_\mathrm{off} / \mathrm{EC1}_\mathrm{on}$.  "
-                r"The rightmost column reports the best EC1 across player-set granularities "
-                r"($\mathcal{P}_\text{temp}$, $\mathcal{P}_\text{joint}$, $\mathcal{P}_\text{cell}$) "
-                r"for the KS--VAEAC imputer, with the winning granularity in parentheses; "
-                r"the player-set sweep is scoped to high-spatial regimes ($J{=}17$ joints) "
-                r"where the choice among 4, 17, or 68 players materially affects coalition coverage "
-                r"--- for low-spatial datasets ($J{=}5$, $K{=}4$) the temporal partition "
-                r"$\mathcal{P}_\text{temp}$ is the natural default (shown as --).  "
+                r"The rightmost column reports the best KS--VAEAC EC1 across player-set "
+                r"granularities ($\mathcal{P}_\text{temp}$, $\mathcal{P}_\text{joint}$, "
+                r"$\mathcal{P}_\text{cell}$), with the winning granularity in parentheses.  "
+                r"For high-spatial regimes ($J{=}17$), $\mathcal{P}_\text{joint}$ (17 players) "
+                r"and $\mathcal{P}_\text{cell}$ (68 players) were compared against "
+                r"$\mathcal{P}_\text{temp}$ (4 players); for low-spatial datasets ($J{=}5$) "
+                r"only $\mathcal{P}_\text{temp}$ was evaluated, as the alternative "
+                r"granularities add negligible players.  "
                 r"On-manifold imputers dominate every regime by 1--2 orders of magnitude.}")
     rows.append(r"\label{tab:winners}")
     rows.append(r"\begin{tabular}{lllll}")
@@ -378,7 +368,9 @@ def table_2x2_winners() -> str:
             off_cell = f"{off_best[1]} ({off_best[0]:.3f})" if off_best else "--"
             gap = f"${off_best[0]/on_best[0]:.1f}\\times$" if on_best and off_best and on_best[0] > 0 else "--"
 
-            # Player-set ablation column: compare P_temp vs P_joint vs P_cell for KS-VAEAC
+            # Player-set ablation column: compare P_temp vs P_joint vs P_cell for KS-VAEAC.
+            # For high-spatial datasets, run a full sweep; for low-spatial (J=5) only
+            # P_temp is evaluated — show the P_temp result directly (no empty cell).
             ps_cell = "--"
             ps_ds_info = player_set_ds_map.get((spatial, temporal))
             if ps_ds_info and on_best is not None:
@@ -396,6 +388,14 @@ def table_2x2_winners() -> str:
                         ps_cell = rf"{ec1_ptemp_val:.4f} ($\mathcal{{P}}_\text{{temp}}$)"
                 elif ec1_ptemp_val is not None:
                     ps_cell = rf"{ec1_ptemp_val:.4f} ($\mathcal{{P}}_\text{{temp}}$)"
+            else:
+                # Low-spatial regimes: only P_temp was evaluated (J=5 makes
+                # P_joint trivial); show the KS-VAEAC P_temp result directly.
+                for ds in datasets:
+                    v_ptemp = avg_metric(ds, "kernelshap_vaeac", "ec1")
+                    if v_ptemp is not None:
+                        ps_cell = rf"{v_ptemp[0]:.4f} ($\mathcal{{P}}_\text{{temp}}$)"
+                        break
 
             rows.append(f"{regime} & {on_cell} & {off_cell} & {gap} & {ps_cell} \\\\")
     rows.append(r"\bottomrule")

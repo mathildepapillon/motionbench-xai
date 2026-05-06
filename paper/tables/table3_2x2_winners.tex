@@ -1,13 +1,13 @@
 \begin{table}[t]
 \centering\small
-\caption{Attribution error EC1 ($\downarrow$) of the best on-manifold and best off-manifold method in each spatiotemporal regime, with the \emph{on-manifold gap} $\Delta = \mathrm{EC1}_\mathrm{off} / \mathrm{EC1}_\mathrm{on}$.  The rightmost column reports the best EC1 across player-set granularities ($\mathcal{P}_\text{temp}$, $\mathcal{P}_\text{joint}$, $\mathcal{P}_\text{cell}$) for the KS--VAEAC imputer, with the winning granularity in parentheses; the player-set sweep is scoped to high-spatial regimes ($J{=}17$ joints) where the choice among 4, 17, or 68 players materially affects coalition coverage --- for low-spatial datasets ($J{=}5$, $K{=}4$) the temporal partition $\mathcal{P}_\text{temp}$ is the natural default (shown as --).  On-manifold imputers dominate every regime by 1--2 orders of magnitude.}
+\caption{Attribution error EC1 ($\downarrow$) of the best on-manifold and best off-manifold method in each spatiotemporal regime, with the \emph{on-manifold gap} $\Delta = \mathrm{EC1}_\mathrm{off} / \mathrm{EC1}_\mathrm{on}$.  The rightmost column reports the best KS--VAEAC EC1 across player-set granularities ($\mathcal{P}_\text{temp}$, $\mathcal{P}_\text{joint}$, $\mathcal{P}_\text{cell}$), with the winning granularity in parentheses.  For high-spatial regimes ($J{=}17$), $\mathcal{P}_\text{joint}$ (17 players) and $\mathcal{P}_\text{cell}$ (68 players) were compared against $\mathcal{P}_\text{temp}$ (4 players); for low-spatial datasets ($J{=}5$) only $\mathcal{P}_\text{temp}$ was evaluated, as the alternative granularities add negligible players.  On-manifold imputers dominate every regime by 1--2 orders of magnitude.}
 \label{tab:winners}
 \begin{tabular}{lllll}
 \toprule
 Regime & Best on-manifold & Best off-manifold & Gap $\Delta$ & Best player-set \\
 \midrule
-low spatial, AR(1) temporal & KS--VAEAC (0.004) & KS--Temporal (0.085) & $19.6\times$ & -- \\
-low spatial, strong temporal & KS--Flow (0.004) & KS--Marginal (0.131) & $31.4\times$ & -- \\
+low spatial, AR(1) temporal & KS--VAEAC (0.004) & KS--Temporal (0.085) & $19.6\times$ & 0.0061 ($\mathcal{P}_\text{temp}$) \\
+low spatial, strong temporal & KS--Flow (0.004) & KS--Marginal (0.131) & $31.4\times$ & 0.0049 ($\mathcal{P}_\text{temp}$) \\
 high spatial, AR(1) temporal & KS--VAEAC (0.004) & KS--Temporal (0.070) & $15.7\times$ & 0.0044 ($\mathcal{P}_\text{temp}$) \\
 high spatial, strong temporal & KS--VAEAC (0.007) & KS--Marginal (0.164) & $25.1\times$ & 0.0066 ($\mathcal{P}_\text{temp}$) \\
 \bottomrule

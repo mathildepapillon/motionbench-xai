@@ -120,7 +120,7 @@ self-attention~\citep{ali2022xai}; those cells are excluded.
 %-----------------------------------------------------------------------
 
 KS--VAEAC and KS--Flow share a transformer architecture from the
-CARE-PD codebase~\citep{carepd2025} trained with mixed temporal-window,
+CARE-PD codebase~\citep{adeli2025multi} trained with mixed temporal-window,
 spatial-joint, and element-wise coalition masks: $400$ epochs on BMCLab
 ($T{=}80$, $J{=}17$, $F{=}3$) for the real-data sweep, $80$ epochs
 re-trained per generative process for synthetic.  Both expose a
@@ -202,7 +202,7 @@ the matrices differ.
 %-----------------------------------------------------------------------
 
 For real-world evaluation we use BMCLab from the CARE-PD
-study~\citep{carepd2025}: 80-frame H36M clips at 27\,fps with UPDRS-gait
+study~\citep{adeli2025multi}: 80-frame H36M clips at 27\,fps with UPDRS-gait
 severity labels in $\{0, 1, 2\}$.  We evaluate three leave-one-subject-out
 folds with $n{=}200$ clips per fold, using fine-tuned
 MotionBERT~\citep{zhu2023motionbert} and $K{=}4$ gait-phase windows.

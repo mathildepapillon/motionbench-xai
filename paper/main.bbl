@@ -20,6 +20,16 @@ Kjersti Aas, Thomas Nagler, Martin Jullum, and Anders L{\o}land.
   vine copulas.
 \newblock \emph{arXiv preprint arXiv:2102.06416}, 2021{\natexlab{b}}.
 
+\bibitem[Adeli et~al.(2025)Adeli, Klabu\v{c}ar, Rajabi, Filtjens, Mehraban,
+  Wang, Hoang, Do, Seo, Muller, et~al.]{adeli2025multi}
+Vida Adeli, Ivan Klabu\v{c}ar, Javad Rajabi, Benjamin Filtjens, Soroush
+  Mehraban, Diwei Wang, Trung-Hieu Hoang, Minh~N. Do, Hyewon Seo, Candice
+  Muller, et~al.
+\newblock A multi-site anonymized clinical dataset for {P}arkinson's disease
+  gait assessment.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2025.
+
 \bibitem[Ali et~al.(2022)Ali, Schnake, Eberle, Montavon, Müller, and
   Wolf]{ali2022xai}
 Amira Ali, Thomas Schnake, Oliver Eberle, Grégoire Montavon, Klaus-Robert
@@ -28,13 +38,6 @@ Amira Ali, Thomas Schnake, Oliver Eberle, Grégoire Montavon, Klaus-Robert
   propagation.
 \newblock In \emph{Proceedings of the 39th International Conference on Machine
   Learning (ICML)}, pages 435--451, 2022.
-
-\bibitem[Anonymous(2025)]{carepd2025}
-Anonymous.
-\newblock {CARE-PD}: Counterfactually-augmented and robust explainability for
-  {P}arkinson's {D}isease gait.
-\newblock Manuscript in preparation; codebase available at \url{anonymised},
-  2025.
 
 \bibitem[Arras et~al.(2022)Arras, Osman, and Samek]{arras2022clevr}
 Leila Arras, Ahmed Osman, and Wojciech Samek.

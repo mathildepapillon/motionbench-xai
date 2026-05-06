@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.22)  5 MAY 2026 20:34
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.22)  5 MAY 2026 20:42
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -493,74 +493,68 @@ File: t1cmtt.fd 2019/12/16 v2.5j Standard LaTeX font definitions
 ]) (./02-related.tex) (./03-background.tex [2] [3]) (./04-methods.tex
 [4] (./tables/table1_dataset_taxonomy.tex) [5] [6]) (./05-results.tex [7]
 (./tables/table2_synth_ec1.tex) (./tables/table3_2x2_winners.tex) [8])
-(./06-results-real.tex [9] (./tables/table4_real_carepd.tex)) (./main.bbl
-[10] [11] [12]) (./tables/table_winshap_diag.tex) [13] (./main.aux
-
-Package natbib Warning: Citation(s) may have changed.
-(natbib)                Rerun to get citations correct.
-
-)
+(./06-results-real.tex (./tables/table4_real_carepd.tex [9])) (./main.bbl
+[10] [11] [12]) (./tables/table_winshap_diag.tex) [13] (./main.aux)
 Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: 92D62C3AD4760D086F0BB46CD7B99352;3614.
  ) 
 Here is how much of TeX's memory you used:
- 13084 strings out of 480171
- 206248 string characters out of 5894489
- 517754 words of memory out of 5000000
- 30693 multiletter control sequences out of 15000+600000
- 497871 words of font info for 102 fonts, out of 8000000 for 9000
+ 13081 strings out of 480171
+ 206226 string characters out of 5894489
+ 516994 words of memory out of 5000000
+ 30691 multiletter control sequences out of 15000+600000
+ 497558 words of font info for 101 fonts, out of 8000000 for 9000
  59 hyphenation exceptions out of 8191
- 60i,12n,63p,1058b,506s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 60i,12n,63p,1355b,508s stack positions out of 5000i,500n,10000p,200000b,80000s
  </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/cmmi12.600p
 k> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/cmsy8.600pk
-> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/cmr6.pk> </ho
-me/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecrm0600.600pk> 
-</home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ectt0800.600
-pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecrm0800
-.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecti
-0900.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/cmr
-8.pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecit08
+> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecrm0800.6
+00pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecrm06
 00.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ec
-ti0800.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/
-cmmi8.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/c
-msy6.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/cm
-ti9.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/cms
-y9.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ec
-rm0700.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/
-cmr9.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/
-ectt0900.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/c
-m/cmmi9.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/
-ec/ectt1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/publi
-c/amsfonts/cmextra/cmmib7.600pk> </home/papillon/.texlive2021/texmf-var/fonts/p
-k/ljfour/public/cm/cmr5.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/
-ljfour/public/cm/cmmib10.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk
-/ljfour/public/cm/cmmi5.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/
-ljfour/public/cm/cmsy5.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/l
-jfour/public/cm/cmbx7.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/pub
-lic/cm/dpi600/cmsy7.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/c
-m/dpi600/cmex10.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dp
-i600/cmr7.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/c
-mbx10.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/cmmi7
-.pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/amsfonts/sym
-bols/msbm10.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi
-600/cmr10.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/c
-mmi10.pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ec
-bx1200.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/c
-msy10.pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ec
-cc1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/e
-c/ecbx1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknapp
-en/ec/ecti1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jk
-nappen/ec/ecrm1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfou
-r/jknappen/ec/ecbx1440.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/l
-jfour/jknappen/ec/ecrm0900.600pk> </home/papillon/.texlive2021/texmf-var/fonts/
-pk/ljfour/jknappen/ec/ecbx0900.600pk> </home/papillon/.texlive2021/texmf-var/fo
-nts/pk/ljfour/jknappen/ec/ectt1200.600pk> </home/papillon/.texlive2021/texmf-va
-r/fonts/pk/ljfour/jknappen/ec/ecrm1200.600pk> </home/papillon/.texlive2021/texm
-f-var/fonts/pk/ljfour/jknappen/ec/ecrm1728.600pk>
-Output written on main.pdf (13 pages, 334298 bytes).
+ti0900.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/c
+mr8.pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecit
+0800.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/
+ecti0800.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/c
+m/cmmi8.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm
+/cmsy6.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/c
+mr6.pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/cmti9.
+600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/cmsy9.6
+00pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecrm07
+00.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/cmr9
+.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ectt
+0900.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/cm/cm
+mi9.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/e
+ctt1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/am
+sfonts/cmextra/cmmib7.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/lj
+four/public/cm/cmr5.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfo
+ur/public/cm/cmmib10.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljf
+our/public/cm/cmmi5.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfo
+ur/public/cm/cmsy5.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfou
+r/public/cm/cmbx7.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/
+cm/dpi600/cmsy7.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dp
+i600/cmex10.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600
+/cmr7.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/cmbx1
+0.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/cmmi7.pk>
+ </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/public/amsfonts/symbols
+/msbm10.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/
+cmr10.pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/cmmi1
+0.pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ecbx12
+00.600pk> </usr/share/texlive/texmf-dist/fonts/pk/ljfour/public/cm/dpi600/cmsy1
+0.pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/eccc10
+00.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/ec/ec
+bx1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknappen/e
+c/ecti1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jknapp
+en/ec/ecrm1000.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfour/jk
+nappen/ec/ecbx1440.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/ljfou
+r/jknappen/ec/ecrm0900.600pk> </home/papillon/.texlive2021/texmf-var/fonts/pk/l
+jfour/jknappen/ec/ecbx0900.600pk> </home/papillon/.texlive2021/texmf-var/fonts/
+pk/ljfour/jknappen/ec/ectt1200.600pk> </home/papillon/.texlive2021/texmf-var/fo
+nts/pk/ljfour/jknappen/ec/ecrm1200.600pk> </home/papillon/.texlive2021/texmf-va
+r/fonts/pk/ljfour/jknappen/ec/ecrm1728.600pk>
+Output written on main.pdf (13 pages, 323728 bytes).
 PDF statistics:
- 1570 PDF objects out of 1728 (max. 8388607)
- 624 compressed objects within 7 object streams
+ 1526 PDF objects out of 1728 (max. 8388607)
+ 619 compressed objects within 7 object streams
  109 named destinations out of 1000 (max. 500000)
  153 words of extra memory for PDF output out of 10000 (max. 10000000)
 
