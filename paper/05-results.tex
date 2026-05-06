@@ -36,6 +36,12 @@ nearly as good as $M{=}n_\text{mc}$.  Scaling to $n_\text{mc}{=}200$ is
 predicted to reduce oracle EC1 by $\sqrt{10}\approx 3.16\times$,
 converging toward the oracle's noiseless limit.  The learned imputers
 already lie \emph{below} this limit at all tested datasets.
+Note: the oracle value for \texttt{skeleton} (0.018$^\dagger$, MLP only)
+is anomalously low because $J{=}17$ forces KernelSHAP sampling with only
+64 of $2^{17}$ coalitions; both the oracle method and oracle reference
+share the same approximate WLS solve, so their difference largely cancels.
+This entry is \emph{not} directly comparable to low-$M$ datasets
+where all $2^K$ coalitions are enumerated exactly.
 \textbf{(ii)} \emph{Off-manifold imputers cluster around a single error
 level} (KS--Zero / KS--Mean / KS--Marginal $\in [0.08, 0.25]$), with no
 clear winner; KS--Empirical (kernel-weighted donor sampling) is

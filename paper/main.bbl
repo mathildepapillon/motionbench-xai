@@ -1,4 +1,4 @@
-\begin{thebibliography}{38}
+\begin{thebibliography}{37}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -98,22 +98,13 @@ Jay DeYoung, Sarthak Jain, Nazneen~Fatema Rajani, Eric Lehman, Caiming Xiong,
 \newblock In \emph{Proceedings of the 58th Annual Meeting of the Association
   for Computational Linguistics (ACL)}, pages 4443--4458, 2020.
 
-\bibitem[Frye et~al.(2021{\natexlab{a}})Frye, de~Mijolla, Begley, Cowton,
-  Stanley, and Feige]{frye2020shapley}
+\bibitem[Frye et~al.(2021)Frye, de~Mijolla, Begley, Cowton, Stanley, and
+  Feige]{frye2021shapley}
 Christopher Frye, Damien de~Mijolla, Tom Begley, Laurence Cowton, Megan
   Stanley, and Ilya Feige.
 \newblock Shapley explainability on the data manifold.
 \newblock In \emph{International Conference on Learning Representations
-  (ICLR)}, 2021{\natexlab{a}}.
-\newblock URL \url{https://openreview.net/forum?id=OPyWRrcjVQw}.
-
-\bibitem[Frye et~al.(2021{\natexlab{b}})Frye, de~Mijolla, Begley, Cowton,
-  Stanley, and Feige]{frye2021shapley}
-Christopher Frye, Damien de~Mijolla, Tom Begley, Laurence Cowton, Megan
-  Stanley, and Ilya Feige.
-\newblock Shapley explainability on the data manifold.
-\newblock In \emph{International Conference on Learning Representations
-  (ICLR)}, 2021{\natexlab{b}}.
+  (ICLR)}, 2021.
 
 \bibitem[Hedstr{\"o}m et~al.(2023)Hedstr{\"o}m, Weber, Krakowczyk, Bareeva,
   Motzkus, Samek, Lapuschkin, and H{\"o}hne]{hedstrom2023quantus}

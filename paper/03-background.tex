@@ -23,7 +23,7 @@ A \emph{coalition} $S \subseteq N$ identifies the players that are
 must be imputed.  Let $\mathbf{x}_S$ denote the components of $\mathbf{x}$
 indexed by $S$, and let $\mathbf{x}'_{\bar{S}}$ be a draw for the absent
 components.  Two natural choices of imputation distribution define the two
-canonical value functions~\citep{frye2020shapley}:
+canonical value functions~\citep{frye2021shapley}:
 \begin{align}
   v^{(\mathrm{off})}_\mathbf{x}(S)
     &= \mathbb{E}_{p(\mathbf{x}')}\!\left[
@@ -41,7 +41,7 @@ splicing observed components $\mathbf{x}_S$ with imputed components
 $\mathbf{x}'_{\bar{S}}$.  Eq.~\eqref{eq:v_off} samples absent features
 \emph{independently} of $\mathbf{x}_S$, so the resulting \emph{off-manifold}
 Shapley values evaluate the model on potentially unrealistic spliced
-inputs~\citep{frye2020shapley}.  Eq.~\eqref{eq:v_on} conditions absent features
+inputs~\citep{frye2021shapley}.  Eq.~\eqref{eq:v_on} conditions absent features
 on the observed coalition, keeping imputations on the data manifold.
 
 \paragraph{Shapley values.}
@@ -93,7 +93,7 @@ Different choices instantiate different cooperative games and therefore
 explain different questions: off-manifold value functions (Eq.~\ref{eq:v_off})
 attribute model behaviour on potentially unrealistic inputs, whereas the
 on-manifold value function (Eq.~\ref{eq:v_on}) attributes the model's
-dependence on information genuinely present in the data~\citep{frye2020shapley}.
+dependence on information genuinely present in the data~\citep{frye2021shapley}.
 For motion sequences, where joints are biomechanically coupled and temporal
 windows are phase-dependent, this distinction is consequential.
 

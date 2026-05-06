@@ -46,6 +46,75 @@ if TYPE_CHECKING:
 __all__ = ["WindowSHAPAttributor"]
 
 
+class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
+    """Subclass of SlidingWindowSHAP that fixes SHAP ≥0.46 output-format incompatibility.
+
+    ``windowshap`` was written for the old ``shap.KernelExplainer.shap_values``
+    return convention ``(C, N, F)``.  SHAP ≥0.46 returns ``(N, F)`` for scalar
+    models and ``(N, F, C)`` for multi-output models.  This subclass overrides
+    ``shap_values`` to normalise the array to ``(1, N, F)`` before WindowSHAP's
+    reshape logic runs.
+    """
+
+    def shap_values(  # type: ignore[override]
+        self,
+        num_output: int = 1,
+        nsamples: int | str = "auto",
+    ) -> npt.NDArray[np.float32]:
+        import shap as _shap  # noqa: PLC0415
+
+        seq_len: int = self.background_ts.shape[1]
+        num_sw: int = int(np.ceil((seq_len - self.window_len) / self.stride)) + 1
+        ts_phi = np.zeros(
+            (self.num_test, num_sw, 2, self.background_ts.shape[2]), dtype=np.float64
+        )
+        dem_phi = np.zeros((self.num_test, num_sw, self.num_dem_ftr), dtype=np.float64)
+
+        if nsamples == "auto":
+            nsamples = 10 * self.num_ts_ftr + 5 * self.num_dem_ftr
+
+        for stride_cnt in range(num_sw):
+            _start = stride_cnt * self.stride
+
+            def _predict(x: npt.NDArray[np.float32], _s: int = _start) -> npt.NDArray[np.float32]:
+                return self.wraper_predict(x, start_ind=_s)  # type: ignore[return-value]
+
+            self.explainer = _shap.KernelExplainer(_predict, self.background_data)
+            sv = self.explainer.shap_values(self.test_data, nsamples=nsamples)
+            sv_np = np.array(sv, dtype=np.float64)
+
+            # Normalise to (1, N, F) regardless of SHAP version:
+            #   old SHAP: returns list[(N,F)] → np.array = (1,N,F)  ✓
+            #   new SHAP scalar: returns (N,F) (2D) → add leading dim
+            #   new SHAP multi:  returns (N,F,C) → transpose to (C,N,F)
+            if sv_np.ndim == 2:
+                sv_np = sv_np[np.newaxis]                    # (1, N, F)
+            elif sv_np.ndim == 3 and sv_np.shape[-1] < sv_np.shape[-2]:
+                sv_np = sv_np.transpose(2, 0, 1)             # (N,F,C) → (C,N,F)
+
+            dem_sv = sv_np[:, :, : self.num_dem_ftr]
+            ts_sv = sv_np[:, :, self.num_dem_ftr :]
+            ts_sv = ts_sv.reshape((num_output, self.num_test, 2, self.num_ts_ftr))
+
+            ts_phi[:, stride_cnt, :, :] = ts_sv[0]
+            if self.num_dem_ftr > 0:
+                dem_phi[:, stride_cnt, :] = dem_sv[0]
+
+        ts_phi_agg = np.full(
+            (self.num_test, num_sw, self.num_ts_step, self.num_ts_ftr), np.nan
+        )
+        for k in range(num_sw):
+            ts_phi_agg[
+                :, k, k * self.stride : k * self.stride + self.window_len, :
+            ] = ts_phi[:, k, 0, :][:, np.newaxis, :]
+        ts_phi_agg = np.nanmean(ts_phi_agg, axis=1).astype(np.float32)
+        dem_phi = np.nanmean(dem_phi, axis=1).astype(np.float32)
+
+        self.dem_phi = dem_phi
+        self.ts_phi = ts_phi_agg
+        return ts_phi_agg if self.num_dem_ftr == 0 else (dem_phi, ts_phi_agg)
+
+
 class _ClassifierAdapter:
     """Thin adapter exposing a ``.predict()`` method for windowshap.
 
@@ -166,7 +235,7 @@ class WindowSHAPAttributor(BaseAttributor):
             np.random.seed(self._seed)
 
         # Reshape (J, F, T) → (1, T, J*F) for the windowshap library.
-        x_np = x.permute(2, 0, 1).reshape(T, J * F_coords).numpy()  # (T, J*F)
+        x_np = x.detach().cpu().permute(2, 0, 1).reshape(T, J * F_coords).numpy()  # (T, J*F)
         x_np = x_np[np.newaxis].astype(np.float32)  # (1, T, J*F)
 
         # All-zeros background (one sample).
@@ -176,7 +245,7 @@ class WindowSHAPAttributor(BaseAttributor):
             self._classifier, J, F_coords, T, target
         )
 
-        explainer = SlidingWindowSHAP(
+        explainer = _Compat049SlidingWindowSHAP(
             model=model_adapter,
             stride=stride,
             window_len=self._window_len,

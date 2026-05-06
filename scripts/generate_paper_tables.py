@@ -44,6 +44,8 @@ TEMPORAL_SHAP_METHODS = [
 ]
 METHOD_ALIASES: dict[str, list[str]] = {
     "timeshap": ["timeshap", "kernelshap_temporal"],
+    # windowshap_w4 is used as fallback when the default run errored
+    "windowshap": ["windowshap", "windowshap_w4"],
 }
 GRADIENT_METHODS = [
     ("ig_zero",             "IG"),
@@ -247,7 +249,7 @@ def table_synth_ec1() -> str:
             cells_o.append(fmt_pm(v[0], v[1], n=v[2]))
             if v[2] == 1:
                 has_partial = True
-    rows.append(f"{ORACLE_METHOD[1]} & " + " & ".join(cells_o) + r" \\")
+    rows.append(f"Oracle$^{{\\ddagger}}$ & " + " & ".join(cells_o) + r" \\")
 
     # M-ablation rows: KS-VAEAC at M in {1, 5, 20, 50} on gauss_k4 only
     m_ablation_path = REPO / "results" / "ablations" / "m_ablation_gaussian_k4.json"
@@ -277,8 +279,20 @@ def table_synth_ec1() -> str:
     rows.append(r"\bottomrule")
     rows.append(r"\end{tabular}")
     if has_partial:
-        rows.append(r"\vspace{0.5ex}\par\footnotesize $^{\dagger}$single-architecture "
-                    r"value (averaging across MLP/CNN/Transformer pending).")
+        rows.append(r"\vspace{0.5ex}\par\footnotesize $^{\dagger}$Single-architecture "
+                    r"result (only one of MLP/CNN/Transformer completed).  "
+                    r"Oracle \texttt{skeleton} (0.018, MLP only): the low value is an "
+                    r"artefact of both the oracle method and oracle reference sharing the "
+                    r"same approximate KernelSHAP WLS system with only $n_\text{coalitions}{=}64$ "
+                    r"of $2^{17}$ possible coalitions; not directly comparable to "
+                    r"low-$M$ datasets where exact enumeration is used.  "
+                    r"WindowSHAP \texttt{skel+gait} (1.037, Transformer only): the "
+                    r"default run errored due to a device-tensor issue on the other "
+                    r"architectures; this entry uses window size $w{=}4$.")
+    rows.append(r"\vspace{0.5ex}\par\footnotesize $^{\ddagger}$Oracle samples "
+                r"$n_\text{mc}{=}10$ random conditional draws per coalition (same "
+                r"budget as the KernelSHAP imputers); EC1 $\approx 0.06$--$0.12$ is "
+                r"the MC noise floor of this estimator.  See \S\ref{sec:results-error}.")
     rows.append(r"\end{table}")
     return "\n".join(rows)
 
@@ -322,7 +336,11 @@ def table_2x2_winners() -> str:
                 r"\emph{on-manifold gap} $\Delta = \mathrm{EC1}_\mathrm{off} / \mathrm{EC1}_\mathrm{on}$.  "
                 r"The rightmost column reports the best EC1 across player-set granularities "
                 r"($\mathcal{P}_\text{temp}$, $\mathcal{P}_\text{joint}$, $\mathcal{P}_\text{cell}$) "
-                r"for the KS--VAEAC imputer, with the winning granularity in parentheses.  "
+                r"for the KS--VAEAC imputer, with the winning granularity in parentheses; "
+                r"the player-set sweep is scoped to high-spatial regimes ($J{=}17$ joints) "
+                r"where the choice among 4, 17, or 68 players materially affects coalition coverage "
+                r"--- for low-spatial datasets ($J{=}5$, $K{=}4$) the temporal partition "
+                r"$\mathcal{P}_\text{temp}$ is the natural default (shown as --).  "
                 r"On-manifold imputers dominate every regime by 1--2 orders of magnitude.}")
     rows.append(r"\label{tab:winners}")
     rows.append(r"\begin{tabular}{lllll}")

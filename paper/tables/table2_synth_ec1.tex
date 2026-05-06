@@ -14,14 +14,14 @@ KS--VAEAC & \textbf{$0.006\!\pm\!0.008$} & \textbf{$0.004\!\pm\!0.006$} & $0.005
 KS--Flow & $0.010\!\pm\!0.014$ & $0.010\!\pm\!0.015$ & \textbf{$0.004\!\pm\!0.005$} & $0.007\!\pm\!0.009$ & $0.007\!\pm\!0.009$ \\
 \midrule
 KS--Temporal & $0.099\!\pm\!0.050$ & $0.083\!\pm\!0.051$ & $0.142\!\pm\!0.122$ & $0.187\!\pm\!0.059$ & $0.085\!\pm\!0.046$ \\
-WindowSHAP & $0.465\!\pm\!0.213$ & $0.382\!\pm\!0.259$ & $0.544\!\pm\!0.620$ & -- & $0.445\!\pm\!0.251$ \\
+WindowSHAP & $0.465\!\pm\!0.213$ & $0.382\!\pm\!0.259$ & $0.544\!\pm\!0.620$ & $\mathit{1.037}^{\dagger}$ & $0.445\!\pm\!0.251$ \\
 \midrule
 IG & $1.217\!\pm\!0.820$ & $0.944\!\pm\!0.734$ & $1.344\!\pm\!1.846$ & $1.851\!\pm\!1.162$ & $0.977\!\pm\!0.658$ \\
 DeepLIFT & $0.837\!\pm\!0.690$ & $0.622\!\pm\!0.603$ & $0.709\!\pm\!0.749$ & $1.419\!\pm\!1.110$ & $0.781\!\pm\!0.544$ \\
 SmoothGrad & $2.351\!\pm\!1.589$ & $2.900\!\pm\!2.347$ & $4.713\!\pm\!3.453$ & $9.520\!\pm\!7.058$ & $2.775\!\pm\!2.011$ \\
 LRP & $0.381\!\pm\!0.327$ & $0.405\!\pm\!0.445$ & $0.057\!\pm\!0.008$ & $0.251\!\pm\!0.226$ & $0.175\!\pm\!0.037$ \\
 \midrule
-Oracle & $0.097\!\pm\!0.048$ & $\mathit{0.018}^{\dagger}$ & -- & $0.081\!\pm\!0.054$ & $0.062\!\pm\!0.044$ \\
+Oracle$^{\ddagger}$ & $0.097\!\pm\!0.048$ & $\mathit{0.018}^{\dagger}$ & -- & $0.081\!\pm\!0.054$ & $0.062\!\pm\!0.044$ \\
 \midrule
 \multicolumn{6}{l}{\footnotesize\itshape $M$-ablation: KS--VAEAC completion samples on \texttt{gauss\_k4} (sensitivity saturates by $M{=}5$):} \\
 \textit{KS--VAEAC ($M{=}1$)} & 0.0043 & -- & -- & -- & -- \\
@@ -30,5 +30,6 @@ Oracle & $0.097\!\pm\!0.048$ & $\mathit{0.018}^{\dagger}$ & -- & $0.081\!\pm\!0.
 \textit{KS--VAEAC ($M{=}50$)} & 0.0025 & -- & -- & -- & -- \\
 \bottomrule
 \end{tabular}
-\vspace{0.5ex}\par\footnotesize $^{\dagger}$single-architecture value (averaging across MLP/CNN/Transformer pending).
+\vspace{0.5ex}\par\footnotesize $^{\dagger}$Single-architecture result (only one of MLP/CNN/Transformer completed).  Oracle \texttt{skeleton} (0.018, MLP only): the low value is an artefact of both the oracle method and oracle reference sharing the same approximate KernelSHAP WLS system with only $n_\text{coalitions}{=}64$ of $2^{17}$ possible coalitions; not directly comparable to low-$M$ datasets where exact enumeration is used.  WindowSHAP \texttt{skel+gait} (1.037, Transformer only): the default run errored due to a device-tensor issue on the other architectures; this entry uses window size $w{=}4$.
+\vspace{0.5ex}\par\footnotesize $^{\ddagger}$Oracle samples $n_\text{mc}{=}10$ random conditional draws per coalition (same budget as the KernelSHAP imputers); EC1 $\approx 0.06$--$0.12$ is the MC noise floor of this estimator.  See \S\ref{sec:results-error}.
 \end{table}
