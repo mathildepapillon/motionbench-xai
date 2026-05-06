@@ -1,0 +1,73 @@
+Human motion data—temporal sequences of three-dimensional body-joint
+positions—offers a rich yet compact signal for predictive
+analytics~\citep{ionescu2013human3}. Unlike raw video,
+it encodes fine-grained spatiotemporal structure while remaining orders of
+magnitude sparser, making it a natural fit for inference pipelines 
+deployable in embodied and real-time systems. This combination has driven adoption across safety-critical
+domains. In surveillance, gait-based recognition systems identify
+individuals from body movement alone~\citep{sepas2022deep}.
+In clinical practice, deep models trained on gait accurately characterize
+the severity of Parkinson's disease, enabling remote and continuous
+assessment~\citep{eskofier2016recent,el2020deep}.
+
+\paragraph{The need for explainability.}
+In these high-stakes settings, predictive accuracy alone is insufficient.
+Clinicians, for example, must understand \emph{which} body parts
+move anomalously, \emph{when} during a sequence, and \emph{why} that
+drove a model's decision --to build trust and improve model performance. Indeed, deep models
+are prone to shortcut learning~\citep{geirhos2020shortcut}, focusing onto
+spurious correlations that can amplify systemic biases.
+For example, \citet{obermeyer2019dissecting} demonstrated
+that a widely deployed health algorithm systematically underestimated
+illness in Black patients relative to equally sick white patients, cutting
+their access to additional care by more than half. Trust in
+safety-critical models learning from human motion data therefore requires reliable explanations.
+
+\paragraph{SHAP and its limitations for human motion.}
+Explainable AI (XAI) provides a principled toolkit for auditing model
+decisions~\citep{arrieta2020explainable,guidotti2018survey}.  Among
+feature-attribution approaches, SHAP~\citep{lundberg2017unified} has
+become the dominant framework, grounded in cooperative game theory and
+supported by well-studied axiomatic
+guarantees. Yet, SHAP is fundamentally
+ill-suited to human motion.  Its core mechanism---perturbing individual
+input features and measuring the resulting change in model
+output---violates two structural properties that are intrinsic to human
+movement, described next. \textit{Manifold constraint.}  Human motion occupies a low-dimensional
+manifold: not every trajectory of 3-D joint coordinates corresponds to
+physically plausible movement.  Standard SHAP perturbations sample freely
+from the full feature space, generating out-of-distribution inputs that are
+never observed in practice. \textit{Temporal coherence.}  Motion is inherently sequential: the
+relevance of a joint's trajectory is inseparable from the phase of the
+movement in which it occurs. Identifying, for example, that the hip flexion
+during mid-stance is diagnostic is fundamentally different from asking
+whether any single joint coordinate at any single frame
+matters.
+
+Prior work has addressed each challenge in isolation. Manifold-aware methods confine perturbations to the data manifold~\citep{frye2020shapley,taufiq2023manifold,olsen2022using}, while temporal extensions enforce sequential dependencies across time-series inputs~\citep{bento2021timeshap,tempel2025explaining,NAYEBI2023104438}. However, no existing method satisfies both requirements simultaneously, precluding principled attribution for human motion.
+
+\paragraph{The missing benchmark.}
+Compounding this problem, the community currently lacks the tools to
+\emph{quantify} how badly existing XAI methods fail on human motion
+data.  Measuring explanation quality requires access to ground-truth
+attributions---a notoriously hard problem.
+The XAI literature has addressed this through carefully constructed
+synthetic datasets in which the ground-truth important features are
+known by design~\citep{arras2022clevr,hedstrom2023quantus,Yang2019BenchmarkingAM}.
+No such benchmark exists for human motion, leaving practitioners without
+a reliable way to compare or validate attribution methods in this domain.
+
+\paragraph{Contributions.}
+We address both gaps with \textsc{MotionSHAP}, a SHAP framework that jointly enforces manifold plausibility and temporal coherence, and pair it with a suite of purpose-built synthetic benchmarks and evaluations on established real-world motion datasets. Our contributions are:
+\begin{enumerate}[leftmargin=*]
+    \item A generalization of SHAP to the structure of human motion, MotionSHAPE
+    combining manifold-constrained perturbations with cohesive
+    spatiotemporal masking, so that every reference input remains a
+    plausible human movement. We instantiate MotionSHAP with two conditional generative models, a conditional VAE (MotionSHAP-VAE) and conditional flow matching (MotionSHAP-Flow), publicly available (upon publication of this manuscript).
+    \item A suite of synthetic human-motion datasets with known ground-truth
+    spatiotemporal feature attributions, enabling rigorous, quantitative evaluation of XAI
+    methods for the first time in this domain. We show that classical attribution methods systematically miss these regions.
+    \item An evaluation of XAI approaches on seven Parkinson’s disease gait-classification datasets from the CARE-PD benchmark. MotionSHAP systematically achieves the lowest Prediction Gap on Unimportant features (PGU)—the only metric that remains interpretable under the known tendency of self-evaluated deletion-style scores to favor overly disruptive imputations.
+\end{enumerate}
+Together, these contributions establish a principled foundation for
+explainable AI in human motion analysis.

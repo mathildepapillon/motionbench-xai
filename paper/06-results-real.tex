@@ -1,0 +1,53 @@
+% =====================================================================
+\section{Real-World Application: CARE-PD Gait Classification}
+\label{sec:results-real}
+% =====================================================================
+
+We now apply the benchmark to BMCLab gait sequences from the CARE-PD study
+of Parkinson's-disease severity classification~\citep{carepd2025}.  The
+classifier is the CARE-PD-fine-tuned MotionBERT~\citep{zhu2023motionbert};
+inputs are 80-frame H36M-skeleton clips at 27\,fps; labels are UPDRS-gait
+severity levels $\{0, 1, 2\}$.  We use $K{=}4$ \emph{gait-phase} windows
+(loading, mid-stance, pre-swing, swing).  All five core KernelSHAP imputers
+(KS--Zero, KS--Mean, KS--Marginal, KS--VAEAC, KS--Flow) are evaluated under
+\emph{three} leave-one-subject-out folds with $n{=}200$ validation clips
+per fold (600 total), and we report bootstrap 95\% confidence intervals
+($B{=}10{,}000$ resamples) and a paired-bootstrap test for the
+KS--Marginal versus KS--VAEAC faithfulness comparison.
+
+\paragraph{The faithfulness--realism gap.}
+Table~\ref{tab:real} reports faithfulness correlation and PlayerAOPC
+for each imputer.  The off-manifold KS--Marginal achieves the highest
+faithfulness ($+0.80$), substantially higher than the on-manifold
+KS--VAEAC ($+0.53$) or KS--Flow ($+0.63$).
+At first glance this contradicts the synthetic results
+(Sec.~\ref{sec:results-synth}), where on-manifold methods dominated.
+The contradiction is, however, a textbook example of a known pathology
+in deletion-style faithfulness
+metrics~\citep{hooker2019roar, jain2019attention}: when the imputer
+produces out-of-distribution inputs, masking causes large prediction
+shifts that are easy to predict from any reasonable attribution, inflating
+the rank correlation.  The marginal-donor sequences place the classifier
+in a regime far from training data --- producing the largest, easiest-to-rank
+prediction drops --- without being more \emph{accurate} as Shapley values.
+
+\input{tables/table4_real_carepd}
+
+PlayerAOPC, which measures the mean drop magnitude rather than its
+predictability, ranks methods in nearly the opposite order.  We do not
+take this to mean that one of the two metrics is wrong; rather, both
+report something genuine about the explanation that is conflated when only
+one is reported.  We argue that benchmarking on real data where the
+oracle is unavailable should always report \emph{both} a deletion-curve
+metric (faithfulness or PlayerAOPC) \emph{and} a measure of imputer realism.
+Our supplementary materials include qualitative comparisons of imputed
+sequences for each method.
+
+\paragraph{Per-phase attributions.}
+On-manifold methods place positive attribution on the swing phase ---
+the gait phase known to be most abnormal in Parkinsonian gait~\citep{morris1994ability}
+--- with smaller absolute magnitude than off-manifold methods.  Off-manifold
+methods produce larger-magnitude attributions but with phase rankings that
+vary substantially across sequences, consistent with their imputations
+introducing classifier-confidence shifts that dominate phase-specific
+effects.  Per-phase Shapley vectors are reported in the supplementary.

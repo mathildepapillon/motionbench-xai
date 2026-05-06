@@ -1,0 +1,75 @@
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+% =====================================================================
+
+Shapley-value attribution~\citep{shapley1953value, lundberg2017unified} is
+one of the most widely deployed tools for explaining the predictions of
+black-box machine-learning models, with axiomatic guarantees that have made
+it the de-facto standard in fields ranging from clinical decision support
+to financial risk
+auditing~\citep{arrieta2020explainable, slack2020fooling}.
+A growing literature has extended Shapley attribution to address two
+practical limitations of the original formulation: \emph{feature dependence}
+and \emph{temporal structure}.  Manifold-aware variants restrict the imputation
+distribution used to define removed features to the data manifold, so that
+explanations no longer depend on out-of-distribution
+inputs~\citep{frye2020shapley, aas2021explaining, olsen2022using,
+taufiq2023manifold, zhang2026axiomatic}.  Temporal variants enforce
+sequential consistency, treating contiguous windows or time steps as
+players rather than individual coordinates~\citep{bento2021timeshap,
+nayebi2023windowshap, villani2022feature, de2025shats}.
+
+These advances have been pursued in parallel, but the structured spatiotemporal
+data that arise in real applications --- such as 3-D human motion, multi-sensor
+physiological recordings, or distributed energy systems --- exhibit \emph{both}
+feature dependence (across joints, sensors, or substations) \emph{and}
+temporal coherence.  Despite this, no benchmark exists to systematically compare
+Shapley attribution methods on data with combined spatial and temporal structure,
+and consequently no published evidence demonstrates how existing methods trade
+off the two axes of structure.  Practitioners therefore lack guidance on
+how to choose between, e.g., a manifold-constrained imputer (which may ignore
+temporal coherence in its samples) and a temporal-window method (which typically
+imputes from a marginal or zero baseline that ignores manifold structure).
+
+\paragraph{This work.}
+We introduce \textsc{MotionBench-XAI}, a benchmark for evaluating Shapley
+attribution methods on spatiotemporal data, with a primary focus on 3-D
+human motion.  We adopt the on-manifold Shapley evaluation framework of
+\citet{olsen2022using} and extend it from tabular to spatiotemporal data.
+Our contributions are:
+\textbf{(1)}~a parametric family of synthetic temporal datasets with
+closed-form ground-truth Shapley values, jointly spanning Gaussian and
+heavy-tailed (Burr) marginals and four canonical spatiotemporal
+covariance regimes (low/high spatial $\times$ low/high temporal);
+\textbf{(2)}~a unified evaluation platform with spatiotemporal
+\emph{player-set} abstractions (temporal windows, spatial joints, gait
+phases, joint--phase cells), on- and off-manifold faithfulness metrics,
+attribution-error metrics against ground-truth Shapley values, and
+cross-protocol ranking diagnostics;
+\textbf{(3)}~a systematic comparison of sixteen attribution methods,
+including six KernelSHAP variants that differ \emph{only} in the
+conditional imputer (Zero, Mean, Marginal, Empirical-conditional,
+VAEAC, Flow Matching), KernelSHAP-Temporal, WindowSHAP, and four
+gradient-based baselines, on the synthetic suite and on a real-world
+Parkinson's-disease gait classification task (CARE-PD/BMCLab);
+and \textbf{(4)}~all datasets, model checkpoints, and code released
+with a public leaderboard.
+
+\paragraph{Findings.}
+The benchmark surfaces two systematic patterns that are obscured when
+methods are evaluated on a single data regime:
+\emph{(i)}~Manifold-constrained imputers (KernelSHAP--VAEAC, KernelSHAP--Flow)
+recover ground-truth Shapley values an order of magnitude more accurately than
+every off-manifold or temporal-window competitor, on \emph{every} cell of the
+spatial $\times$ temporal $\times$ marginal design grid we test --- including
+the high-spatial $\times$ strong-temporal regime that most closely resembles
+real motion data, and the heavy-tailed Burr-marginal regime.
+\emph{(ii)}~Standard deletion-style faithfulness scores systematically reward
+imputers that produce out-of-distribution completions: on real CARE-PD gait
+data, the marginal-donor imputer obtains the highest faithfulness correlation
+despite producing anatomically implausible inputs (paired-bootstrap test;
+results in Sec.~\ref{sec:results-real}).  This faithfulness--realism gap
+motivates the multi-metric reporting protocol we adopt throughout the
+benchmark.
+

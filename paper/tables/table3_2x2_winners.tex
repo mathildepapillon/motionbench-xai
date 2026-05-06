@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering\small
+\caption{Attribution error EC1 ($\downarrow$) of the best on-manifold and best off-manifold method in each spatiotemporal regime, with the \emph{on-manifold gap} $\Delta = \mathrm{EC1}_\mathrm{off} / \mathrm{EC1}_\mathrm{on}$.  The rightmost column reports the best EC1 across player-set granularities ($\mathcal{P}_\text{temp}$, $\mathcal{P}_\text{joint}$, $\mathcal{P}_\text{cell}$) for the KS--VAEAC imputer, with the winning granularity in parentheses.  On-manifold imputers dominate every regime by 1--2 orders of magnitude.}
+\label{tab:winners}
+\begin{tabular}{lllll}
+\toprule
+Regime & Best on-manifold & Best off-manifold & Gap $\Delta$ & Best player-set \\
+\midrule
+low spatial, AR(1) temporal & KS--VAEAC (0.004) & KS--Temporal (0.085) & $19.6\times$ & -- \\
+low spatial, strong temporal & KS--Flow (0.004) & KS--Marginal (0.131) & $31.4\times$ & -- \\
+high spatial, AR(1) temporal & KS--VAEAC (0.004) & KS--Temporal (0.070) & $15.7\times$ & 0.0044 ($\mathcal{P}_\text{temp}$) \\
+high spatial, strong temporal & KS--VAEAC (0.007) & KS--Marginal (0.164) & $25.1\times$ & 0.0066 ($\mathcal{P}_\text{temp}$) \\
+\bottomrule
+\end{tabular}
+\end{table}

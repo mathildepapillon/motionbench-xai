@@ -1,0 +1,70 @@
+
+\subsection{Shapley Values for Feature Attribution}
+
+Let $f : \mathcal{X} \to \mathbb{R}$ be a scalar-valued predictor — concretely, the predicted probability $f_y(\mathbf{x})$ that input $\mathbf{x} \in \mathcal{X}$ belongs to class $y$. Given $n$ interpretable \emph{players} $N = \{1, \ldots, n\}$ (e.g.\ anatomical joints or temporal windows), we seek additive attributions $\phi_1, \ldots, \phi_n \in \mathbb{R}$ such that
+\begin{equation}
+  f_y(\mathbf{x}) \approx \phi_0 + \sum_{i=1}^{n} \phi_i,
+  \label{eq:additive}
+\end{equation}
+where $\phi_0$ is a baseline reference value.
+
+\paragraph{Coalitions and the value function.}
+A \emph{coalition} $S \subseteq N$ identifies the players that are \emph{present}; its complement $\bar{S} = N \setminus S$ contains the \emph{absent} players. Because $f$ requires a complete input, absent players must be imputed. Let $x_S$ denote the components of $\mathbf{x}$ indexed by $S$, and let $x'_{\bar{S}}$ be a draw for the absent components. Two natural choices of imputation distribution define the two canonical value functions~\citep{frye2020shapley}:
+\begin{align}
+  v^{(\mathrm{off})}_\mathbf{x}(S)
+    &= \mathbb{E}_{p(x')}\!\left[
+        f_y\!\left(x_S \sqcup x'_{\bar{S}}\right)
+      \right],
+  \label{eq:v_off} \\[4pt]
+  v^{(\mathrm{on})}_\mathbf{x}(S)
+    &= \mathbb{E}_{p(x' \mid x_S)}\!\left[
+        f_y\!\left(x_S \sqcup x'_{\bar{S}}\right)
+      \right],
+  \label{eq:v_on}
+\end{align}
+where $x_S \sqcup x'_{\bar{S}}$ denotes the input formed by splicing the observed components $x_S$ with the imputed components $x'_{\bar{S}}$. Equation \eqref{eq:v_off} samples absent features \emph{independently} from the marginal training distribution $p(x')$, ignoring their correlation with observed features; the resulting \emph{off-manifold} Shapley values evaluate the model on unrealistic spliced inputs~\citep{frye2020shapley}. Equation~\eqref{eq:v_on} conditions absent features on the observed coalition, keeping imputations on the data manifold.
+
+\paragraph{Shapley values.}
+Given a value function $v_\mathbf{x} : 2^N \to \mathbb{R}$, the
+\emph{Shapley value} of player $i$ is~\citep{shapley1953value}
+\begin{equation}
+  \phi_i
+  = \sum_{S \subseteq N \setminus \{i\}}
+    \frac{|S|\,!\;(n - |S| - 1)!}{n!}
+    \Bigl[v_\mathbf{x}(S \cup \{i\}) - v_\mathbf{x}(S)\Bigr].
+  \label{eq:shapley}
+\end{equation}
+Shapley values are the unique attribution satisfying efficiency, symmetry, linearity, and the dummy axiom~\citep{shapley1953value}. Efficiency gives the \emph{completeness} property:
+$\sum_{i=1}^n \phi_i = v_\mathbf{x}(N) - v_\mathbf{x}(\emptyset)$.
+
+\subsection{Kernel SHAP}
+\label{sec:kernelshap}
+
+Exact evaluation of Eq.~\eqref{eq:shapley} requires $2^n$ queries of $v_\mathbf{x}$. \emph{Kernel SHAP}~\citep{lundberg2017unified} recovers Shapley values as the solution to a weighted least-squares problem. Working with the equivalent binary-vector representation $z' \in \{0,1\}^n$ (where $z'_i = \mathbf{1}[i \in S]$), one fits the linear surrogate
+\begin{equation}
+  g(z') = \phi_0 + \sum_{i=1}^{n} \phi_i z'_i
+  \label{eq:surrogate}
+\end{equation}
+by minimizing the weighted squared error between $g(z')$ and $v_\mathbf{x}(z')$ over sampled coalitions:
+\begin{equation}
+  \hat{\boldsymbol{\phi}}
+  = \underset{\phi_0,\,\boldsymbol{\phi}}{\arg\min}
+  \sum_{z' \in \mathcal{Z}}
+  \pi_n(z')
+  \Bigl[v_\mathbf{x}(z') - g(z')\Bigr]^2,
+  \label{eq:wls}
+\end{equation}
+where the \emph{Shapley kernel}~\citep{lundberg2017unified} assigns weight
+\begin{equation}
+  \pi_n(z')
+  = \frac{n - 1}{\displaystyle\binom{n}{|z'|}\,|z'|\,(n - |z'|)},
+  \qquad |z'| \in \{1, \ldots, n-1\},
+  \label{eq:kernel}
+\end{equation}
+and $|z'| = \sum_i z'_i$ is the coalition size.
+Coalitions $|z'| \in \{0, n\}$ receive weight $\pi_n = \infty$ in theory, which in practice is handled by enforcing $\phi_0 = v_\mathbf{x}(\mathbf{0})$ and $\sum_i \phi_i = v_\mathbf{x}(\mathbf{1}) - v_\mathbf{x}(\mathbf{0})$ as hard constraints~\citep{lundberg2017unified}. Because Eq.~\eqref{eq:wls} is a weighted linear regression, the Shapley
+values are recovered in closed form via weighted normal equations. When $n$ is small (here $n \le 4$ temporal windows), all $2^n$ coalitions can be enumerated exactly.
+
+\paragraph{Role of the value function.}
+The Kernel SHAP estimator — Shapley kernel weights and the weighted linear fit — is independent of how absent players are imputed. Different imputation choices instantiate different cooperative games $v_\mathbf{x}$ and therefore explain different questions: off-manifold value functions (Eq.~\ref{eq:v_off}) attribute model behaviour on unrealistic inputs, whereas the on-manifold value function (Eq.~\ref{eq:v_on}) attributes the model's dependence on information genuinely present in the data~\citep{frye2020shapley}.
+For motion sequences, where joints are biomechanically coupled and temporal windows are phase-dependent, this distinction is consequential: off-manifold imputations produce anatomically implausible postures that distort the classifier and therefore the attributions. In Sec.~\ref{sec:method} we define both the player sets (spatial and temporal) and instantiate $v^{(\mathrm{on})}_\mathbf{x}$ using a learned conditional generative model, comparing against the standard off-manifold alternatives.

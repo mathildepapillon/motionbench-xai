@@ -1,0 +1,121 @@
+\documentclass[10pt]{article}
+
+% NeurIPS 2026 — official style file should replace this when available.
+\usepackage[margin=1in]{geometry}
+\pdfmapfile{}  % avoid pdftex font-map warning that aborts pdflatex
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{nicefrac}
+% \usepackage{microtype}  % disabled because system pdftex lacks scalable fonts (font expansion)
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{natbib}
+
+\title{MotionBench-XAI: A Benchmark for Manifold-Aware\\
+       Shapley Attribution on Temporal Data}
+
+\author{%
+  Anonymous Authors\\
+  \texttt{anonymous@example.com}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Shapley-value attribution is often used for explaining machine learning models
+on structured temporal data like human motion.  While well studied for temporal
+data or manifold-structured data, Shapley explanations are not systematically
+benchmarked for cases that require both.  We introduce MotionBench-XAI, a
+benchmark for Shapley attribution on spatiotemporal data with an eye towards
+gait classification as an example task.  We contribute (1) a parametric family
+of synthetic temporal datasets with exact closed-form ground-truth Shapley
+values, spanning Gaussian and heavy-tailed copula distributions and
+spatiotemporal covariance structures, and (2) a unified evaluation platform
+with spatiotemporal player-set abstractions, on- and off-manifold fidelity
+metrics, attribution error, and cross-protocol ranking diagnostics.  We
+benchmark sixteen attribution methods, including six KernelSHAP variants
+differing only in imputer, on the synthetic suite and on a real-world
+skeleton-based gait classification applied to Parkinson's disease severity
+assessment.  All datasets, checkpoints, and code are released with a public
+leaderboard.
+\end{abstract}
+
+\input{01-introduction}
+\input{02-related}
+\input{03-background}
+\input{04-methods}
+\input{05-results}
+\input{06-results-real}
+
+\section{Discussion}
+\label{sec:discussion}
+
+Two lessons emerge from our benchmark.
+\emph{(i)} Learned conditional imputers (KS--VAEAC, KS--Flow) recover
+oracle Shapley values to within Monte Carlo noise across every regime
+tested --- including the high-spatial $\times$ strong-temporal regime
+closest to real motion and the heavy-tailed Burr regime --- beating
+every off-manifold or temporal-only competitor by an order of magnitude.
+\emph{(ii)} Deletion-style faithfulness metrics reward imputers that
+produce out-of-distribution completions; on CARE-PD the off-manifold
+KS--Marginal obtains the highest faithfulness but the lowest PlayerAOPC,
+with a significant paired-bootstrap gap (Sec.~\ref{sec:results-real}).
+On real data we therefore recommend reporting any deletion-curve metric
+alongside an imputer-realism diagnostic.
+
+\paragraph{Limitations and reproducibility.}
+The synthetic suite uses Kronecker-product covariance; real-world
+evaluation is restricted to BMCLab gait + MotionBERT (3
+leave-one-subject-out folds); generalisation to other motion
+benchmarks and non-motion modalities is future leaderboard work.  All
+data, checkpoints, and code are open-source at
+\texttt{<anonymised url>}: \texttt{reproduce\_synthetic.sh} regenerates
+Tables~\ref{tab:datasets}--\ref{tab:winners} in $\approx 40$\,min on one
+GPU; \texttt{reproduce\_real.sh} regenerates Table~\ref{tab:real} given
+data access (full instructions in \texttt{REPRODUCIBILITY.md}).
+
+\bibliographystyle{plainnat}
+\bibliography{references}  % uses references.bib (not references (1).bib)
+
+% =====================================================================
+\appendix
+\section*{Supplementary Material}
+% =====================================================================
+
+\subsection*{WindowSHAP Window-Size Diagnostic}
+\label{app:winshap}
+
+\input{tables/table_winshap_diag}
+
+Table~\ref{tab:winshap_diag} shows WindowSHAP EC1 as the window size $w$
+is varied on the transformer architecture.  EC1 increases monotonically
+with $w$, reaching $2.6\times$ at $w{=}16$ (the entire sequence).
+This rules out a simple ``window too small/large'' explanation for
+WindowSHAP's failure; rather, the root cause is structural:
+WindowSHAP's sliding window-mean baseline assigns attribution mass to
+the window boundary coalitions rather than interior frames, violating
+the boundary-coalition constraint that KernelSHAP's weighted-least-squares
+enforces.  Magnitude-shifted attributions result regardless of window size,
+explaining why WindowSHAP performs worst across all regimes in Table~2.
+
+\subsection*{$M$-Ablation (Completion Samples)}
+\label{app:m_ablation}
+
+EC1 for KS--VAEAC on \texttt{gauss\_k4} at $M\in\{1,5,20,50\}$
+completion samples is reported as italic rows at the bottom of
+Table~\ref{tab:synth_ec1} in the main text.  The result plateaus by
+$M{=}5$, confirming $M{=}1$ as the main-sweep default.
+
+\end{document}

@@ -1,0 +1,54 @@
+% =====================================================================
+\section{Related Work}
+\label{sec:related}
+% =====================================================================
+
+\paragraph{Manifold-aware Shapley attribution.}
+The KernelSHAP value function~\citep{lundberg2017unified} requires
+imputing absent features.  In the original formulation, absent features are
+drawn from the marginal distribution, producing \emph{off-manifold}
+explanations that may evaluate the model on inputs never seen during
+training~\citep{frye2020shapley}.  \citet{aas2021explaining} introduce three
+on-manifold imputers based on Gaussian, Gaussian-copula, and empirical-conditional
+approximations of the conditional distribution; this approach is extended to
+non-parametric vine copulas~\citep{aas2021vineexplaining} and to mixed
+data~\citep{redelmeier2020explaining}.  \citet{olsen2022using} model the
+conditional distribution with a single variational autoencoder with arbitrary
+conditioning (VAEAC)~\citep{ivanov2018variational}, avoiding the need to fit
+a separate model for each coalition.  Most recently,
+\citet{zhang2026axiomatic} use optimal-transport flow matching to produce
+Aumann--Shapley-type attributions with on-manifold paths.
+None of these methods is benchmarked on data with non-trivial temporal structure.
+
+\paragraph{Temporal Shapley attribution.}
+A separate line of work extends Shapley attribution to time-series data.
+TimeSHAP~\citep{bento2021timeshap} reformulates KernelSHAP at the
+time-step or window level, replacing absent prefixes with a baseline
+sequence; we refer to this approach as \emph{KernelSHAP--Temporal} for
+consistency with our naming convention.  WindowSHAP~\citep{nayebi2023windowshap}
+extends this to overlapping sliding windows.
+\citet{villani2022feature} replace the linear surrogate with a vector autoregression
+to produce time-consistent Shapley values.  ShaTS~\citep{de2025shats}
+introduces temporal/sensor/process-level player groupings.
+\citet{kim2026groupsegment} construct group-segment players that respect
+nonlinear feature dependencies and temporal distribution shifts.
+All of these approaches use marginal or zero imputers and therefore retain the
+off-manifold pathology of the original KernelSHAP formulation.
+
+\paragraph{Shapley attribution for human motion.}
+Direct applications of SHAP to human motion are sparse.
+\citet{tempel2025choose, auletta2023predicting} apply standard SHAP to
+gait classifiers without addressing the manifold or temporal structure.
+\citet{tempel2025explaining} introduce ShapGCN, an architecture-specific
+GCN edge-importance method that does not generalise to non-graph encoders.
+No benchmark exists that systematically evaluates Shapley attribution on
+structured spatiotemporal motion data, which is the gap our work addresses.
+
+\paragraph{Benchmarks for explainability.}
+Synthetic benchmarks with controllable ground-truth attributions
+have been instrumental in evaluating explanation
+methods~\citep{arras2022clevr, hedstrom2023quantus, Yang2019BenchmarkingAM}.
+Quantus~\citep{hedstrom2023quantus} provides a comprehensive metric suite for
+faithfulness, robustness, and complexity.  Our benchmark complements this
+ecosystem with a parametric family of \emph{spatiotemporal} synthetic datasets
+and a player-set abstraction that has not previously been benchmarked.
