@@ -1,0 +1,45 @@
+# @package _global_
+# 2×2 experiment: player abstraction × imputer quality
+#
+# Hypothesis:
+#   - window_label_gaussian: label is temporally localized → temporal players win
+#   - joint_subset_skeleton: label is spatially localized  → spatial players win
+#   - On BOTH datasets: on-manifold imputer (oracle/vaeac) beats off-manifold (zero)
+#   - Wrong player abstraction costs more than wrong imputer
+#
+# Methods form a 2×2 grid:
+#   [temporal players] × [zero, oracle]        → temporal axis
+#   [spatial  players] × [zero, oracle, vaeac] → spatial axis
+#   Plus kernelshap_temporal/windowshap as temporal-structure baselines
+#
+pipeline: synthetic
+
+datasets:
+  - window_label_gaussian    # temporally localized label (B2 axis)
+  - joint_subset_skeleton    # spatially localized label  (B1 axis)
+
+methods:
+  # Temporal players (what KernelSHAP-Temporal/WindowSHAP use)
+  - kernelshap_zero           # temporal + off-manifold
+  - kernelshap_oracle         # temporal + on-manifold (exact, upper bound)
+  - kernelshap_vaeac          # temporal + on-manifold (learned)
+  # Temporal-player variants that add structural priors
+  - kernelshap_temporal       # KernelSHAP-Temporal (event-level, zero imputer)
+  - windowshap
+  # Spatial players (joints as players — correct for joint_subset_skeleton)
+  - kernelshap_zero_spatial   # spatial + off-manifold
+  - kernelshap_oracle_spatial # spatial + on-manifold (exact, upper bound)
+  - kernelshap_vaeac_spatial  # spatial + on-manifold (learned) ← the proposed method
+
+classifiers:
+  - synthetic_mlp
+  - synthetic_cnn
+  - synthetic_transformer
+
+n_sequences: 50
+results_dir: results/synthetic
+device: cpu
+n_jobs: 8
+
+wandb:
+  mode: disabled

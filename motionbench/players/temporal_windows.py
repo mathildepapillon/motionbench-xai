@@ -1,6 +1,6 @@
 """motionbench.players.temporal_windows — Equal-width temporal window player set.
 
-Used by TimeSHAP, WindowSHAP, and KernelSHAP experiments where the unit of
+Used by KernelSHAP-Temporal, WindowSHAP, and KernelSHAP experiments where the unit of
 explanation is a time segment rather than an individual joint or frame.
 """
 

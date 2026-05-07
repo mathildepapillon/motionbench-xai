@@ -2,17 +2,12 @@ name: kernelshap_flow
 attributor:
   _target_: motionbench.attribution.kernel_shap.KernelShapAttributor
 imputer:
-  _target_: motionbench.imputers.flow_matching.FlowMatchingImputer
-  # J, F, T filled at runtime from dataset shape
-  hidden_dim: 64
-  num_steps: 4
-  noise_init_scale: 1.0
-  n_epochs: 0             # 0 = skip training (smoke test); set >0 for production
-  batch_size: 16
-  lr: 1.0e-3
+  _target_: motionbench.imputers.carepd_imputer.CarepdFlowImputer
+  # 50 ODE steps is a reasonable speed/quality tradeoff for benchmarking.
+  # Full quality uses num_steps=100 but that doubles per-sample compute time.
+  num_steps: 20   # 20 steps sufficient for quality vs speed tradeoff in sweep
 players:
   _target_: motionbench.players.temporal_windows.TemporalWindows
-n_kernel_samples: 64
-n_completion_samples: 5
+n_kernel_samples: 16   # K=4 → 2^4=16 exact coalitions
+n_completion_samples: 3
 seed: 42
-device: cpu

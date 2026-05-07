@@ -16,7 +16,7 @@ Complexity
 ----------
 Exact enumeration over 2^M coalitions. For M ≤ 20 this is tractable (< 10^6
 coalitions). For larger M, a sampling-based approximation (e.g. KernelSHAP)
-should be used instead; see BACKLOG for a potential extension.
+should be used instead; sampling-based extensions are left to future work.
 
 References
 ----------

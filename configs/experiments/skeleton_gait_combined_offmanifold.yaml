@@ -1,0 +1,56 @@
+# @package _global_
+# Off-manifold methods sweep for the skeleton_gait_combined fourth-quadrant pillar.
+# Used as a fast hydra-driven launcher; matches the structure of full_synthetic_sweep
+# but restricts methods to the closed-form / off-manifold KernelSHAP variants.
+pipeline: synthetic
+
+datasets:
+  - skeleton_gait_combined
+
+methods:
+  - kernelshap_zero
+  - kernelshap_mean
+  - kernelshap_marginal
+  - kernelshap_empirical
+  - kernelshap_oracle
+
+classifiers:
+  - synthetic_mlp
+  - synthetic_cnn
+  - synthetic_transformer
+
+metrics:
+  gt:
+    - ec1
+    - ec2
+    - ec3
+    - topk
+    - spearman
+    - kendall
+    - efficiency_error
+  fidelity:
+    - faithfulness_correlation
+    - player_deletion
+  manifold:
+    - faith_gap
+    - cgfs
+  stability: []
+  sanity: []
+
+quantus_max_sensitivity_nr_samples: 20
+metric_oracle_n_mc: 10
+metric_oracle_n_coalitions: 64
+
+results_dir: results/synthetic
+checkpoint_dir: motionbench/classifiers/checkpoints/synthetic
+device: cpu
+n_sequences: 50
+n_jobs: 8
+
+wandb:
+  project: motionbench-xai
+  entity: null
+  tags:
+    - synthetic
+    - skeleton_gait_combined
+  mode: disabled

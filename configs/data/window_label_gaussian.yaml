@@ -1,0 +1,16 @@
+_target_: motionbench.data.synthetic.gaussian_motion.GaussianMotionDataset
+# Shape parameters — same as gaussian_k4 baseline
+J: 5
+F: 3
+T: 16
+K: 4
+N: 200
+rho: 0.5
+alpha: 0.8
+seed: 142
+# Localized label: only a single temporal window (window 1 of K=4) drives y.
+label_fn:
+  _target_: motionbench.data.synthetic.label_functions.LocalizedTemporal
+  window_idx: 1
+  K: 4
+  n_classes: 3

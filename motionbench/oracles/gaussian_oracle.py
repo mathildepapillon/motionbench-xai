@@ -455,7 +455,13 @@ class GaussianOracle(Oracle, BaseImputer):
 
         rng = np.random.default_rng(seed)
 
-        if M <= 12:
+        # Use exact enumeration when 2^M fits within the coalition budget, or
+        # when n_coalitions is set large enough to cover all 2^M subsets.
+        # For overnight / fast runs, pass a small n_coalitions (e.g. 64) to
+        # force KernelSHAP-style paired sampling even for moderate M.
+        n_exact = 2 ** M
+        use_exact = n_exact <= n_coalitions
+        if use_exact:
             coalitions, weights = enumerate_coalitions(M)
         else:
             n_pairs = max(1, n_coalitions // 2)

@@ -1,3 +1,3 @@
 _target_: motionbench.classifiers.ported_care_pd.bilstm.BiLSTMClassifier
 n_classes: 4
-checkpoint_path: null
+checkpoint_path: ${oc.env:CARE_PD_ROOT}/experiment_outs/Hypertune/bilstm_BMCLab/0/models/train_BMCLab_6fold/fold1/latest_epoch.pth.tr

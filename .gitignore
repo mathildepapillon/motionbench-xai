@@ -36,21 +36,25 @@ htmlcov/
 # WandB
 wandb/
 
-# Model checkpoints (download, don't commit)
-motionbench/classifiers/checkpoints/*.pt
-motionbench/classifiers/checkpoints/*.pth
-motionbench/classifiers/checkpoints/*.pth.tr
-motionbench/classifiers/checkpoints/*.ckpt
+# Model checkpoints (regenerate locally, never commit — incl. upstream-derived
+# CARE-PD weights which are CC BY-NC-4.0 and not redistributable)
+motionbench/classifiers/checkpoints/**/*.pt
+motionbench/classifiers/checkpoints/**/*.pth
+motionbench/classifiers/checkpoints/**/*.pth.tr
+motionbench/classifiers/checkpoints/**/*.ckpt
+motionbench/classifiers/checkpoints/**/*.npz
 motionbench/classifiers/checkpoints/care_pd/
+motionbench/classifiers/checkpoints/synthetic/
+motionbench/classifiers/checkpoints/real/
 !motionbench/classifiers/checkpoints/.gitkeep
+!motionbench/classifiers/checkpoints/synthetic/.gitkeep
+!motionbench/classifiers/checkpoints/real/.gitkeep
 
-# Results (generated, don't commit raw results)
-results/synthetic/*.pkl
-results/synthetic/*.json
-results/care_pd/*.pkl
-results/care_pd/*.json
-results/synthetic/
-results/care_pd/
+# Results (generated, don't commit raw results) — keep .gitkeep markers only
+results/*
+!results/.gitkeep
+!results/synthetic/.gitkeep
+!results/care_pd/.gitkeep
 
 # Hydra outputs
 outputs/
@@ -65,3 +69,26 @@ multirun/
 # OS
 .DS_Store
 Thumbs.db
+
+# Development scratch (internal coordination docs, archived experiments)
+.dev/
+
+# Paper sources and build artifacts (never committed; benchmark repo only)
+paper/
+
+# Paper-generation scripts (paper-author-only utilities)
+scripts/generate_paper_tables.py
+scripts/generate_paper_figures.py
+scripts/generate_fig_real_all.py
+scripts/regenerate_paper.sh
+scripts/per_axis_evidence.py
+scripts/cgfs_table.py
+scripts/results_to_markdown.py
+
+# Run logs (large)
+logs/
+results/*/*.log
+results/*.log
+
+# Misc accidental shell artifacts (e.g. `pip install foo>=0.4.0` without quoting)
+=*

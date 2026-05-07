@@ -466,16 +466,33 @@ class EmpiricalConditionalImputer(BaseImputer):
             Z = np.linalg.solve(L, V.T)
         d2 = np.sum(Z * Z, axis=0)  # (N,)
 
+        # Leave-one-out leakage guard: the fit pool may contain x* itself
+        # (or a near-exact duplicate, common in synthetic test setups where
+        # train==test).  Such donors have d² ≈ 0 and would dominate the
+        # softmax kernel, collapsing the imputer to ``return x_obs``
+        # (giving constant Shapley values).  We mask donors closer than
+        # ``eps`` in the observed sub-block.
+        eps_d2 = 1e-8 * max(float(np.median(d2)), 1e-12)
+        loo_mask = d2 > eps_d2
+        if loo_mask.sum() == 0:
+            # All donors are duplicates (degenerate case); leave d² as-is.
+            loo_mask = np.ones_like(d2, dtype=bool)
+
+        d2_eff = np.where(loo_mask, d2, np.inf)
+
         # Bandwidth: "auto" = 0.1 × median(sqrt(d²)) following shapr convention.
+        # Compute on the LOO-filtered distances.
         if self.bandwidth == "auto":
-            med = float(np.median(np.sqrt(np.maximum(d2, 0.0))))
+            d2_finite = d2_eff[np.isfinite(d2_eff)]
+            med = float(np.median(np.sqrt(np.maximum(d2_finite, 0.0)))) if d2_finite.size else 1.0
             sigma = 0.1 * med if med > 1e-12 else 0.1
         else:
             sigma = float(self.bandwidth)
 
         # Numerically stable: subtract minimum d² before exponentiating.
-        d2_min = float(d2.min())
-        logits = -(d2 - d2_min) / (2.0 * sigma ** 2)
+        d2_min = float(d2_eff[np.isfinite(d2_eff)].min()) if np.any(np.isfinite(d2_eff)) else 0.0
+        logits = -(d2_eff - d2_min) / (2.0 * sigma ** 2)
+        # Donors masked by LOO get logits=-inf → weight 0.
         w = np.exp(logits)
         total = float(w.sum())
         if not np.isfinite(total) or total < 1e-12:
@@ -599,8 +616,8 @@ class VineCopulaImputer(BaseImputer):
     Note:
         For ``d = J*F*T > max_vine_dim`` (default 20), the ``pyvinecopulib``
         fitting step is skipped (intractable for high-dimensional sequences)
-        and only the Ledoit-Wolf Gaussian copula is used.
-        BACKLOG B-2B-01: Full vine copula fitting for high-dimensional data.
+        and only the Ledoit-Wolf Gaussian copula is used.  Full vine
+        copula fitting for high-dimensional data is left to future work.
 
     References:
         Joe, H. (2014). *Dependence Modeling with Copulas*. Chapman & Hall.

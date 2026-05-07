@@ -1,3 +1,5 @@
 _target_: motionbench.classifiers.ported_care_pd.motionagformer.MotionAGFormerClassifier
-n_classes: 4
-checkpoint_path: null
+n_classes: 3
+# Model-only state dict (no optimizer state) extracted from Hypertune fold1 checkpoint
+# for fast loading (~1s vs full pth.tr file).
+checkpoint_path: motionbench/classifiers/checkpoints/real/carepd_bmclab_fold1_motionagformer.pt

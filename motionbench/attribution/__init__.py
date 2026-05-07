@@ -15,8 +15,13 @@ from motionbench.attribution.group_segment_shap import GroupSegmentSHAPAttributo
 from motionbench.attribution.kernel_shap import KernelShapAttributor
 from motionbench.attribution.lrp import LRPAttributor
 from motionbench.attribution.shats import ShaTSAttributor
-from motionbench.attribution.timeshap import TimeSHAPAttributor
-from motionbench.attribution.windowshap import WindowSHAPAttributor
+from motionbench.attribution.kernelshap_temporal import KernelSHAPTemporalAttributor, TimeSHAPAttributor  # TimeSHAPAttributor is a compat alias
+from motionbench.attribution.timeshap_real import RealTimeSHAPAttributor
+from motionbench.attribution.windowshap import (
+    DynamicWindowSHAPAttributor,
+    StationaryWindowSHAPAttributor,
+    WindowSHAPAttributor,
+)
 
 __all__ = [
     "BaseAttributor",
@@ -27,8 +32,12 @@ __all__ = [
     "SmoothGradAttributor",
     "InputXGradientAttributor",
     "LRPAttributor",
-    "TimeSHAPAttributor",
+    "KernelSHAPTemporalAttributor",
+    "TimeSHAPAttributor",  # compat alias for KernelSHAPTemporalAttributor
+    "RealTimeSHAPAttributor",  # actual ``timeshap`` pip-package wrapper
     "WindowSHAPAttributor",
+    "StationaryWindowSHAPAttributor",
+    "DynamicWindowSHAPAttributor",
     "ShaTSAttributor",
     "GroupSegmentSHAPAttributor",
     "GradCAMAttributor",

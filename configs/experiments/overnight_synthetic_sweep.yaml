@@ -1,0 +1,132 @@
+# @package _global_
+# Overnight sweep configuration — tuned for a full unattended run on 8× A100 GPUs.
+#
+# Key differences from full_synthetic_sweep.yaml:
+#   - device: cuda        (GPU inference, ~10x speedup for gradient methods)
+#   - n_jobs: 8           (8 cells in parallel, one per GPU in practice)
+#   - n_sequences: 50     (enough for reliable metrics, halves compute time)
+#   - wandb.mode: disabled  (no network dependency during overnight run)
+#   - methods: excludes kernelshap_vaeac / kernelshap_flow (train_epochs=0
+#     means untrained imputers → meaningless SHAP values; run separately
+#     after training imputers with scripts/train_vaeac.py / train_flow.py)
+#
+# Expected wall time: ~2-4 hours on 8× A100 with n_jobs=8.
+pipeline: synthetic
+
+datasets:
+  - gaussian_k4
+  - gaussian_k8
+  - burr_m5
+  - burr_m10
+  - skeleton_structured
+  - gait_periodic
+  # New (May 2026) — close coverage gaps for spatial / temporal localization
+  # and low-rank manifold geometry. See Phase 1 of deadline plan.
+  - low_rank_manifold
+  - window_label_gaussian
+  - joint_subset_skeleton
+
+methods:
+  # ---- KernelSHAP with simple (fast) imputers ----
+  - kernelshap_zero
+  - kernelshap_mean
+  - kernelshap_marginal
+  - kernelshap_empirical
+  # ---- Gradient-based (fast on GPU) ----
+  - ig_zero
+  - ig_mean
+  - deeplift
+  - gradientshap
+  - smoothgrad
+  - lrp
+  # ---- KernelSHAP with on-manifold (oracle conditional) imputer ----
+  # Uses dataset.oracle (GaussianOracle / CopulaOracle) which samples from
+  # p(x_hid | x_obs) exactly — the theoretically-correct Shapley imputer
+  # per Aas et al. (2021).  Serves as the on-manifold reference point for
+  # the imputer ablation (Zero < Mean < Marginal < Oracle in theory).
+  - kernelshap_oracle
+  # ---- Temporal-player KernelSHAP variants ----
+  - kernelshap_temporal
+  - windowshap
+  - shats
+  # ---- GradCAM (CNN-only; MLP/Transformer cells will produce error.json) ----
+  - gradcam
+  # NOTE: kernelshap_vaeac and kernelshap_flow excluded — train imputers first.
+
+classifiers:
+  - synthetic_mlp
+  - synthetic_cnn
+  - synthetic_transformer
+
+metrics:
+  gt:
+    - ec1
+    - ec2
+    - ec3
+    - topk
+    - spearman
+    - kendall
+    - efficiency_error
+  fidelity:
+    # PxFlip dropped (deadline May 2026): broken in Quantus 0.6.0 integration
+    # (softmax double-application produces saturation at 1.0). PlayerAOPC
+    # (DeYoung 2020 ERASER) is used as the model-fidelity metric instead — it
+    # is the player-level analogue, more cited in modern XAI literature, and
+    # better aligned with our spatiotemporal player-set framework.
+    - faithfulness_correlation
+    - player_deletion    # player-level AOPC (comprehensiveness / sufficiency)
+  manifold:
+    - faith_gap          # on-manifold vs off-manifold FaithCorr delta (oracle-only)
+    - cgfs               # cross-granularity AOPC stability (oracle-only)
+  # Stability metrics use method-specific explain_func (via
+  # attributor.build_quantus_explain_func). Gradient-based methods (IG, LRP,
+  # etc.) are fully evaluated. SHAP-based methods (KernelSHAP, TimeSHAP, etc.)
+  # skip these metrics automatically since re-attribution per perturbation step
+  # is O(2^M) and computationally infeasible.
+  # nr_samples=20 for MaxSensitivity (default 200 is too slow per-method call).
+  stability:
+    - max_sensitivity
+  # MPRT (model_parameter_randomisation) dropped for deadline run — too slow
+  # and provides redundant signal vs. MaxSens + GT-based ground-truthing.
+
+# Quantus MaxSensitivity nr_samples override (passed to metric constructor)
+quantus_max_sensitivity_nr_samples: 20
+
+# Oracle Monte Carlo samples per coalition.
+# 10 is sufficient for overnight runs — the variance in E[f|x_S] for a small
+# well-trained synthetic classifier is low, and rank-based metrics (Spearman,
+# Kendall, TopK) are robust to this level of MC noise.
+# The full-precision value for publication tables is 100.
+metric_oracle_n_mc: 10
+
+# Coalition budget for oracle.true_shapley.
+# When 2^K <= this value, all coalitions are enumerated exactly.
+# When 2^K > this value, KernelSHAP-style paired sampling is used instead.
+#   K=4: 2^4=16   — exact (16 << 64)
+#   K=5: 2^5=32   — exact (32 << 64)
+#   K=8: 2^8=256  — sampled: 64 coalitions → ~4x speedup vs exact
+#   K=10: 2^10=1024 — sampled: 64 coalitions → ~16x speedup vs exact
+# Set to 0 or ≥ 2^K to force exact enumeration for publication-quality tables.
+metric_oracle_n_coalitions: 64
+
+# Number of sequences to attribute per cell (50 gives reliable metric estimates)
+n_sequences: 50
+
+# CPU device — KernelSHAP is CPU-bound (coalition enumeration) and the Quantus
+# metrics all use numpy; tiny synthetic classifiers run fast on CPU too.
+# Use cuda only when running gradient methods in isolation.
+device: cpu
+
+# Parallelism — bumped to 16 for the deadline-driven sweep on the 128-core CPU box.
+n_jobs: 16
+
+results_dir: results/synthetic
+checkpoint_dir: motionbench/classifiers/checkpoints/synthetic
+
+wandb:
+  project: motionbench-xai
+  entity: null
+  tags:
+    - synthetic
+    - overnight_sweep
+  mode: disabled

@@ -1,33 +1,33 @@
 """motionbench.metrics.stability -- Stability / robustness metrics wrapping Quantus.
 
-Provides three metrics that measure how sensitive attributions are to small
-perturbations of the input.  All three delegate to Quantus robustness metrics,
-which internally require an ``explain_func`` callable so they can recompute
-attributions on perturbed inputs.  The default ``explain_func`` is a simple
-input-gradient (d output / d input); it can be overridden by passing
-``explain_func=...`` inside ``quantus_kwargs``.
+Provides metrics that measure how sensitive attributions are to small
+perturbations of the input.  Each Quantus metric requires a method-specific
+``explain_func`` that re-computes attributions using the **same** attribution
+method after input perturbation (MaxSensitivity) or model parameter
+randomisation (MPRT).  This ensures the stability score reflects the
+specific method under evaluation, not a generic gradient proxy.
+
+Callers must pass ``explain_func=attributor.build_quantus_explain_func(players,
+target, device)`` explicitly.  Passing ``explain_func=None`` raises a
+``ValueError`` at evaluation time to prevent silent methodological errors.
+
+SHAP-based methods (KernelSHAP, TimeSHAP, etc.) return ``None`` from
+``build_quantus_explain_func``; the pipeline skips stability/sanity for
+those methods rather than falling back to an incorrect gradient proxy.
 
 Shape contract
 --------------
 Input ``x`` is ``(J, F, T)``; spatial dimensions are flattened to
 ``(J*F, T)`` so Quantus sees a 1-D time-series with ``J*F`` channels.
 Attribution ``phi`` is ``(M,)`` per-player and is broadcast back to
-``(J, F, T)`` coordinate space using :py:meth:`~PlayerSet.coalition_mask`
+``(J, F, T)`` coordinate space using :py:meth:`~PlayerSet.expand_attributions`
 before flattening.
 
 Design notes
 ------------
-* The gradient explain_func is a simplification: in production you would
-  pass the same attribution method that produced ``phi``.  This is noted in
-  ``TASKS.md`` as a trade-off.
-* ``RelativeInputStability`` is used for ``LipschitzEstimateMetric`` because
-  it is the closest available Lipschitz-oriented metric in Quantus >= 0.5.5.
-  ``LocalLipschitzEstimate`` (older class) is also present but
-  ``RelativeInputStability`` is the recommended replacement.
-* ``_QuantusWrapper.forward`` outputs ``(B, n_classes=2)`` instead of ``(B,)``
-  so that Quantus metrics that call ``model.predict().argmax(-1)`` and perform
-  2-D index selection (e.g. ``Continuity``) work correctly with a motionbench
-  scalar classifier.
+* ``_QuantusWrapper.forward`` outputs ``(B, n_classes=2)`` so that Quantus
+  metrics that call ``model.predict().argmax(-1)`` and perform 2-D index
+  selection (e.g. ``Continuity``) work correctly.
 
 References
 ----------
@@ -154,43 +154,6 @@ class _QuantusWrapper(nn.Module):
         return out
 
 
-def _gradient_explain_func(
-    model: nn.Module,
-    inputs: npt.NDArray[Any],
-    targets: npt.NDArray[Any],
-    **kwargs: Any,
-) -> npt.NDArray[Any]:
-    """Input-gradient attribution (default ``explain_func`` for Quantus metrics).
-
-    Computes ``d(output[:, 0]) / d(inputs)`` as a proxy attribution when
-    re-evaluating on perturbed inputs.  Returns an array with the same shape
-    as ``inputs`` so Quantus's internal shape assertions pass regardless of
-    whether ``inputs`` is 3-D ``(B, C, T)`` or 4-D ``(B, C, H, T)``.
-
-    Args:
-        model: PyTorch module accepting ``(B, J*F, T)`` or ``(B, J*F, 1, T)``
-            float32 tensors.
-        inputs: ``(B, J*F, T)`` or ``(B, J*F, 1, T)`` float32 numpy array.
-        targets: ``(B,)`` int numpy array (unused; gradient is always w.r.t.
-            the first output column).
-        **kwargs: Ignored extra keyword arguments from Quantus internals.
-
-    Returns:
-        Gradient array with the same shape as ``inputs``.
-    """
-    x_t = torch.from_numpy(inputs.copy()).requires_grad_(True)
-    out: Tensor = model(x_t)  # (B, n_classes)
-    # Gradient of first-class output only (column 0 = real classifier output).
-    loss = out[:, 0].sum() if out.ndim == 2 else out.sum()
-    loss.backward()  # type: ignore[no-untyped-call]
-    grad = x_t.grad
-    if grad is None:
-        return np.zeros_like(inputs)
-    # Return absolute gradient magnitudes: Quantus assertions require
-    # attributions to not be all-negative; magnitude is the correct
-    # quantity for Max Sensitivity (measures size of change, not sign).
-    return np.abs(grad.detach().cpu().numpy())
-
 
 def _expand_phi(phi: Tensor, players: PlayerSet) -> Tensor:
     """Broadcast per-player attributions to coordinate space ``(J, F, T)``.
@@ -228,7 +191,7 @@ def _prepare_quantus_inputs(
         x: ``(J, F, T)`` input sequence.
         classifier: Callable ``(B, J, F, T) -> (B,)`` or :class:`~torch.nn.Module`.
             Passing a raw ``nn.Module`` is strongly preferred: it enables
-            gradient flow (required by :func:`_gradient_explain_func`) and
+            gradient flow (required by gradient-based ``explain_func``s) and
             parameter enumeration (required by Quantus MPRT).
         players: :class:`~motionbench.players.base.PlayerSet`.
         target: Class / label index.
@@ -244,6 +207,10 @@ def _prepare_quantus_inputs(
     y_batch = np.array([target])
     phi_coords = _expand_phi(phi.detach().cpu(), players)
     a_batch = phi_coords.numpy().reshape(1, J * F, T).astype(np.float32)
+    # Quantus rejects all-negative attribution arrays; magnitude is the
+    # right quantity for stability/sanity metrics (rank and size, not sign).
+    if (a_batch < 0).all():
+        a_batch = np.abs(a_batch)
     wrapped = _QuantusWrapper(classifier, J, F, target=target)
     wrapped.eval()
     return x_batch, a_batch, y_batch, wrapped
@@ -288,6 +255,7 @@ class MaxSensitivityMetric(BaseMetric):
         target: int = 0,
         oracle: Oracle | None = None,
         imputer: BaseImputer | None = None,
+        explain_func: Callable[..., Any] | None = None,
     ) -> dict[str, float]:
         """Evaluate Max-Sensitivity for a single sequence.
 
@@ -299,11 +267,28 @@ class MaxSensitivityMetric(BaseMetric):
             target: Class index (must match the index used to produce ``phi``).
             oracle: Not required; ignored.
             imputer: Not required; ignored.
+            explain_func: Method-specific Quantus-compatible re-attribution
+                function ``(model, inputs, targets, **kw) -> np.ndarray``.
+                Must be provided; raises ``ValueError`` if ``None``.  Pass the
+                result of ``attributor.build_quantus_explain_func(players,
+                target, device)`` to ensure correct method-specific behaviour.
 
         Returns:
             ``{"max_sensitivity": float}`` -- lower values indicate more stable
             attributions.
+
+        Raises:
+            ValueError: if ``explain_func`` is ``None``.  Stability metrics
+                require method-specific re-attribution; a generic gradient
+                proxy would measure gradient stability regardless of the
+                actual attribution method, which is methodologically incorrect.
         """
+        if explain_func is None:
+            raise ValueError(
+                "MaxSensitivityMetric requires a method-specific explain_func. "
+                "Pass attributor.build_quantus_explain_func(players, target, device). "
+                "If the attributor returns None (e.g. KernelSHAP), skip this metric."
+            )
         self._check_deps(oracle, imputer)
         x_batch, a_batch, y_batch, wrapped = _prepare_quantus_inputs(
             phi, x, classifier, players, target
@@ -313,7 +298,7 @@ class MaxSensitivityMetric(BaseMetric):
             x_batch=x_batch,
             y_batch=y_batch,
             a_batch=a_batch,
-            explain_func=_gradient_explain_func,
+            explain_func=explain_func,
             channel_first=True,
             softmax=False,
         )
@@ -353,6 +338,7 @@ class ContinuityMetric(BaseMetric):
         target: int = 0,
         oracle: Oracle | None = None,
         imputer: BaseImputer | None = None,
+        explain_func: Callable[..., Any] | None = None,
     ) -> dict[str, float]:
         """Evaluate Continuity for a single sequence.
 
@@ -364,11 +350,22 @@ class ContinuityMetric(BaseMetric):
             target: Class index.
             oracle: Not required; ignored.
             imputer: Not required; ignored.
+            explain_func: Method-specific Quantus-compatible re-attribution
+                function.  Must be provided; raises ``ValueError`` if ``None``.
 
         Returns:
             ``{"continuity": float}`` -- lower values indicate smoother
             attributions.
+
+        Raises:
+            ValueError: if ``explain_func`` is ``None``.
         """
+        if explain_func is None:
+            raise ValueError(
+                "ContinuityMetric requires a method-specific explain_func. "
+                "Pass attributor.build_quantus_explain_func(players, target, device). "
+                "If the attributor returns None (e.g. KernelSHAP), skip this metric."
+            )
         self._check_deps(oracle, imputer)
         x_batch, a_batch, y_batch, wrapped = _prepare_quantus_inputs(
             phi, x, classifier, players, target
@@ -378,7 +375,7 @@ class ContinuityMetric(BaseMetric):
             x_batch=x_batch,
             y_batch=y_batch,
             a_batch=a_batch,
-            explain_func=_gradient_explain_func,
+            explain_func=explain_func,
             channel_first=True,
             softmax=False,
         )
@@ -422,6 +419,7 @@ class LipschitzEstimateMetric(BaseMetric):
         target: int = 0,
         oracle: Oracle | None = None,
         imputer: BaseImputer | None = None,
+        explain_func: Callable[..., Any] | None = None,
     ) -> dict[str, float]:
         """Evaluate Lipschitz Estimate for a single sequence.
 
@@ -433,11 +431,22 @@ class LipschitzEstimateMetric(BaseMetric):
             target: Class index.
             oracle: Not required; ignored.
             imputer: Not required; ignored.
+            explain_func: Method-specific Quantus-compatible re-attribution
+                function.  Must be provided; raises ``ValueError`` if ``None``.
 
         Returns:
             ``{"lipschitz_estimate": float}`` -- lower values indicate a more
             Lipschitz-stable attribution map.
+
+        Raises:
+            ValueError: if ``explain_func`` is ``None``.
         """
+        if explain_func is None:
+            raise ValueError(
+                "LipschitzEstimateMetric requires a method-specific explain_func. "
+                "Pass attributor.build_quantus_explain_func(players, target, device). "
+                "If the attributor returns None (e.g. KernelSHAP), skip this metric."
+            )
         self._check_deps(oracle, imputer)
         x_batch, a_batch, y_batch, wrapped = _prepare_quantus_inputs(
             phi, x, classifier, players, target
@@ -447,7 +456,7 @@ class LipschitzEstimateMetric(BaseMetric):
             x_batch=x_batch,
             y_batch=y_batch,
             a_batch=a_batch,
-            explain_func=_gradient_explain_func,
+            explain_func=explain_func,
             channel_first=True,
             softmax=False,
         )

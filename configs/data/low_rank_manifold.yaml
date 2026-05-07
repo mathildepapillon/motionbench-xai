@@ -1,0 +1,15 @@
+_target_: motionbench.data.synthetic.low_rank_manifold.LowRankManifoldDataset
+# Shape parameters
+J: 17
+F: 3
+T: 16         # T divisible by default K=4: 16 / 4 = 4
+K: 4          # pipeline-only (temporal windows; not a constructor arg)
+# Dataset size
+N: 200
+# Manifold rank — data lies near a rank-dim linear subspace of R^J per (f, t)
+rank: 4
+eps: 0.01     # off-subspace noise floor (variance, not std)
+# Temporal covariance (AR(1))
+alpha_time: 0.9
+n_classes: 3
+seed: 99

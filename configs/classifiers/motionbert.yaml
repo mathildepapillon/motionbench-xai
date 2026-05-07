@@ -1,3 +1,6 @@
 _target_: motionbench.classifiers.ported_care_pd.motionbert.MotionBERTClassifier
-n_classes: 4
-checkpoint_path: null
+# CARE-PD BMCLab labels are UPDRS-gait ∈ {0, 1, 2}; trained head has 3 outputs.
+n_classes: 3
+# Model-only state dict (no optimizer state) extracted from Hypertune fold1 checkpoint
+# for fast loading (~0.7s vs ~69s for the full pth.tr file).
+checkpoint_path: motionbench/classifiers/checkpoints/real/carepd_bmclab_fold1_motionbert.pt

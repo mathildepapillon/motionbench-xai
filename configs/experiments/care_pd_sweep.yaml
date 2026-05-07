@@ -2,37 +2,55 @@
 # Pipeline routing key
 pipeline: real
 
+# CARE-PD BMCLab gait classification (J=17, F=3, T=80; 4-class UPDRS-gait)
+# Uses the preprocessed cache.npz that was used to train VAEAC + Flow imputers,
+# so the imputer training distribution matches the evaluation distribution.
 datasets:
-  - care_pd_bmclab
+  - care_pd_bmclab_cache
 
+# Methods organised along two axes (player abstraction × imputer quality).
+# All KernelSHAP variants below use the temporal-windows player set.
+# Oracle and GradCAM dropped per user (oracle is intractable for real data;
+# GradCAM is architecture-specific and not faithful to the SHAP framework).
 methods:
-  - kernelshap_zero
-  - kernelshap_mean
-  - kernelshap_marginal
-  - ig_zero
-  - ig_mean
-  - deeplift
-  - gradientshap
-  - smoothgrad
-  - lrp
-  - gradcam
+  # Core KernelSHAP imputer ablation (off-manifold → on-manifold).
+  # Gradient methods dropped: they don't benchmark imputers and slow the sweep.
+  # KernelSHAP-Temporal / WindowSHAP dropped: their story is covered by synthetic.
+  - kernelshap_zero          # off-manifold (zero fill)
+  - kernelshap_mean          # off-manifold (channel mean)
+  - kernelshap_marginal      # weak on-manifold (marginal donor)
+  - kernelshap_vaeac         # strong on-manifold (CARE-PD VAEAC)
+  - kernelshap_flow          # strong on-manifold (CARE-PD Flow Matching)
 
 classifiers:
+  # MotionBERT only: uses learned positional embeddings → works with any T.
+  # MotionAGFormer dropped: temporal BatchNorm has running_mean=[81] (trained on
+  # T=81 clips), incompatible with our T=80 cache.
+  # BiLSTM dropped: head architecture mismatch with the CARE-PD pth.tr checkpoint.
   - motionbert
-  - motionagformer
-  - bilstm
 
+# Real data has no ground-truth Shapley values; we report:
+#   * fidelity (model-functional faithfulness)
+#   * stability (input-perturbation robustness)
+#   * sanity (parameter-randomisation)
+#   * playerAOPC (comprehensiveness + sufficiency)
+#   * cross-granularity faithfulness stability (CGFS) when both player-sets are run
 metrics:
   fidelity:
     - faithfulness_correlation
-    - pixel_flipping
-  stability:
-    - max_sensitivity
-  sanity:
-    - model_parameter_randomisation
+    - player_aopc
+  # max_sensitivity and model_parameter_randomisation require re-running SHAP many
+  # times per sequence — too slow for learned imputers on real data (T=80).
+  # These are run on synthetic data where compute cost is lower.
+
+# 50 clips is enough for stable metric estimates, halving cost vs 100.
+n_sequences: 50
+# K=4 windows → only 2^4=16 unique coalitions exist; 16 = exact enumeration.
+# Setting n_kernel_samples=16 avoids re-evaluating duplicate coalitions.
+n_coalitions: 16
 
 results_dir: results/care_pd
-device: cpu   # override to cuda:0 for real experiments
+device: cuda:0   # override per-job via CUDA_VISIBLE_DEVICES
 
 wandb:
   project: motionbench-xai
@@ -40,5 +58,4 @@ wandb:
   tags:
     - care_pd
     - real_data
-  mode: online
-
+  mode: disabled

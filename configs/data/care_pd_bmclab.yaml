@@ -5,5 +5,5 @@ K: 4
 joints_paths: []          # list of .npz file paths; set at runtime
 labels_path: null         # path to labels .pkl file; set at runtime
 # Clip configuration
-T: 81                     # frames per clip (3 s at 27 fps)
+T: 80                     # frames per clip; matches CARE-PD VAEAC/Flow ckpt seq_len=80 (~2.96 s at 27 fps)
 max_clips_per_walk: 8

@@ -143,7 +143,7 @@ class TestBuildClassifier:
 
         clf_cfg = OmegaConf.create({
             "_target_": "motionbench.classifiers.synthetic_mlp.SyntheticMLPClassifier",
-            "hidden": 16,
+            "hidden": 64,
             "player_mode": "temporal",
         })
         clf = _build_classifier(clf_cfg, J=3, F=2, T=8, K=4, n_classes=3)
@@ -175,7 +175,7 @@ class TestBuildAttributorGradient:
     """Tests for gradient-based attributor construction."""
 
     def test_ig_attributor(self, tiny_mlp: Any, tiny_players: Any) -> None:
-        from motionbench.pipelines.synthetic_eval import _build_attributor, _make_model_fn
+        from motionbench.pipelines.synthetic_eval import _build_attributor
 
         method_cfg = OmegaConf.create({
             "name": "ig_zero",
@@ -188,7 +188,6 @@ class TestBuildAttributorGradient:
                 "_target_": "motionbench.players.temporal_windows.TemporalWindows",
             },
         })
-        model_fn = _make_model_fn(tiny_mlp, target=0)
         attributor = _build_attributor(method_cfg, tiny_mlp, None, tiny_players)
         assert attributor is not None
 
@@ -235,7 +234,7 @@ class TestRunCell:
                 },
                 ("classifiers", "synthetic_mlp"): {
                     "_target_": "motionbench.classifiers.synthetic_mlp.SyntheticMLPClassifier",
-                    "hidden": 16, "player_mode": "temporal",
+                    "hidden": 64, "player_mode": "temporal",
                 },
                 ("methods", "kernelshap_zero"): {
                     "name": "kernelshap_zero",
@@ -366,7 +365,7 @@ class TestFullPipelineIntegration:
                 },
                 ("classifiers", "synthetic_mlp"): {
                     "_target_": "motionbench.classifiers.synthetic_mlp.SyntheticMLPClassifier",
-                    "hidden": 16, "player_mode": "temporal",
+                    "hidden": 64, "player_mode": "temporal",
                 },
                 ("methods", "kernelshap_zero"): {
                     "name": "kernelshap_zero",

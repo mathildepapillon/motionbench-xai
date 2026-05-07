@@ -19,20 +19,33 @@ embedding is derived for classification.
 
 Checkpoint loading
 ------------------
-Pre-trained backbone weights are available at::
+CARE-PD fine-tuned checkpoints in::
 
-    CARE-PD/assets/Pretrained_checkpoints/potr/
-        pre-trained_NTU_ckpt_epoch_199_enc_80_dec_20.pt
+    CARE-PD/experiment_outs/Hypertune/POTR_BMCLab/0/models/
+        train_BMCLab_23fold/fold{N}/latest_epoch.pth.tr
 
-The checkpoint was trained with ``source_seq_len=80`` on the NTU RGB+D
-dataset.  We use ``source_seq_len=81`` to match motionbench's ``T=81``;
-the positional encoding parameter (``_encoder_pos_encodings``) is
-recomputed and the checkpoint is loaded with ``strict=False``.
+These are loaded via ``_load_care_pd_checkpoint`` which remaps
+``head.fc_layers.0.*`` → ``cls_head.*`` and strips DataParallel prefixes.
 
 Shape convention
 ----------------
-Input ``x``:   ``(B, J, F=3, T)``
+Input ``x``:   ``(B, J, F=3, T)``  — raw 3-D world-to-camera H36M coords
 Output logits: ``(B, n_classes)``
+
+Preprocessing (applied inside ``forward``)
+------------------------------------------
+The CARE-PD POTR training pipeline (``POTRPreprocessor``) applies:
+
+1. **Root-centering**: subtract the pelvis joint (index 0) position from
+   every joint so that the root is always at the origin.
+2. **Z-score normalisation**: standardize each ``(joint, coord)`` channel
+   using dataset-level mean and std statistics stored in the flow-matching
+   evaluation cache (``stats_mean`` / ``stats_std``, shape ``(J, 3)``).
+
+The ``POTRClassifier`` replicates this preprocessing inside ``forward``
+so that the raw H36M evaluation cache can be used as input without
+separate preprocessing, and attribution methods receive gradients w.r.t.
+the original raw coordinate space.
 """
 
 from __future__ import annotations
@@ -372,37 +385,38 @@ class POTRClassifier(Classifier):
     classifier interface ``(B, J, F, T) → (B, n_classes)``.
 
     Args:
-        checkpoint_path: Path to the pre-trained backbone checkpoint
-            (``potr/pre-trained_NTU_ckpt_epoch_199_enc_80_dec_20.pt``).
-            If ``None``, weights are randomly initialised.
-        n_classes: Number of output logit dimensions (default 4).
+        checkpoint_path: Path to a CARE-PD fine-tuned ``.pth.tr`` or slim
+            ``.pt`` checkpoint.  If ``None``, weights are randomly initialised.
+        n_classes: Number of output logit dimensions (default 3 for CARE-PD).
         model_dim: Transformer hidden dimension (default 128).
         num_encoder_layers: Number of transformer encoder layers (default 4).
         num_heads: Number of attention heads (default 4).
         dim_ffn: Feed-forward dimension (default 2048).
         dropout: Dropout probability (default 0.3).
         num_joints: Number of skeletal joints (default 17).
-        source_seq_length: Number of input frames (default 81 for motionbench).
-
-    Note:
-        The pre-trained checkpoint was trained with ``source_seq_len=80`` on
-        NTU RGB+D.  Loading with ``source_seq_len=81`` triggers ``strict=False``
-        to handle the positional encoding shape mismatch (80 → 81 frames).
-        The positional encodings are fixed sinusoidal (non-learned), so they
-        are recomputed deterministically for the new length.
+        source_seq_length: Number of input frames (default 80 for CARE-PD
+            BMCLab clips; the checkpoint's positional encodings match T=80).
+        stats_mean: Optional ``(J, 3)`` float32 array of per-joint-coordinate
+            means for z-score normalisation.  When provided, ``forward``
+            applies root-centering followed by z-score.  Provide these from
+            ``cache.npz["stats_mean"]`` to match CARE-PD training.
+        stats_std: Optional ``(J, 3)`` float32 array of per-joint-coordinate
+            stds (must be provided together with ``stats_mean``).
     """
 
     def __init__(
         self,
         checkpoint_path: Union[str, Path, None] = None,
-        n_classes: int = 4,
+        n_classes: int = 3,
         model_dim: int = 128,
         num_encoder_layers: int = 4,
         num_heads: int = 4,
         dim_ffn: int = 2048,
         dropout: float = 0.3,
         num_joints: int = 17,
-        source_seq_length: int = 81,
+        source_seq_length: int = 80,
+        stats_mean: Union["np.ndarray", None] = None,  # noqa: F821
+        stats_std: Union["np.ndarray", None] = None,   # noqa: F821
     ) -> None:
         super().__init__(checkpoint_path=checkpoint_path, n_classes=n_classes)
 
@@ -418,34 +432,75 @@ class POTRClassifier(Classifier):
         )
         self.cls_head = nn.Linear(model_dim, n_classes)
 
+        # Pre-processing statistics (registered as non-trainable buffers so
+        # they are moved with .to(device) automatically).
+        if stats_mean is not None and stats_std is not None:
+            import numpy as np  # local import to avoid module-level dep
+            mean_t = torch.from_numpy(np.asarray(stats_mean, dtype=np.float32))
+            std_t  = torch.from_numpy(np.asarray(stats_std,  dtype=np.float32))
+            self.register_buffer("_stats_mean", mean_t)  # (J, 3)
+            self.register_buffer("_stats_std",  std_t)   # (J, 3)
+        else:
+            self._stats_mean = None
+            self._stats_std  = None
+
         if self._checkpoint_path is not None:
             if str(self._checkpoint_path).endswith(".pth.tr"):
                 self._load_care_pd_checkpoint(self._checkpoint_path)
-                logger.info("POTR: loaded CARE-PD fine-tuned checkpoint.")
+                logger.info("POTR: loaded CARE-PD fine-tuned checkpoint (.pth.tr).")
             else:
-                matched, discarded = self._load_checkpoint(
+                # Slim .pt checkpoint: state dict with remapped keys
+                state_dict = torch.load(
                     self._checkpoint_path,
-                    self.backbone,
-                    ckpt_key=None,
-                    strict=False,
+                    map_location=lambda storage, _: storage,
+                    weights_only=False,
                 )
+                result = self.load_state_dict(state_dict, strict=False)
                 logger.info(
-                    "POTR: loaded %d layers, discarded %d "
-                    "(expected: _encoder_pos_encodings discarded due to "
-                    "seq_len 80→81 mismatch).",
-                    len(matched),
-                    len(discarded),
+                    "POTR: loaded slim checkpoint; missing=%s, unexpected=%s",
+                    result.missing_keys,
+                    result.unexpected_keys,
                 )
+
+    def _preprocess(self, x: Tensor) -> Tensor:
+        """Root-center and z-score normalise raw H36M coordinates.
+
+        Mirrors CARE-PD's ``POTRPreprocessor``:
+        1. Subtract the pelvis joint (index 0) to root-centre.
+        2. Z-score each ``(joint, coord)`` channel using stored statistics.
+
+        Args:
+            x: ``(B, J, F=3, T)`` raw 3-D H36M world-to-camera coordinates.
+
+        Returns:
+            ``(B, J, F=3, T)`` preprocessed tensor (same shape).
+        """
+        # Root-centering: subtract pelvis (joint 0) from all joints
+        # x: (B, J, 3, T) → root: (B, 1, 3, T)
+        root = x[:, 0:1, :, :]          # pelvis
+        x = x - root
+
+        if self._stats_mean is not None and self._stats_std is not None:
+            # stats are (J, 3); broadcast over (B, J, 3, T)
+            mean = self._stats_mean.view(1, -1, 3, 1)   # (1, J, 3, 1)
+            std  = self._stats_std.view(1, -1, 3, 1)    # (1, J, 3, 1)
+            std  = std.clamp(min=1e-8)
+            x = (x - mean) / std
+
+        return x
 
     def forward(self, x: Tensor) -> Tensor:
         """Map a batch of 3D pose sequences to class logits.
 
         Args:
-            x: Float32 tensor of shape ``(B, J, F=3, T)``.
+            x: Float32 tensor of shape ``(B, J, F=3, T)`` — raw 3-D
+               world-to-camera H36M coordinates (same format as the CARE-PD
+               flow-matching evaluation cache).
 
         Returns:
             Float32 tensor of shape ``(B, n_classes)`` — raw logits.
         """
+        x = self._preprocess(x)   # root-center + zscore
         # (B, J, F=3, T) → (B, T, J, F=3) → (B, T, J*F=51)
         B, J, F, T = x.shape
         x = x.permute(0, 3, 1, 2).reshape(B, T, J * F)

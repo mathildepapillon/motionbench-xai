@@ -1,0 +1,46 @@
+# @package _global_
+# Learned-imputer sweep — VAEAC and Flow Matching on compatible datasets.
+#
+# Only runs on datasets with pre-trained CARE-PD checkpoints that match
+# the (J=17, T=81) model architecture:
+#   - skeleton_structured  →  synth_skel_k4  VAEAC + synthetic_gaussian_skeleton Flow
+#   - gait_periodic        →  diagnostic_gait VAEAC + diagnostic_gait Flow
+#   - joint_subset_skeleton → synth_skel_k4  (same spatial structure as skeleton)
+#
+# For Gaussian datasets (gaussian_k4/k8) the exact GaussianOracle IS the
+# on-manifold upper bound and is already in the main sweep.
+#
+# Methods: only the two learned imputers, plus the main reference baselines
+# for comparison within the same result JSON.
+#
+# Expected wall time: ~2-4h on CPU (n_jobs=6). Flow is slow due to ODE steps.
+pipeline: synthetic
+
+datasets:
+  - skeleton_structured
+  - gait_periodic
+  - joint_subset_skeleton
+  - gaussian_k4
+  - gaussian_k8
+  - low_rank_manifold
+
+methods:
+  # Learned on-manifold imputers (the key new contribution)
+  - kernelshap_vaeac
+  - kernelshap_flow
+  # Reference baselines for comparison within same result set
+  - kernelshap_zero
+  - kernelshap_oracle
+
+classifiers:
+  - synthetic_cnn
+  - synthetic_lstm
+  - synthetic_transformer
+
+n_sequences: 50
+results_dir: ${oc.env:REPO_ROOT,${hydra:runtime.cwd}}/results/synthetic
+device: cpu
+n_jobs: 6
+
+wandb:
+  mode: disabled

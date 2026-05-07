@@ -1,0 +1,16 @@
+name: kernelshap_vaeac_spatial
+# KernelSHAP with VAEAC on-manifold imputer and SPATIAL (per-joint) players.
+# Contrasts with kernelshap_vaeac which uses temporal window players.
+# Key experiment: on joint_subset_skeleton (label localized to specific joints),
+# spatial players should recover attribution much better than temporal players,
+# even when using the same VAEAC imputer.
+attributor:
+  _target_: motionbench.attribution.kernel_shap.KernelShapAttributor
+imputer:
+  _target_: motionbench.imputers.carepd_imputer.CarepdVAEACImputer
+  n_completion_samples: 10
+players:
+  _target_: motionbench.players.spatial_joints.SpatialJoints
+n_kernel_samples: 64
+n_completion_samples: 10
+seed: 42

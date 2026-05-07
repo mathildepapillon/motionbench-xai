@@ -35,7 +35,7 @@ import logging
 import math
 import warnings
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 import torch
 import torch.nn as nn
@@ -457,19 +457,36 @@ class MotionBERTClassifier(Classifier):
                 raw = torch.load(
                     self._checkpoint_path,
                     map_location=lambda storage, _: storage,
-                    weights_only=False,
+                    weights_only=True,
                 )
                 # Pre-trained backbone weights are a raw state dict
                 state = raw if isinstance(raw, dict) and "model" not in raw else raw.get("model", raw)
-                # Add "backbone." prefix if keys lack it
-                if not any(k.startswith("backbone.") for k in state):
-                    state = {f"backbone.{k}": v for k, v in state.items()}
-                result = self.load_state_dict(state, strict=False)
-                logger.info(
-                    "MotionBERT: pre-trained backbone loaded; missing=%s, unexpected=%s",
-                    result.missing_keys[:3],
-                    result.unexpected_keys[:3],
-                )
+                # If the state dict contains CARE-PD head keys (e.g. model-only
+                # .pt files extracted from pth.tr), apply full CARE-PD remapping.
+                if any("head.fc_layers" in k for k in state):
+                    remapped: dict[str, Any] = {}
+                    for k, v in state.items():
+                        if k.startswith("module."):
+                            k = k[7:]
+                        if k.startswith("head.fc_layers.0."):
+                            k = "cls_head." + k[len("head.fc_layers.0."):]
+                        remapped[k] = v
+                    result = self.load_state_dict(remapped, strict=False)
+                    logger.info(
+                        "MotionBERT: loaded CARE-PD model-only state dict "
+                        "(%d tensors, missing=%s, unexpected=%s)",
+                        len(remapped), result.missing_keys, result.unexpected_keys,
+                    )
+                else:
+                    # Add "backbone." prefix if keys lack it (pre-trained backbone only)
+                    if not any(k.startswith("backbone.") for k in state):
+                        state = {f"backbone.{k}": v for k, v in state.items()}
+                    result = self.load_state_dict(state, strict=False)
+                    logger.info(
+                        "MotionBERT: pre-trained backbone loaded; missing=%s, unexpected=%s",
+                        result.missing_keys[:3],
+                        result.unexpected_keys[:3],
+                    )
 
     def _preprocess(self, x: Tensor) -> Tensor:
         """Apply CARE-PD preprocessing: crop_scale + confidence channel.

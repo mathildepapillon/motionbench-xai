@@ -1,0 +1,11 @@
+_target_: motionbench.data.real.care_pd_cache.BMCLabCacheDataset
+# T=80 matches the flow-matching cache seq_len and VAEAC/Flow imputer training.
+# MotionAGFormer cannot be used (its temporal BatchNorm was trained with T=81);
+# we use MotionBERT only, which has flexible length via learned positional embeddings.
+cache_path: ${oc.env:CARE_PD_ROOT}/cache/flow_matching/BMCLab_h36m_80_fold1/cache.npz
+split: val
+max_sequences: 100
+drop_missing_labels: true
+# Pipeline-only params (used by player-set construction; not passed to constructor)
+K: 4
+T: 80

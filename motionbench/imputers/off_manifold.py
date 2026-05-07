@@ -101,6 +101,7 @@ class ZeroImputer(BaseImputer):
             equal ``x_obs``; hidden entries are exactly 0.0.
         """
         x_obs = x_obs.to(dtype=torch.float32)
+        mask = mask.to(device=x_obs.device)
         completed = torch.where(mask, x_obs, torch.zeros_like(x_obs))
         return completed.unsqueeze(0).expand(n_samples, -1, -1, -1).contiguous()
 
@@ -186,6 +187,7 @@ class MeanImputer(BaseImputer):
                 "Call fit(train_data) first."
             )
         x_obs = x_obs.to(dtype=torch.float32)
+        mask = mask.to(device=x_obs.device)
         mean = self._mean.to(device=x_obs.device, dtype=torch.float32)
         completed = torch.where(mask, x_obs, mean)
         return completed.unsqueeze(0).expand(n_samples, -1, -1, -1).contiguous()
@@ -276,7 +278,7 @@ class MarginalDonorImputer(BaseImputer):
             0, n_train, (n_samples,), generator=generator
         )
         donors = self._pool[idxs].to(device=x_obs.device)
-        out = torch.where(mask.unsqueeze(0), x_obs.unsqueeze(0), donors)
+        out = torch.where(mask.to(device=x_obs.device).unsqueeze(0), x_obs.unsqueeze(0), donors)
         return out.contiguous()
 
 
@@ -406,5 +408,5 @@ class GaussianNoiseImputer(BaseImputer):
             generator=generator,
         )
         hidden_fill = mean.unsqueeze(0) + self.scale * std.unsqueeze(0) * noise
-        out = torch.where(mask.unsqueeze(0), x_obs.unsqueeze(0), hidden_fill)
+        out = torch.where(mask.to(device=x_obs.device).unsqueeze(0), x_obs.unsqueeze(0), hidden_fill)
         return out.contiguous()

@@ -35,7 +35,11 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from torch import Tensor
-from windowshap.windowshap import SlidingWindowSHAP  # type: ignore[import-untyped]
+from windowshap.windowshap import (  # type: ignore[import-untyped]
+    DynamicWindowSHAP,
+    SlidingWindowSHAP,
+    StationaryWindowSHAP,
+)
 
 from motionbench.attribution.base import BaseAttributor
 
@@ -43,7 +47,11 @@ if TYPE_CHECKING:
     from motionbench.players.base import PlayerSet
 
 
-__all__ = ["WindowSHAPAttributor"]
+__all__ = [
+    "WindowSHAPAttributor",
+    "StationaryWindowSHAPAttributor",
+    "DynamicWindowSHAPAttributor",
+]
 
 
 class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
@@ -145,6 +153,28 @@ class _ClassifierAdapter:
         self._T = T
         self._target = target
 
+    def _classifier_device(self) -> torch.device:
+        """Return the device of the wrapped classifier (or CPU if not a Module)."""
+        cls = self._classifier
+        # The pipeline wraps the raw classifier in a softmax closure, so we
+        # need to find the underlying nn.Module to read its device.  The
+        # closure has a ``__closure__`` cell containing the classifier; if
+        # we can't introspect it, fall back to CPU.
+        if hasattr(cls, "parameters"):
+            try:
+                return next(cls.parameters()).device  # type: ignore[union-attr]
+            except (StopIteration, AttributeError):
+                return torch.device("cpu")
+        if getattr(cls, "__closure__", None):
+            for cell in cls.__closure__:  # type: ignore[union-attr]
+                obj = cell.cell_contents
+                if hasattr(obj, "parameters"):
+                    try:
+                        return next(obj.parameters()).device
+                    except StopIteration:
+                        continue
+        return torch.device("cpu")
+
     def predict(self, ts_x: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
         """Run the classifier on a batch of flattened time series.
 
@@ -155,7 +185,8 @@ class _ClassifierAdapter:
             ``(N,)`` float32 numpy array of scalar predictions.
         """
         N = ts_x.shape[0]
-        x_tensor = torch.as_tensor(ts_x, dtype=torch.float32)
+        device = self._classifier_device()
+        x_tensor = torch.as_tensor(ts_x, dtype=torch.float32, device=device)
         # (N, T, J*F) → (N, T, J, F) → (N, J, F, T)
         x_tensor = x_tensor.reshape(N, self._T, self._J, self._F)
         x_tensor = x_tensor.permute(0, 2, 3, 1).contiguous()
@@ -163,7 +194,7 @@ class _ClassifierAdapter:
             out = self._classifier(x_tensor)
         if out.ndim > 1:
             out = out[:, self._target]
-        return out.cpu().numpy().astype(np.float32)  # type: ignore[return-value]
+        return out.detach().cpu().numpy().astype(np.float32)  # type: ignore[return-value]
 
 
 class WindowSHAPAttributor(BaseAttributor):
@@ -272,3 +303,202 @@ class WindowSHAPAttributor(BaseAttributor):
     def name(self) -> str:
         """Short identifier for logging."""
         return "WindowSHAP"
+
+
+class _UniformWindowAttributor(BaseAttributor):
+    """Shared logic for K=T/window_len uniform-window WindowSHAP variants.
+
+    Subclasses construct a per-sequence explainer (``StationaryWindowSHAP``
+    or ``DynamicWindowSHAP``) and return ``(K, F_total)`` per-window SHAP
+    values; this base distributes them uniformly across the timesteps in
+    each window to recover a ``(J, F_coords, T)`` attribution map and then
+    aggregates with ``players.aggregate``.
+
+    The aggregation choice (uniform within a window) preserves
+    :math:`\\sum_{t=t_k}^{t_{k+1}-1} \\phi_{j,f,t} = \\phi^{(\\mathrm{win})}_{k,j,f}`,
+    so for a temporal-window ``PlayerSet`` whose window boundaries match
+    those used by WindowSHAP the per-player attribution is identical.
+
+    Args:
+        classifier: ``(B, J, F, T) → (B, n_classes)`` callable returning
+            softmax probabilities (when constructed via the standard
+            pipeline, ``_build_attributor`` wraps the raw classifier in a
+            softmax).
+        window_len: Window length in time steps; ``T`` must be a multiple.
+        nsamples: KernelSHAP coalition budget per window.
+        seed: NumPy seed.
+    """
+
+    def __init__(
+        self,
+        classifier: Callable[[Tensor], Tensor],
+        window_len: int = 4,
+        nsamples: int = 256,
+        seed: int | None = None,
+    ) -> None:
+        super().__init__(classifier)
+        self._window_len = int(window_len)
+        self._nsamples = int(nsamples)
+        self._seed = seed
+
+    def _explain_one(
+        self,
+        adapter: _ClassifierAdapter,
+        x_seq_btf: npt.NDArray[np.float32],
+        bg_btf: npt.NDArray[np.float32],
+    ) -> npt.NDArray[np.float32]:
+        """Return ``(K, F_total)`` per-window attribution for one sequence."""
+        raise NotImplementedError
+
+    def attribute(
+        self,
+        x: Tensor,
+        players: PlayerSet,
+        target: int = 0,
+    ) -> Tensor:
+        J, F_coords, T = x.shape
+        if self._window_len >= T:
+            raise ValueError(
+                f"window_len={self._window_len} must be less than T={T}.",
+            )
+        if T % self._window_len != 0:
+            raise ValueError(
+                f"window_len={self._window_len} must divide T={T} evenly.",
+            )
+        K = T // self._window_len
+        F_total = J * F_coords
+
+        if self._seed is not None:
+            np.random.seed(self._seed)
+
+        x_np = (
+            x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy()
+        )[np.newaxis].astype(np.float32)
+        bg_np = np.zeros_like(x_np)
+
+        adapter = _ClassifierAdapter(self._classifier, J, F_coords, T, target)
+        sv_kF = self._explain_one(adapter, x_np, bg_np)
+
+        # Distribute (K, F_total) uniformly across the win_len timesteps in each
+        # window, yielding (T, F_total) → (J, F_coords, T) for players.aggregate.
+        win = self._window_len
+        per_step = sv_kF[:, np.newaxis, :] / float(win)  # (K, 1, F_total)
+        ts_phi = np.broadcast_to(per_step, (K, win, F_total)).reshape(T, F_total)
+        phi_3d = ts_phi.reshape(T, J, F_coords)
+        phi_coords = torch.as_tensor(phi_3d, dtype=torch.float32).permute(1, 2, 0)
+        return players.aggregate(phi_coords)
+
+
+class StationaryWindowSHAPAttributor(_UniformWindowAttributor):
+    """WindowSHAP with fixed uniform windows (``StationaryWindowSHAP``).
+
+    Wraps :class:`windowshap.windowshap.StationaryWindowSHAP` from the
+    official ``windowshap`` pip package.  Each sequence is explained
+    independently with its own KernelSHAP solve over the K windows.
+    """
+
+    @property
+    def name(self) -> str:  # noqa: D401
+        """Short identifier for logging."""
+        return "WindowSHAP-Stationary"
+
+    def _explain_one(
+        self,
+        adapter: _ClassifierAdapter,
+        x_seq_btf: npt.NDArray[np.float32],
+        bg_btf: npt.NDArray[np.float32],
+    ) -> npt.NDArray[np.float32]:
+        import shap as _shap  # noqa: PLC0415
+
+        explainer = StationaryWindowSHAP(
+            model=adapter,
+            window_len=self._window_len,
+            B_ts=bg_btf,
+            test_ts=x_seq_btf,
+            model_type="lstm",
+        )
+        # The package builds an explainer on first call with nsamples='auto';
+        # rebuild it with our explicit budget so runs are reproducible.
+        explainer.explainer = _shap.KernelExplainer(
+            explainer.wraper_predict, explainer.background_data,
+        )
+        sv = np.asarray(
+            explainer.explainer.shap_values(
+                explainer.test_data, nsamples=self._nsamples, silent=True,
+            ),
+        )
+        # Normalise to (1, n_features) regardless of SHAP version.
+        if sv.ndim == 2:
+            sv = sv[np.newaxis]
+        elif sv.ndim == 3 and sv.shape[-1] < sv.shape[-2]:
+            sv = sv.transpose(2, 0, 1)
+        sv = sv[0, 0]  # (n_features,) where n_features = K * F_total
+        K = x_seq_btf.shape[1] // self._window_len
+        F_total = x_seq_btf.shape[2]
+        return sv.reshape(K, F_total).astype(np.float32)
+
+
+class DynamicWindowSHAPAttributor(_UniformWindowAttributor):
+    """WindowSHAP with adaptive split-points (``DynamicWindowSHAP``).
+
+    Wraps :class:`windowshap.windowshap.DynamicWindowSHAP` from the
+    official ``windowshap`` pip package.  The package returns per-timestep
+    SHAP values after iterating split-points; we then aggregate to the
+    fixed K=T/window_len uniform windows so the row is comparable with
+    the rest of Table~\\ref{tab:synth_ec1}.
+    """
+
+    @property
+    def name(self) -> str:  # noqa: D401
+        """Short identifier for logging."""
+        return "WindowSHAP-Dynamic"
+
+    def _explain_one(
+        self,
+        adapter: _ClassifierAdapter,
+        x_seq_btf: npt.NDArray[np.float32],
+        bg_btf: npt.NDArray[np.float32],
+    ) -> npt.NDArray[np.float32]:
+        import shap as _shap  # noqa: PLC0415
+
+        # DynamicWindowSHAP was written for an older shap API that returned
+        # ``list[(N, F)]`` for classification models; SHAP ≥0.46 returns
+        # ``(N, F, C)`` directly.  Patch the call site for the duration of
+        # this attribute() call.
+        _orig = _shap.KernelExplainer.shap_values
+
+        def _patched(self_: object, X: object, **kw: object) -> np.ndarray:
+            sv = _orig(self_, X, **kw)  # type: ignore[arg-type]
+            sv = np.asarray(sv)
+            if sv.ndim == 3:
+                sv = sv.transpose(2, 0, 1)
+            elif sv.ndim == 2:
+                sv = sv[np.newaxis]
+            return sv
+
+        _shap.KernelExplainer.shap_values = _patched  # type: ignore[assignment]
+        try:
+            explainer = DynamicWindowSHAP(
+                model=adapter,
+                delta=0.05,
+                n_w=8,
+                B_ts=bg_btf,
+                test_ts=x_seq_btf,
+                model_type="lstm",
+            )
+            phi_full = explainer.shap_values(
+                nsamples_in_loop=self._nsamples,
+                nsamples_final=self._nsamples,
+            )
+            # phi_full shape: (1, T, F_total).  Aggregate to (K, F_total).
+            T = x_seq_btf.shape[1]
+            F_total = x_seq_btf.shape[2]
+            K = T // self._window_len
+            return (
+                phi_full[0]
+                .reshape(K, self._window_len, F_total)
+                .sum(axis=1)
+                .astype(np.float32)
+            )
+        finally:
+            _shap.KernelExplainer.shap_values = _orig  # type: ignore[assignment]

@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 
-REPO = Path("/home/papillon/code/motionbench-xai")
+REPO = Path(__file__).resolve().parent.parent
 DEVICE = "cuda:0"   # CUDA_VISIBLE_DEVICES=3 → physical GPU 3, logical 0
 N_SEQ = 50
 WINDOW_SIZES = [2, 4, 8, 16]

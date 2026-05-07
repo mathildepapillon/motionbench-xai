@@ -1,8 +1,9 @@
 # Architecture — The Four Base Abstractions
 
-> This document describes the four locked base abstractions in motionbench-xai.
-> **These interfaces are frozen after Phase 0.** All agents must read this
-> before writing any module-level code.
+> This document describes the four base abstractions in motionbench-xai
+> (`PlayerSet`, `BaseDataset`, `Oracle`/`BaseImputer`, `BaseAttributor`,
+> `BaseMetric`). The interfaces are stable; new methods, datasets and
+> metrics are added by subclassing them.
 
 ---
 
@@ -160,11 +161,11 @@ All coordinates use `(J, F, T)` layout. No exceptions.
 
 | Symbol | Meaning | Example |
 |--------|---------|---------|
-| J | Skeletal joints | 17 (H36M-17) |
-| F | Features per joint | 3 (xyz) |
-| T | Time-steps per clip | 81 (3 s at 27 fps) |
-| M | SHAP players | 4 (temporal K=4), 17 (joints) |
-| B | Batch size | 32 |
+| J | Skeletal joints / channels | 5 or 17 (synthetic), 17 (CARE-PD), 12 (PTB-XL) |
+| F | Features per joint | 3 (xyz) for skeletons, 1 for ECG |
+| T | Time-steps per clip | 16 / 20 (synthetic), 80 (CARE-PD), 1000 (PTB-XL) |
+| M | SHAP players | 4–10 (temporal), 17 (joints) |
+| B | Batch size | varies |
 
 - Single sample: `(J, F, T)`
 - Batch: `(B, J, F, T)`
@@ -178,11 +179,11 @@ All coordinates use `(J, F, T)` layout. No exceptions.
 
 ```python
 # 1. Dataset provides data and oracle
-dataset = GaussianMotionDataset(K=4, J=17, F=3, T=81)
+dataset = GaussianMotionDataset(K=4, J=5, F=3, T=16)
 x, y = dataset[0]          # (J, F, T), scalar
 
 # 2. PlayerSet defines the game
-players = TemporalWindows(K=4, T=81, J=17, F=3)
+players = TemporalWindows(K=4, T=16, J=5, F=3)
 
 # 3. Imputer fills masked coordinates
 imputer = VAEACImputer.load("checkpoints/vaeac.pt")

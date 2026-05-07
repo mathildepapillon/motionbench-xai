@@ -1,7 +1,14 @@
 # @package _global_
+# Full synthetic sweep used by scripts/reproduce_synthetic.sh and the paper's
+# Section 5 tables.  Off-manifold + temporal + gradient methods are evaluated
+# here; on-manifold KS-VAEAC and KS-Flow at N=200 are produced by
+# scripts/restore_contaminated_n50.py (which writes to the same result tree).
+#
 # Pipeline routing key: "synthetic" | "real"
 pipeline: synthetic
 
+# Nine synthetic datasets covering the four spatiotemporal regimes plus two
+# marginal families (Gaussian, Burr).  See paper Table 1 for the taxonomy.
 datasets:
   - gaussian_k4
   - gaussian_k8
@@ -9,24 +16,35 @@ datasets:
   - burr_m10
   - skeleton_structured
   - gait_periodic
+  - skeleton_gait_combined
+  - joint_subset_skeleton
+  - low_rank_manifold
 
+# Thirteen attribution variants reported in the paper, plus the Oracle
+# reference and four gradient baselines documented in the appendix.
 methods:
+  # KernelSHAP imputer family (six variants)
   - kernelshap_zero
   - kernelshap_mean
   - kernelshap_marginal
   - kernelshap_empirical
   - kernelshap_vaeac
   - kernelshap_flow
+  - kernelshap_oracle           # closed-form reference (synthetic only)
+  # WindowSHAP windowing family (two variants)
+  - windowshap_stationary
+  - windowshap_dynamic
+  # TimeSHAP per-event Shapley
+  - timeshap
+  # KernelSHAP-Temporal event-level baseline
+  - kernelshap_temporal
+  # Gradient baselines (appendix scale reference)
   - ig_zero
   - ig_mean
   - deeplift
   - gradientshap
   - smoothgrad
   - lrp
-  - timeshap
-  - windowshap
-  - shats
-  - gradcam
 
 classifiers:
   - synthetic_mlp
@@ -45,18 +63,26 @@ metrics:
   fidelity:
     - faithfulness_correlation
     - pixel_flipping
+    - player_deletion
   stability:
     - max_sensitivity
   sanity:
     - model_parameter_randomisation
 
+# Oracle Monte-Carlo budget for any oracle-derived metric.
+metric_oracle_n_mc: 10
+metric_oracle_n_coalitions: 64
+
+n_sequences: 200
 results_dir: results/synthetic
+checkpoint_dir: motionbench/classifiers/checkpoints/synthetic
 device: cpu
+n_jobs: 8
 
 wandb:
   project: motionbench-xai
-  entity: null      # set via env var WANDB_ENTITY or override
+  entity: null
   tags:
     - synthetic
     - full_sweep
-  mode: online      # set to "disabled" to skip
+  mode: disabled

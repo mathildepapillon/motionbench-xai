@@ -26,7 +26,7 @@ Example
 ...                    labels_path="path/to/labels.pkl")
 >>> x, y = ds[0]
 >>> x.shape
-torch.Size([17, 3, 81])
+torch.Size([17, 3, 80])
 >>> y.item()
 0
 
@@ -85,7 +85,7 @@ class BMCLabDataset:
         self,
         joints_paths: Sequence[str | Path],
         labels_path: str | Path,
-        clip_len: int = 81,
+        clip_len: int = 80,
     ) -> None:
         self._clip_len = clip_len
         self._joints_paths = [Path(p) for p in joints_paths]

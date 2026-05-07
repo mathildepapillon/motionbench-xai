@@ -6,14 +6,13 @@ This module provides :class:`ShaTSAttributor`, a placeholder for the ShaTS
 **Status: stub only.**
 
 The ``shats`` library has not yet been released as a Python package on PyPI.
-Once it becomes available, this stub should be replaced with a real wrapper
-(see BACKLOG entry B-3C-02).  Until then, calling :meth:`ShaTSAttributor.attribute`
-raises :exc:`NotImplementedError` with an actionable message.
+Once it becomes available, this stub should be replaced with a real wrapper.
+Until then, calling :meth:`ShaTSAttributor.attribute` raises
+:exc:`NotImplementedError` with an actionable message.
 
 References
 ----------
 Bourdoukan & Durner (2024) "ShaTS: Shapley Time Series." (preprint)
-BACKLOG B-3C-02: shats not yet available as Python package; stub only.
 """
 
 from __future__ import annotations
@@ -37,8 +36,7 @@ class ShaTSAttributor(BaseAttributor):
 
     Raises :exc:`NotImplementedError` on every call to :meth:`attribute`
     because the ``shats`` Python package is not yet available on PyPI.
-    Install from the upstream repository when it is released (see BACKLOG
-    entry B-3C-02).
+    Install from the upstream repository when it is released.
 
     Args:
         classifier: ``(B, J, F, T) float32 → (B,) float32`` callable.
@@ -71,12 +69,12 @@ class ShaTSAttributor(BaseAttributor):
             target: Class index (unused).
 
         Raises:
-            NotImplementedError: Always. Install ``shats`` from
-                ``https://github.com/author/shats`` when released.
+            NotImplementedError: Always.  Install the upstream ``shats``
+                Python package once Bourdoukan & Durner release it.
         """
         raise NotImplementedError(
-            "shats library not available; install from "
-            "https://github.com/author/shats when released"
+            "shats library not available on PyPI yet; "
+            "install from the upstream authors' release when published"
         )
 
     # ------------------------------------------------------------------

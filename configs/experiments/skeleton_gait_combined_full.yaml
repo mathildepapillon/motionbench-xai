@@ -1,0 +1,58 @@
+# @package _global_
+# Full off-manifold + temporal + gradient sweep for skeleton_gait_combined.
+pipeline: synthetic
+
+datasets:
+  - skeleton_gait_combined
+
+methods:
+  - kernelshap_zero
+  - kernelshap_mean
+  - kernelshap_marginal
+  - kernelshap_empirical
+  - kernelshap_oracle
+  - kernelshap_temporal
+  - windowshap
+  - ig_zero
+  - deeplift
+  - smoothgrad
+  - lrp
+
+classifiers:
+  - synthetic_mlp
+  - synthetic_cnn
+  - synthetic_transformer
+
+metrics:
+  gt:
+    - ec1
+    - ec2
+    - ec3
+    - topk
+    - spearman
+    - kendall
+    - efficiency_error
+  fidelity:
+    - faithfulness_correlation
+    - player_deletion
+  manifold: []
+  stability: []
+  sanity: []
+
+quantus_max_sensitivity_nr_samples: 20
+metric_oracle_n_mc: 10
+metric_oracle_n_coalitions: 64
+
+results_dir: results/synthetic
+checkpoint_dir: motionbench/classifiers/checkpoints/synthetic
+device: cuda:0
+n_sequences: 50
+n_jobs: 4
+
+wandb:
+  project: motionbench-xai
+  entity: null
+  tags:
+    - synthetic
+    - skeleton_gait_combined
+  mode: disabled

@@ -25,6 +25,7 @@ from motionbench.data.synthetic.label_functions import (
     LocalizedTemporal,
     OlsenInteraction,
     SpatialOlsen,
+    ThresholdedXOR,
 )
 from motionbench.players.base import PlayerSet
 
@@ -250,6 +251,88 @@ class TestOlsenInteraction:
         labels_first = lf(x_batch)
         labels_second = lf(x_batch)
         np.testing.assert_array_equal(labels_first, labels_second)
+
+
+# ===========================================================================
+# ThresholdedXOR (non-smooth label complement to OlsenInteraction)
+# ===========================================================================
+
+
+class TestThresholdedXOR:
+    def test_output_shape(self, x_batch: np.ndarray) -> None:
+        lf = ThresholdedXOR(K=4, seed=0)
+        labels = lf(x_batch)
+        _assert_label_array(labels)
+
+    def test_output_shape_k8(self, rng: np.random.Generator) -> None:
+        x = rng.standard_normal((N, J, F, 32)).astype(np.float32)
+        lf = ThresholdedXOR(K=8, seed=1)
+        labels = lf(x)
+        assert labels.shape == (N,)
+        assert labels.dtype == np.int64
+        assert set(np.unique(labels)) <= {0, 1, 2}
+
+    def test_important_players_includes_all_windows(
+        self,
+        temporal_players: FakeTemporalPlayerSet,
+    ) -> None:
+        lf = ThresholdedXOR(K=4, seed=0)
+        players = lf.important_players(temporal_players)
+        assert players == {0, 1, 2, 3}
+
+    def test_calibration_is_deterministic(self, x_batch: np.ndarray) -> None:
+        lf1 = ThresholdedXOR(K=4, seed=7)
+        lf2 = ThresholdedXOR(K=4, seed=7)
+        labels1 = lf1(x_batch)
+        labels2 = lf2(x_batch)
+        np.testing.assert_array_equal(labels1, labels2)
+
+    def test_k_must_be_even(self) -> None:
+        with pytest.raises(ValueError, match="even integer"):
+            ThresholdedXOR(K=3)
+
+    def test_k_must_be_positive(self) -> None:
+        with pytest.raises(ValueError, match="even integer"):
+            ThresholdedXOR(K=0)
+
+    def test_label_is_non_smooth_in_window_mean(self, rng: np.random.Generator) -> None:
+        """A small perturbation that flips one window's bit must change the
+        unbinarised XOR score by exactly 1, while a perturbation that does
+        not cross the threshold leaves the score invariant."""
+        N_local = 64
+        x = rng.standard_normal((N_local, J, F, T)).astype(np.float64)
+        lf = ThresholdedXOR(K=4, jitter_std=0.0, seed=0)
+        lf(x)  # calibrate
+        # Compute raw bit pattern and integer score
+        w = np.stack(
+            [x[:, :, :, frames].mean(axis=(1, 2, 3)) for frames in lf._window_assignments],
+            axis=1,
+        )
+        b = (w > lf._thresholds).astype(np.int64)
+        score = sum((b[:, 2 * i] != b[:, 2 * i + 1]).astype(np.int64) for i in range(2))
+
+        # Force window 0 of every sample to be far above its threshold; b_0
+        # becomes 1 across all samples.
+        x_flip = x.copy()
+        f0 = lf._window_assignments[0]
+        x_flip[:, :, :, f0] += 100.0  # large positive shift well above threshold
+        w2 = np.stack(
+            [x_flip[:, :, :, frames].mean(axis=(1, 2, 3)) for frames in lf._window_assignments],
+            axis=1,
+        )
+        b2 = (w2 > lf._thresholds).astype(np.int64)
+        assert (b2[:, 0] == 1).all()
+
+        # Score after flipping b_0=1 differs from original by exactly the
+        # change in the (b_0 != b_1) indicator.
+        new_pair0 = (b2[:, 0] != b[:, 1]).astype(np.int64)
+        old_pair0 = (b[:, 0] != b[:, 1]).astype(np.int64)
+        expected_delta = new_pair0 - old_pair0
+        new_score = (
+            (b2[:, 0] != b[:, 1]).astype(np.int64)
+            + (b[:, 2] != b[:, 3]).astype(np.int64)
+        )
+        assert (new_score - score == expected_delta).all()
 
 
 # ===========================================================================

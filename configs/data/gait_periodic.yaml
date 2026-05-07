@@ -8,7 +8,9 @@ K: 4
 # Dataset size
 N: 200
 # Gait-periodic covariance
-period_mean: 8.0    # one gait cycle per 8 frames at T=16
+# period_mean=7.0 → T/period = 16/7 ≈ 2.29 (non-integer) so the cosine
+# kernel does NOT cancel over T frames and the grand-mean label carries signal.
+period_mean: 7.0    # ~2.3 gait cycles per T=16 frames
 period_std: 1.0
 n_harmonics: 3
 n_classes: 3

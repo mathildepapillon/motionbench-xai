@@ -99,12 +99,12 @@ def crop_scale_and_conf(x: Tensor) -> Tensor:
         xs = (xmin + xmax - scale) / 2
         ys = (ymin + ymax - scale) / 2
 
-        norm_xy = (sample[:, :, :2] - torch.stack([xs, ys])) / scale
+        norm_xy = (sample[:, :, :2] - torch.stack([xs, ys]).to(device=x.device)) / scale
         norm_xy = (norm_xy - 0.5) * 2
         norm_xy = norm_xy.clamp(-1.0, 1.0)
 
         # Confidence channel: 1 for real frames, 0 for padded
-        conf = valid_frame.float().unsqueeze(-1).unsqueeze(-1).expand(T, J, 1)
+        conf = valid_frame.to(device=x.device).float().unsqueeze(-1).unsqueeze(-1).expand(T, J, 1)
 
         result[b] = torch.cat([norm_xy, conf], dim=-1)
 

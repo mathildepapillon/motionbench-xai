@@ -20,7 +20,7 @@ The ``period_mean`` and ``period_std`` parameters document the intended
 distribution over stride periods.  The covariance matrix is built from
 ``period_mean`` (a fixed kernel per dataset instance).  Per-sequence period
 variability — drawing a fresh period per sample from
-``N(period_mean, period_std²)`` — is deferred to BACKLOG B-002.
+``N(period_mean, period_std²)`` — is deferred to future work.
 
 Conforms to :class:`~motionbench.data.base.GroundTruthDataset` via structural
 subtyping (no inheritance required).
@@ -53,7 +53,7 @@ from motionbench.data.synthetic.gaussian_motion import (
 if TYPE_CHECKING:
     from motionbench.oracles.gaussian_oracle import GaussianOracle
 
-__all__ = ["GaitPeriodicDataset"]
+__all__ = ["GaitPeriodicDataset", "gait_stddev_label_fn"]
 
 #: Label function type: ``(x_np: (N, J, F, T), n_classes: int)`` → ``(N,)`` int64.
 LabelFunction = Callable[[npt.NDArray[Any], int], npt.NDArray[np.int64]]
@@ -77,6 +77,29 @@ def _default_label_fn(
     return labels
 
 
+def gait_stddev_label_fn(
+    x_np: npt.NDArray[Any], n_classes: int
+) -> npt.NDArray[np.int64]:
+    """Quantile-split on temporal standard deviation of joint-0 signal.
+
+    More learnable than the grand-mean default when the cosine temporal kernel
+    produces near-zero mean across the window (e.g. near-integer T/period ratio).
+    The temporal std dev reflects the amplitude of the gait oscillation and
+    varies meaningfully across samples drawn from the gait covariance.
+
+    Args:
+        x_np: ``(N, J, F, T)`` float32 array of samples.
+        n_classes: Number of label classes.
+
+    Returns:
+        ``(N,)`` int64 class-label array in ``{0, ..., n_classes-1}``.
+    """
+    score = x_np[:, 0, :, :].std(axis=(1, 2))  # temporal SD of joint-0  (N,)
+    bounds = np.percentile(score, np.linspace(0.0, 100.0, n_classes + 1)[1:-1])
+    labels: npt.NDArray[np.int64] = np.searchsorted(bounds, score).astype(np.int64)
+    return labels
+
+
 class GaitPeriodicDataset:
     """Gaussian motion with gait-periodic Toeplitz Σ_time.
 
@@ -91,7 +114,7 @@ class GaitPeriodicDataset:
     ``period_std`` documents the intended variability of stride periods across
     subjects / trials but does not currently affect the generated data (the
     covariance kernel is fixed at ``period_mean``).  Per-sequence period
-    variability is tracked in BACKLOG B-002.
+    variability is left to future work.
 
     Args:
         J: Number of skeletal joints.

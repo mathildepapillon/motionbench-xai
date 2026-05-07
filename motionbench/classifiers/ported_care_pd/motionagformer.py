@@ -36,7 +36,7 @@ import collections
 import logging
 import math
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 import torch
 import torch.nn as nn
@@ -451,17 +451,38 @@ class MotionAGFormerClassifier(Classifier):
                 self._load_care_pd_checkpoint(self._checkpoint_path)
                 logger.info("MotionAGFormer: loaded CARE-PD fine-tuned checkpoint.")
             else:
-                matched, discarded = self._load_checkpoint(
+                raw = torch.load(
                     self._checkpoint_path,
-                    self.backbone,
-                    ckpt_key="model",
-                    strict=False,
+                    map_location=lambda storage, _: storage,
+                    weights_only=True,
                 )
-                logger.info(
-                    "MotionAGFormer: loaded %d layers, discarded %d.",
-                    len(matched),
-                    len(discarded),
-                )
+                state = raw if isinstance(raw, dict) and "model" not in raw else raw.get("model", raw)
+                # CARE-PD model-only .pt files: remap head.fc_layers.0 → cls_head
+                if any("head.fc_layers" in k for k in state):
+                    remapped: dict[str, Any] = {}
+                    for k, v in state.items():
+                        if k.startswith("module."):
+                            k = k[7:]
+                        if k.startswith("head.fc_layers.0."):
+                            k = "cls_head." + k[len("head.fc_layers.0."):]
+                        k = k.replace(".layer_scale_1", ".ls1").replace(".layer_scale_2", ".ls2")
+                        remapped[k] = v
+                    result = self.load_state_dict(remapped, strict=False)
+                    logger.info(
+                        "MotionAGFormer: loaded CARE-PD model-only state dict "
+                        "(%d tensors, missing=%s, unexpected=%s)",
+                        len(remapped), result.missing_keys, result.unexpected_keys,
+                    )
+                else:
+                    # Slim .pt checkpoint: keys already prefixed with 'backbone.'
+                    # (and 'cls_head.'). Load directly into self.
+                    result2 = self.load_state_dict(state, strict=False)
+                    n_loaded = len(state) - len(result2.unexpected_keys)
+                    logger.info(
+                        "MotionAGFormer: loaded slim checkpoint; loaded=%d, "
+                        "missing=%s, unexpected=%s",
+                        n_loaded, result2.missing_keys, result2.unexpected_keys,
+                    )
 
     def _preprocess(self, x: Tensor) -> Tensor:
         """Apply CARE-PD preprocessing: crop_scale + confidence channel.

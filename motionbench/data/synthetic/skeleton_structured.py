@@ -142,8 +142,13 @@ class SkeletonStructuredDataset:
 
         x_np = self._benchmark.sample(N, seed=seed)  # (N, J, F, T)
 
-        _label_fn: LabelFunction = label_fn if label_fn is not None else _default_label_fn
-        y_np = _label_fn(x_np, n_classes)
+        if label_fn is None:
+            y_np = _default_label_fn(x_np, n_classes)
+        else:
+            try:
+                y_np = np.asarray(label_fn(x_np), dtype=np.int64)
+            except TypeError:
+                y_np = label_fn(x_np, n_classes)
 
         self._x: Tensor = torch.tensor(x_np, dtype=torch.float32)
         self._y: Tensor = torch.tensor(y_np, dtype=torch.int64)

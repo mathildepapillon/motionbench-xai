@@ -48,6 +48,7 @@ __all__ = [
     "Linear",
     "OlsenInteraction",
     "SpatialOlsen",
+    "ThresholdedXOR",
     "LocalizedTemporal",
     "LocalizedSpatial",
     "LocalizedSpatiotemporal",
@@ -595,6 +596,131 @@ class SpatialOlsen(LabelFunction):
             The set of signal joint indices (always a subset of ``{0, ..., J-1}``).
         """
         return set(self.signal_joints)
+
+
+class ThresholdedXOR(LabelFunction):
+    """Non-smooth XOR-style label over $K$ binarised window means.
+
+    For every temporal window $k\\in\\{0,\\ldots,K{-}1\\}$ the per-window grand
+    mean $w_k(\\mathbf{x}) = \\mathbb{E}_{j,f,t\\in W_k}[x_{jft}]$ is
+    binarised at its calibrated median $m_k$:
+
+    .. math::
+
+        b_k(\\mathbf{x}) = \\mathbf{1}\\{w_k(\\mathbf{x}) > m_k\\}\\in\\{0,1\\}.
+
+    The continuous score is the count of XOR-matches across consecutive
+    window pairs:
+
+    .. math::
+
+        s(\\mathbf{x}) = \\sum_{i=0}^{K/2 - 1} \\bigl[
+                          b_{2i}(\\mathbf{x}) \\oplus b_{2i+1}(\\mathbf{x})
+                       \\bigr] \\in \\{0,1,\\ldots,K/2\\},
+
+    where $\\oplus$ denotes the XOR (parity) operation.  A small Gaussian
+    jitter is added to break ties before quantile binarisation so that the
+    quantile cutoffs remain well-defined when ``n_classes < K/2 + 1``.
+
+    **Why XOR?**  XOR has zero marginal effect on every individual bit yet a
+    full all-order interaction across the bits in each pair: removing any
+    single window flips the parity of one XOR pair and changes the score
+    by exactly one.  Combined with the indicator binarisation the response
+    surface is piecewise-constant with sharp thresholds at $w_k = m_k$,
+    making it a stress test for whether on-manifold dominance carries over
+    from the smooth Olsen sin/exp interaction (\\S\\ref{sec:synthetic}) to
+    a fundamentally non-smooth label generator.
+
+    **Calibration:** ``threshold_k`` (per-window medians) are fitted lazily
+    on the first call to :py:meth:`__call__` using the provided data batch.
+    Subsequent calls reuse the fitted thresholds.
+
+    **Important players:** All $K$ windows enter the score (each bit is one
+    operand of an XOR pair), so the full set ``{0, ..., K-1}`` is returned.
+
+    Args:
+        K: Number of temporal windows.  Must be a positive even integer
+            so that the bits can be paired into $K/2$ XOR terms.
+        n_classes: Number of output classes.
+        percentiles: Quantile cutoffs for binarisation.
+        jitter_std: Std of zero-mean Gaussian noise added to the integer
+            score before binarisation.  A small value (default ``1e-3``)
+            is sufficient to break ties without changing class boundaries.
+        seed: Random seed for the tie-breaking jitter.
+
+    Raises:
+        ValueError: if ``K`` is not a positive even integer.
+    """
+
+    def __init__(
+        self,
+        K: int,
+        n_classes: int = 3,
+        percentiles: tuple[float, ...] = (33.0, 67.0),
+        jitter_std: float = 1e-3,
+        seed: int = 0,
+    ) -> None:
+        super().__init__(n_classes=n_classes, percentiles=percentiles)
+        if K <= 0 or K % 2 != 0:
+            raise ValueError(f"K must be a positive even integer; got {K}.")
+        self.K = K
+        self.jitter_std = float(jitter_std)
+        self.seed = seed
+        self._thresholds: npt.NDArray[np.float64] | None = None
+        self._window_assignments: list[list[int]] | None = None
+
+    def _fit(self, x: _Array) -> None:
+        """Calibrate per-window medians from the first data batch.
+
+        Args:
+            x: ``(N, J, F, T)`` float array used for calibration.
+        """
+        T = x.shape[3]
+        self._window_assignments = _make_window_assignments(T, self.K)
+        w_cal = _per_window_grand_means(x, self._window_assignments)  # (N, K)
+        self._thresholds = np.asarray(np.median(w_cal, axis=0), dtype=np.float64)
+
+    def __call__(self, x: _Array) -> npt.NDArray[np.int64]:
+        """Apply the thresholded-XOR label function.
+
+        Calibrates on the first call; reuses fitted thresholds thereafter.
+
+        Args:
+            x: ``(N, J, F, T)`` float array.
+
+        Returns:
+            ``(N,)`` int64 class labels.
+        """
+        if self._thresholds is None:
+            self._fit(x)
+        assert self._window_assignments is not None
+        assert self._thresholds is not None
+        w = _per_window_grand_means(x, self._window_assignments)  # (N, K)
+        b = (w > self._thresholds[np.newaxis]).astype(np.int64)   # (N, K)
+        # XOR consecutive pairs; sum across pairs gives integer score in
+        # {0, ..., K/2}.  XOR is implemented via inequality of binary bits.
+        n_pairs = self.K // 2
+        score = np.zeros(x.shape[0], dtype=np.float64)
+        for i in range(n_pairs):
+            score += (b[:, 2 * i] != b[:, 2 * i + 1]).astype(np.float64)
+        # Tie-breaking jitter (deterministic per call via np.random.default_rng).
+        rng = np.random.default_rng(self.seed)
+        score = score + rng.normal(0.0, self.jitter_std, size=score.shape)
+        return self._binarize(score)
+
+    def important_players(self, player_set: PlayerSet) -> set[int]:
+        """Return all $K$ window indices as important players.
+
+        Every bit $b_k$ is an operand of exactly one XOR pair; flipping any
+        single bit changes the parity of that pair and therefore the score.
+
+        Args:
+            player_set: The PlayerSet defining M players.
+
+        Returns:
+            ``{0, 1, ..., K-1}`` (all temporal windows are important).
+        """
+        return set(range(self.K))
 
 
 class LocalizedTemporal(LabelFunction):

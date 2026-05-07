@@ -97,6 +97,41 @@ def x_sample_jft() -> Tensor:
     return torch.randn(J, F, T)
 
 
+def _make_gradient_explain_func(players: _MockPlayers) -> Any:
+    """Build a minimal Quantus-compatible explain_func using input gradients.
+
+    Returns a closure matching the signature::
+
+        fn(model, inputs, targets, **kwargs) -> np.ndarray  # (B, J*F, T)
+
+    Used in tests to satisfy the ``explain_func is not None`` requirement of
+    :class:`~motionbench.metrics.stability.MaxSensitivityMetric` and
+    :class:`~motionbench.metrics.sanity_checks.ModelParameterRandomisationMetric`.
+    """
+    from typing import Any as AnyType  # noqa: PLC0415
+
+    def _explain_fn(
+        model: nn.Module,
+        inputs: "np.ndarray",
+        targets: "np.ndarray",
+        **kwargs: AnyType,
+    ) -> "np.ndarray":
+        try:
+            device = next(model.parameters()).device
+        except StopIteration:
+            device = torch.device("cpu")
+        x_t = torch.from_numpy(inputs.copy()).to(device).requires_grad_(True)
+        out = model(x_t)
+        loss = out[:, 0].sum() if out.ndim == 2 else out.sum()
+        loss.backward()
+        grad = x_t.grad
+        if grad is None:
+            return np.zeros_like(inputs, dtype=np.float32)
+        return np.abs(grad.detach().cpu().numpy()).astype(np.float32)
+
+    return _explain_fn
+
+
 @pytest.fixture()
 def trained_mlp() -> _TinyMLP:
     """MLP trained for a few steps on random data (non-trivial weights)."""
@@ -127,7 +162,8 @@ def random_mlp() -> _TinyMLP:
 
 def test_max_sensitivity_returns_dict(phi_sample, x_sample_jft, players):
     metric = MaxSensitivityMetric(nr_samples=3)
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players)
+    explain_func = _make_gradient_explain_func(players)
+    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func)
     assert isinstance(result, dict), "evaluate() must return dict"
     assert all(isinstance(k, str) for k in result)
     assert all(isinstance(v, float) for v in result.values())
@@ -138,21 +174,28 @@ def test_continuity_returns_dict(phi_sample, x_sample_jft, players):
     # Continuity computes dx=(2T+1)//nr_steps steps; with nr_steps=4, T=16,
     # the maximum translation is exactly 16 which is within array bounds.
     metric = ContinuityMetric(nr_steps=4)
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players)
+    explain_func = _make_gradient_explain_func(players)
+    result = metric.evaluate(
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
+    )
     assert isinstance(result, dict)
     assert all(isinstance(v, float) for v in result.values())
 
 
 def test_lipschitz_estimate_returns_dict(phi_sample, x_sample_jft, players):
     metric = LipschitzEstimateMetric(nr_samples=3)
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players)
+    explain_func = _make_gradient_explain_func(players)
+    result = metric.evaluate(
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
+    )
     assert isinstance(result, dict)
     assert all(isinstance(v, float) for v in result.values())
 
 
 def test_mprt_returns_dict(phi_sample, x_sample_jft, players, trained_mlp):
     metric = ModelParameterRandomisationMetric()
-    result = metric.evaluate(phi_sample, x_sample_jft, trained_mlp, players)
+    explain_func = _make_gradient_explain_func(players)
+    result = metric.evaluate(phi_sample, x_sample_jft, trained_mlp, players, explain_func=explain_func)
     assert isinstance(result, dict)
     assert all(isinstance(v, float) for v in result.values())
 
@@ -170,29 +213,33 @@ def test_random_logit_returns_dict(phi_sample, x_sample_jft, players):
 
 
 def test_max_sensitivity_key(phi_sample, x_sample_jft, players):
+    explain_func = _make_gradient_explain_func(players)
     result = MaxSensitivityMetric(nr_samples=3).evaluate(
-        phi_sample, x_sample_jft, _TinyMLP(), players
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
     )
     assert "max_sensitivity" in result
 
 
 def test_continuity_key(phi_sample, x_sample_jft, players):
+    explain_func = _make_gradient_explain_func(players)
     result = ContinuityMetric(nr_steps=4).evaluate(
-        phi_sample, x_sample_jft, _TinyMLP(), players
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
     )
     assert "continuity" in result
 
 
 def test_lipschitz_estimate_key(phi_sample, x_sample_jft, players):
+    explain_func = _make_gradient_explain_func(players)
     result = LipschitzEstimateMetric(nr_samples=3).evaluate(
-        phi_sample, x_sample_jft, _TinyMLP(), players
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
     )
     assert "lipschitz_estimate" in result
 
 
 def test_mprt_key(phi_sample, x_sample_jft, players, trained_mlp):
+    explain_func = _make_gradient_explain_func(players)
     result = ModelParameterRandomisationMetric().evaluate(
-        phi_sample, x_sample_jft, trained_mlp, players
+        phi_sample, x_sample_jft, trained_mlp, players, explain_func=explain_func
     )
     assert "mprt_avg_correlation" in result
 
@@ -253,9 +300,10 @@ def test_mprt_lower_correlation_for_random_model(
     torch.manual_seed(SEED)
     np.random.seed(SEED)
 
+    explain_func = _make_gradient_explain_func(players)
     metric = ModelParameterRandomisationMetric(seed=SEED)
 
-    result_trained = metric.evaluate(phi_sample, x_sample_jft, trained_mlp, players)
+    result_trained = metric.evaluate(phi_sample, x_sample_jft, trained_mlp, players, explain_func=explain_func)
     score_trained = result_trained["mprt_avg_correlation"]
 
     # Fully randomise a copy of the trained model
@@ -263,7 +311,7 @@ def test_mprt_lower_correlation_for_random_model(
     for param in fully_random.parameters():
         nn.init.normal_(param, mean=0.0, std=1.0)
 
-    result_random = metric.evaluate(phi_sample, x_sample_jft, fully_random, players)
+    result_random = metric.evaluate(phi_sample, x_sample_jft, fully_random, players, explain_func=explain_func)
     score_random = result_random["mprt_avg_correlation"]
 
     # Both scores must be finite floats
@@ -286,8 +334,9 @@ def test_mprt_lower_correlation_for_random_model(
 @pytest.mark.slow
 def test_max_sensitivity_smoke_default_samples(phi_sample, x_sample_jft, players):
     """Full default nr_samples=200 run — slow on CPU."""
+    explain_func = _make_gradient_explain_func(players)
     metric = MaxSensitivityMetric()
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players)
+    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func)
     assert "max_sensitivity" in result
     assert np.isfinite(result["max_sensitivity"])
 
@@ -296,7 +345,10 @@ def test_max_sensitivity_smoke_default_samples(phi_sample, x_sample_jft, players
 def test_lipschitz_smoke_default_samples(phi_sample, x_sample_jft, players):
     """Full default nr_samples=200 run — slow on CPU."""
     metric = LipschitzEstimateMetric()
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players)
+    explain_func = _make_gradient_explain_func(players)
+    result = metric.evaluate(
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
+    )
     assert "lipschitz_estimate" in result
     assert np.isfinite(result["lipschitz_estimate"])
 
@@ -307,8 +359,9 @@ def test_lipschitz_smoke_default_samples(phi_sample, x_sample_jft, players):
 
 
 def test_max_sensitivity_score_is_finite(phi_sample, x_sample_jft, players):
+    explain_func = _make_gradient_explain_func(players)
     metric = MaxSensitivityMetric(nr_samples=5)
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players)
+    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func)
     assert np.isfinite(result["max_sensitivity"]) or np.isnan(result["max_sensitivity"]), (
         "Score must be float (finite or nan, but not inf)"
     )
@@ -316,6 +369,9 @@ def test_max_sensitivity_score_is_finite(phi_sample, x_sample_jft, players):
 
 def test_continuity_score_is_finite(phi_sample, x_sample_jft, players):
     metric = ContinuityMetric(nr_steps=4)
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players)
+    explain_func = _make_gradient_explain_func(players)
+    result = metric.evaluate(
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
+    )
     val = result["continuity"]
     assert isinstance(val, float)

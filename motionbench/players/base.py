@@ -12,7 +12,7 @@ player, not one number per scalar coordinate.  A PlayerSet defines:
 
 Canonical implementations
 --------------------------
-- ``TemporalWindows(K, T)``      — K equal-width time windows (WindowSHAP / TimeSHAP).
+- ``TemporalWindows(K, T)``      — K equal-width time windows (KernelSHAP-Temporal / WindowSHAP).
 - ``SpatialJoints(J)``           — each skeletal joint is one player.
 - ``AnatomicalGroups(groups)``   — pre-defined joint groups (left-leg, right-leg, …).
 - ``GaitPhase(n_phases)``        — stride-aligned phases (stance, swing, double-support).
@@ -113,6 +113,35 @@ class PlayerSet(ABC):
         Raises:
             ValueError: if ``phi_coords.shape != (J, F, T)``.
         """
+
+    def expand_attributions(self, phi: Tensor) -> Tensor:
+        """Expand per-player attributions to coordinate space ``(J, F, T)``.
+
+        Inverse of :meth:`aggregate`: broadcasts each player's scalar
+        attribution value to every coordinate that belongs to that player.
+        The sum of each player's coordinates recovers ``phi[k]`` only when
+        all players partition the coordinate space without overlap.
+
+        This default implementation is generic and uses
+        :meth:`coalition_mask`; concrete subclasses may override for
+        efficiency.
+
+        Args:
+            phi: ``(M,)`` float tensor of per-player attributions.
+
+        Returns:
+            ``(J, F, T)`` float tensor.  Each coordinate is set to the
+            attribution of the player it belongs to.
+        """
+        J, F, T = self.shape
+        M = phi.shape[0]
+        phi_coords = torch.zeros(J, F, T, dtype=phi.dtype)
+        for k in range(M):
+            z = torch.zeros(M, dtype=torch.bool)
+            z[k] = True
+            mask = self.coalition_mask(z)  # (J, F, T) bool
+            phi_coords[mask] = phi[k]
+        return phi_coords
 
     # ------------------------------------------------------------------
     # Optional helper — can be overridden for efficiency

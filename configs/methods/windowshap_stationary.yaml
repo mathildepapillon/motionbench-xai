@@ -1,0 +1,8 @@
+name: windowshap_stationary
+attributor:
+  _target_: motionbench.attribution.windowshap.StationaryWindowSHAPAttributor
+  window_len: 4
+  nsamples: 256
+  seed: 42
+players:
+  _target_: motionbench.players.temporal_windows.TemporalWindows

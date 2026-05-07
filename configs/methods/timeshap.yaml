@@ -1,9 +1,8 @@
 name: timeshap
 attributor:
-  _target_: motionbench.attribution.timeshap.TimeSHAPAttributor
-imputer:
-  _target_: motionbench.imputers.off_manifold.ZeroImputer
+  _target_: motionbench.attribution.timeshap_real.RealTimeSHAPAttributor
+  window_len: 4
+  nsamples: 32
+  seed: 42
 players:
   _target_: motionbench.players.temporal_windows.TemporalWindows
-n_coalitions: 50
-seed: 42

@@ -1,7 +1,7 @@
 """Tests for motionbench.attribution temporal SHAP wrappers (Task 3C).
 
 Covers:
-- TimeSHAPAttributor  (timeshap.py)
+- KernelSHAPTemporalAttributor  (kernelshap_temporal.py)
 - WindowSHAPAttributor (windowshap.py)
 - ShaTSAttributor      (shats.py)
 - GroupSegmentSHAPAttributor (group_segment_shap.py)
@@ -26,7 +26,8 @@ from motionbench.attribution.group_segment_shap import (
     shapley_from_value_table,
 )
 from motionbench.attribution.shats import ShaTSAttributor
-from motionbench.attribution.timeshap import TimeSHAPAttributor
+from motionbench.attribution.kernelshap_temporal import KernelSHAPTemporalAttributor
+from motionbench.attribution.kernelshap_temporal import TimeSHAPAttributor  # compat alias
 from motionbench.attribution.windowshap import WindowSHAPAttributor
 from motionbench.imputers.base import BaseImputer
 from tests.conftest import F, J, M, T
@@ -112,11 +113,19 @@ def _make_sample() -> Tensor:
 # ---------------------------------------------------------------------------
 
 
-def test_timeshap_instantiates() -> None:
+def test_kernelshap_temporal_instantiates() -> None:
+    imputer = _ZeroImputer()
+    clf = _make_classifier()
+    attr = KernelSHAPTemporalAttributor(clf, imputer=imputer, n_coalitions=10, seed=0)
+    assert attr is not None
+
+
+def test_timeshap_alias_instantiates() -> None:
+    """TimeSHAPAttributor is a backward-compat alias for KernelSHAPTemporalAttributor."""
     imputer = _ZeroImputer()
     clf = _make_classifier()
     attr = TimeSHAPAttributor(clf, imputer=imputer, n_coalitions=10, seed=0)
-    assert attr is not None
+    assert isinstance(attr, KernelSHAPTemporalAttributor)
 
 
 def test_windowshap_instantiates() -> None:
@@ -143,11 +152,11 @@ def test_group_segment_shap_instantiates() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_timeshap_name() -> None:
+def test_kernelshap_temporal_name() -> None:
     imputer = _ZeroImputer()
     clf = _make_classifier()
-    attr = TimeSHAPAttributor(clf, imputer=imputer)
-    assert attr.name == "TimeSHAP"
+    attr = KernelSHAPTemporalAttributor(clf, imputer=imputer)
+    assert attr.name == "kernelshap_temporal"
 
 
 def test_windowshap_name() -> None:
@@ -169,10 +178,10 @@ def test_group_segment_shap_name() -> None:
     assert attr.name == "GroupSegmentSHAP"
 
 
-def test_timeshap_requires_imputer() -> None:
+def test_kernelshap_temporal_requires_imputer() -> None:
     imputer = _ZeroImputer()
     clf = _make_classifier()
-    attr = TimeSHAPAttributor(clf, imputer=imputer)
+    attr = KernelSHAPTemporalAttributor(clf, imputer=imputer)
     assert attr.requires_imputer is True
 
 
@@ -210,12 +219,12 @@ def test_shats_attribute_raises_not_implemented() -> None:
         attr.attribute(x, players)
 
 
-def test_shats_error_message_contains_url() -> None:
+def test_shats_error_message_is_actionable() -> None:
     clf = _make_classifier()
     attr = ShaTSAttributor(clf)
     players = _TemporalPlayerSet()
     x = _make_sample()
-    with pytest.raises(NotImplementedError, match="https://github.com"):
+    with pytest.raises(NotImplementedError, match="(?i)not available|install"):
         attr.attribute(x, players)
 
 
@@ -291,16 +300,16 @@ def test_group_segment_large_m_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
-# TimeSHAPAttributor — output shape / dtype (slow)
+# KernelSHAPTemporalAttributor — output shape / dtype (slow)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.slow
-def test_timeshap_attribute_shape_dtype() -> None:
-    """TimeSHAP returns (M,) float32."""
+def test_kernelshap_temporal_attribute_shape_dtype() -> None:
+    """KernelSHAP-Temporal returns (M,) float32."""
     imputer = _ZeroImputer()
     clf = _make_classifier()
-    attr = TimeSHAPAttributor(clf, imputer=imputer, n_coalitions=20, seed=0)
+    attr = KernelSHAPTemporalAttributor(clf, imputer=imputer, n_coalitions=20, seed=0)
     players = _TemporalPlayerSet()
     x = _make_sample()
 
@@ -311,11 +320,11 @@ def test_timeshap_attribute_shape_dtype() -> None:
 
 
 @pytest.mark.slow
-def test_timeshap_attribute_target_ignored_gracefully() -> None:
-    """TimeSHAP accepts target=1 without error for single-output classifier."""
+def test_kernelshap_temporal_attribute_target_ignored_gracefully() -> None:
+    """KernelSHAP-Temporal accepts target=1 without error for single-output classifier."""
     imputer = _ZeroImputer()
     clf = _make_classifier()
-    attr = TimeSHAPAttributor(clf, imputer=imputer, n_coalitions=10, seed=1)
+    attr = KernelSHAPTemporalAttributor(clf, imputer=imputer, n_coalitions=10, seed=1)
     players = _TemporalPlayerSet()
     x = _make_sample()
 
@@ -333,7 +342,7 @@ def test_timeshap_attribute_target_ignored_gracefully() -> None:
     reason=(
         "windowshap library bug: shap_values() returns a 2-D array but "
         "windowshap.py:255 indexes it as 3-D (`shap_values[:, :, :num_dem_ftr]`). "
-        "Tracked in BACKLOG B-3C-01. Fix upstream or vendor a patched copy."
+        "Fix upstream or vendor a patched copy."
     ),
     strict=True,
 )

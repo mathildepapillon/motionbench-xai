@@ -1,0 +1,16 @@
+_target_: motionbench.data.synthetic.skeleton_structured.SkeletonStructuredDataset
+# Shape parameters — same as skeleton_structured baseline
+J: 17
+F: 3
+T: 16
+K: 4
+N: 200
+alpha_time: 0.9
+decay: 0.5
+n_classes: 3
+seed: 146
+# Localized label: only joint 6 (left ankle) drives y.
+label_fn:
+  _target_: motionbench.data.synthetic.label_functions.LocalizedSpatial
+  joint_idx: 6
+  n_classes: 3

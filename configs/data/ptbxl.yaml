@@ -1,0 +1,58 @@
+# configs/data/ptbxl.yaml — Hydra config for PTB-XL ECG dataset.
+#
+# Used by scripts/train_vaeac.py and scripts/train_flow.py to configure
+# the VAEAC and Flow Matching imputer training for PTB-XL data.
+#
+# The trained checkpoints will be written to:
+#   results/ptbxl_imputers/vaeac/
+#   results/ptbxl_imputers/flow/
+#
+# See motionbench/data/real/ptbxl.py for dataset documentation.
+
+_target_: motionbench.data.real.ptbxl.PTBXLDataset
+
+# Path to the downloaded PTB-XL root directory.
+# Download from: https://physionet.org/content/ptb-xl/1.0.3/
+#   pip install wfdb
+#   python -c "import wfdb; wfdb.dl_database('ptb-xl', '/data/ptb-xl')"
+data_path: /data/ptb-xl
+
+# Use training folds (1-8) for imputer training.
+split: train
+
+# Normalise signals to unit variance per lead (recommended for imputer training).
+normalize: true
+
+# Cap dataset size for faster iteration (remove for full training).
+max_sequences: null
+
+# Pipeline-only parameters (used by player-set construction and model configs;
+# not passed to PTBXLDataset constructor).
+K: 4       # number of temporal windows for KernelSHAP
+T: 1000    # sequence length (100 Hz × 10 s)
+J: 12      # number of ECG leads
+F: 1       # features per lead (voltage only)
+
+# VAEAC / Flow Matching model hyperparameters (injected into the imputer
+# training scripts via Hydra / OmegaConf):
+n_joints:   12    # = J
+n_coords:   1     # = F
+seq_len:    1000  # = T
+d_model:    128
+nhead:      4
+num_layers: 4
+ff_dim:     256
+d_latent:   32
+dropout:    0.1
+decoder_head: gaussian_scalar
+
+# Flow Matching additional hyperparameters:
+time_emb_dim:     64
+tokenization:     frame
+obs_conditioning: true
+num_steps:        50
+cfg_scale:        0.0
+
+# Output directories (relative to repo root):
+vaeac_output_dir: results/ptbxl_imputers/vaeac
+flow_output_dir:  results/ptbxl_imputers/flow

@@ -1,9 +1,9 @@
-"""End-to-end smoke test for motionbench-xai Phase 0 contracts.
+"""End-to-end smoke test for motionbench-xai core abstractions.
 
 Verifies that the four base abstractions are correctly wired by running a
 complete mock pipeline: Dataset → PlayerSet → Imputer → Attributor → Metric.
 
-This script is run by CI on every PR. It must pass in < 10 seconds on CPU.
+This script is run by CI on every PR and must pass in < 10 seconds on CPU.
 No heavy dependencies (no captum, shap, quantus, etc.) are used here.
 
 Run:
@@ -266,7 +266,7 @@ def run_smoke_test() -> None:
     print()
     print(f"All checks passed in {elapsed:.2f}s.")
     print()
-    print("Phase 0 contracts are correctly wired.")
+    print("Core abstractions are correctly wired.")
     print("=" * 60)
 
 

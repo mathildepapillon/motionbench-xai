@@ -1,0 +1,19 @@
+_target_: motionbench.data.synthetic.gaussian_motion.GaussianMotionDataset
+# Shape parameters — same as gaussian_k4 baseline so the EC1 numbers are
+# directly comparable with the smooth Olsen-interaction label.
+J: 5
+F: 3
+T: 16
+K: 4
+N: 200
+rho: 0.5
+alpha: 0.8
+seed: 152
+# Non-smooth XOR-style label: per-window grand means are binarised at
+# their calibrated medians and combined as XOR pairs.  Tests whether
+# on-manifold dominance carries over from the smooth Gaussian-CDF +
+# sin/exp Olsen interaction to a piecewise-constant indicator label.
+label_fn:
+  _target_: motionbench.data.synthetic.label_functions.ThresholdedXOR
+  K: 4
+  n_classes: 3

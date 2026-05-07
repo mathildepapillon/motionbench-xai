@@ -172,7 +172,7 @@ class KernelShapAttributor(BaseAttributor):
     M ≤ 20 on motion sequences (fewer model calls per coalition sample).
     This implementation uses ``shap.KernelExplainer`` for both algorithms;
     the ``algorithm`` parameter is stored for downstream pipeline use but
-    does not currently select a different SHAP backend (see BACKLOG B-XXX).
+    does not currently select a different SHAP backend.
 
     Args:
         classifier: Callable ``(B, J, F, T) float32 → (B,) float32``.
@@ -253,12 +253,33 @@ class KernelShapAttributor(BaseAttributor):
             x, players, self._imputer, self._n_completion_samples
         )
 
+        # Detect classifier device so we can move inputs to match.
+        # self._classifier may be a plain Python function (e.g. _prob_clf wrapper),
+        # not an nn.Module.  Try self._classifier first; if it's a closure, look for
+        # an nn.Module in the closure variables.
+        _clf_device = torch.device("cpu")
+        try:
+            _clf_device = next(self._classifier.parameters()).device  # type: ignore[attr-defined]
+        except (StopIteration, AttributeError):
+            # Try closure vars (e.g. _prob_clf captures the classifier)
+            _fn = self._classifier
+            _cells = getattr(_fn, "__closure__", None) or []
+            for cell in _cells:
+                try:
+                    _obj = cell.cell_contents
+                    if hasattr(_obj, "parameters"):
+                        _clf_device = next(_obj.parameters()).device
+                        break
+                except (ValueError, StopIteration, AttributeError):
+                    continue
+
         def _clf_flat(
             flat_np: npt.NDArray[np.float64],
         ) -> npt.NDArray[np.float64]:
             """Run classifier on (n_rows, J*F*T) flat numpy array → (n_rows,)."""
             x_t = torch.tensor(
-                flat_np.reshape(-1, J, F, T).astype(np.float32)
+                flat_np.reshape(-1, J, F, T).astype(np.float32),
+                device=_clf_device,
             )
             with torch.no_grad():
                 out: Tensor = self._classifier(x_t)

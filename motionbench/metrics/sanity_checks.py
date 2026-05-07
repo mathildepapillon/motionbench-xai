@@ -154,7 +154,11 @@ def _gradient_explain_func(
     Returns:
         Gradient array with the same shape as ``inputs``.
     """
-    x_t = torch.from_numpy(inputs.copy()).requires_grad_(True)
+    try:
+        model_device = next(model.parameters()).device
+    except StopIteration:
+        model_device = torch.device("cpu")
+    x_t = torch.from_numpy(inputs.copy()).to(model_device).requires_grad_(True)
     out: Tensor = model(x_t)  # (B, n_classes)
     loss = out[:, 0].sum() if out.ndim == 2 else out.sum()
     loss.backward()  # type: ignore[no-untyped-call]
@@ -270,6 +274,7 @@ class ModelParameterRandomisationMetric(BaseMetric):
         target: int = 0,
         oracle: Oracle | None = None,
         imputer: BaseImputer | None = None,
+        explain_func: Callable[..., Any] | None = None,
     ) -> dict[str, float]:
         """Evaluate MPRT sanity check for a single sequence.
 
@@ -283,6 +288,11 @@ class ModelParameterRandomisationMetric(BaseMetric):
             target: Class index.
             oracle: Not required; ignored.
             imputer: Not required; ignored.
+            explain_func: Method-specific Quantus-compatible re-attribution
+                function ``(model, inputs, targets, **kw) -> np.ndarray``.
+                Must be provided; raises ``ValueError`` if ``None``.  Pass the
+                result of ``attributor.build_quantus_explain_func(players,
+                target, device)`` to ensure correct method-specific behaviour.
 
         Returns:
             ``{"mprt_avg_correlation": float}`` -- average Spearman correlation
@@ -290,9 +300,17 @@ class ModelParameterRandomisationMetric(BaseMetric):
             attribution reacts appropriately to model randomisation.
 
         Raises:
-            ValueError: if ``requires_oracle`` or ``requires_imputer``
-                dependency is missing.
+            ValueError: if ``explain_func`` is ``None``.  MPRT must re-compute
+                attributions using the same method; a gradient proxy would
+                measure gradient sanity regardless of the actual method.
         """
+        if explain_func is None:
+            raise ValueError(
+                "ModelParameterRandomisationMetric requires a method-specific "
+                "explain_func. Pass attributor.build_quantus_explain_func(players, "
+                "target, device). If the attributor returns None (e.g. KernelSHAP), "
+                "skip this metric."
+            )
         self._check_deps(oracle, imputer)
         x_batch, a_batch, y_batch, wrapped = _prepare_quantus_inputs(
             phi, x, classifier, players, target
@@ -302,7 +320,7 @@ class ModelParameterRandomisationMetric(BaseMetric):
             x_batch=x_batch,
             y_batch=y_batch,
             a_batch=a_batch,
-            explain_func=_gradient_explain_func,
+            explain_func=explain_func,
             channel_first=True,
             softmax=False,
         )

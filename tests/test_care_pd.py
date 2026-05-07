@@ -28,10 +28,12 @@ FS = 3       # features (xyz)
 T = 81       # frames (3 s @ 27 fps)
 N_CLASSES = 4
 
+_DEFAULT_CARE_PD = Path(__file__).resolve().parents[2] / "CARE-PD"
 CHECKPOINT_ROOT = Path(
     os.environ.get(
         "CARE_PD_CHECKPOINTS",
-        "/home/papillon/code/CARE-PD/assets/Pretrained_checkpoints",
+        str(Path(os.environ.get("CARE_PD_ROOT", _DEFAULT_CARE_PD))
+            / "assets" / "Pretrained_checkpoints"),
     )
 )
 
@@ -80,7 +82,13 @@ def _make_batch(b=B, j=J, f=FS, t=T) -> torch.Tensor:
 
 
 class TestForwardShapesPoseFormerV2:
-    """PoseFormerV2Classifier: (B, J, F, T) → (B, n_classes)."""
+    """PoseFormerV2Classifier: (B, J, 2, T) → (B, n_classes).
+
+    PoseFormerV2 is the only classifier in this suite that consumes 2-D
+    image-projected pose coordinates (see motionbench/classifiers/base.py
+    "Pose Format" reference); the fixture below therefore overrides the
+    suite-wide ``FS=3`` to ``2``.
+    """
 
     @pytest.fixture(scope="class")
     def model(self):
@@ -90,19 +98,19 @@ class TestForwardShapesPoseFormerV2:
         return m
 
     def test_output_shape(self, model):
-        x = _make_batch()
+        x = _make_batch(f=2)
         with torch.no_grad():
             out = model(x)
         assert out.shape == (B, N_CLASSES), f"Expected {(B, N_CLASSES)}, got {out.shape}"
 
     def test_output_dtype(self, model):
-        x = _make_batch()
+        x = _make_batch(f=2)
         with torch.no_grad():
             out = model(x)
         assert out.dtype == torch.float32
 
     def test_output_finite(self, model):
-        x = _make_batch()
+        x = _make_batch(f=2)
         with torch.no_grad():
             out = model(x)
         assert torch.isfinite(out).all()
@@ -138,7 +146,12 @@ class TestForwardShapesMotionBERT:
 
 
 class TestForwardShapesPOTR:
-    """POTRClassifier: (B, J, F, T) → (B, n_classes)."""
+    """POTRClassifier: (B, J, F, T) → (B, n_classes).
+
+    POTR's default ``source_seq_length=80`` (one frame shorter than the
+    suite-wide ``T=81``); the fixtures below override the batch length
+    accordingly.
+    """
 
     @pytest.fixture(scope="class")
     def model(self):
@@ -148,19 +161,19 @@ class TestForwardShapesPOTR:
         return m
 
     def test_output_shape(self, model):
-        x = _make_batch()
+        x = _make_batch(t=80)
         with torch.no_grad():
             out = model(x)
         assert out.shape == (B, N_CLASSES), f"Expected {(B, N_CLASSES)}, got {out.shape}"
 
     def test_output_dtype(self, model):
-        x = _make_batch()
+        x = _make_batch(t=80)
         with torch.no_grad():
             out = model(x)
         assert out.dtype == torch.float32
 
     def test_output_finite(self, model):
-        x = _make_batch()
+        x = _make_batch(t=80)
         with torch.no_grad():
             out = model(x)
         assert torch.isfinite(out).all()
@@ -257,7 +270,12 @@ def test_predict_proba(clf_factory):
         model = Clf(n_classes=N_CLASSES)
     model.eval()
 
-    x = _make_batch()
+    if "PoseFormerV2" in Clf.__name__:
+        x = _make_batch(f=2)
+    elif "POTR" in Clf.__name__:
+        x = _make_batch(t=80)
+    else:
+        x = _make_batch()
     with torch.no_grad():
         logits = model(x)
         proba = F.softmax(logits, dim=-1)
@@ -469,14 +487,14 @@ class TestReproducibilityPoseFormerV2:
 
         STATUS: BLOCKED — fine-tuned CARE-PD classifier checkpoints are not
         available in the repository.  Only backbone pre-training weights (H36M)
-        are present.  See TASKS.md row 4B for details.
+        are present.  See REPRODUCIBILITY.md §2.2 for the CARE-PD checkpoint acquisition steps.
         """
         pytest.skip(
             "Reproducibility gate BLOCKED: fine-tuned CARE-PD classifier "
             "checkpoints are not available. Only backbone pre-training weights "
             "(poseformerv2/9_81_46.0.bin, H36M) are present. "
             "Expected F1 (paper): ~0.54 (MIDA/BMCLab, labels 0-2). "
-            "See TASKS.md row 4B."
+            "See REPRODUCIBILITY.md §2.2 for checkpoint acquisition."
         )
 
 
@@ -506,7 +524,7 @@ class TestReproducibilityMotionBERT:
         pytest.skip(
             "Reproducibility gate BLOCKED: fine-tuned CARE-PD classifier "
             "checkpoints not available. Expected F1 (paper): ~0.45 (MIDA/BMCLab). "
-            "See TASKS.md row 4B."
+            "See REPRODUCIBILITY.md §2.2 for checkpoint acquisition."
         )
 
 
@@ -534,9 +552,9 @@ class TestReproducibilityPOTR:
         for UPDRS-gait F1 are shown in Fig. 2/3 only.
 
         STATUS: BLOCKED — fine-tuned CARE-PD classifier checkpoints not available.
-        See TASKS.md row 4B.
+        See REPRODUCIBILITY.md §2.2 for checkpoint acquisition.
         """
         pytest.skip(
             "Reproducibility gate BLOCKED: fine-tuned CARE-PD classifier "
-            "checkpoints not available. See TASKS.md row 4B."
+            "checkpoints not available. See REPRODUCIBILITY.md §2.2 for checkpoint acquisition."
         )

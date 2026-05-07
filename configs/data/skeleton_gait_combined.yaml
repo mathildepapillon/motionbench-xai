@@ -1,0 +1,19 @@
+_target_: motionbench.data.synthetic.skeleton_gait_combined.SkeletonGaitDataset
+# Shape parameters — matches the other (J=17, T=16) pillar datasets.
+J: 17
+F: 3
+T: 16            # T divisible by default K=4: 16 / 4 = 4
+# K is pipeline-only (temporal windows; not a constructor arg here).
+K: 4
+# Dataset size
+N: 200
+# Spatial: skeleton-adjacency decay (matches skeleton_structured.yaml).
+decay: 0.5
+# Temporal: gait-periodic kernel (matches gait_periodic.yaml).
+# period_mean=7.0 → T/period = 16/7 ≈ 2.29 (non-integer) so the cosine kernel
+# does NOT cancel over T frames and the joint-0 grand-mean label carries signal.
+period_mean: 7.0
+period_std: 1.0
+n_harmonics: 3
+n_classes: 3
+seed: 51

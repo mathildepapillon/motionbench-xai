@@ -189,6 +189,46 @@ class SigmaJointsFactory:
         return C
 
     @staticmethod
+    def low_rank(
+        J: int,
+        rank: int,
+        eps: float = 1e-2,
+        seed: int = 0,
+    ) -> np.ndarray:
+        """Build a rank-deficient PSD covariance with effective rank ``rank``.
+
+        ``Sigma = U U^T + eps * I`` with ``U ∈ R^{J×rank}`` having i.i.d.
+        standard-normal entries scaled so the diagonal of ``U U^T`` is ~1.
+        The data lives near a ``rank``-dimensional linear subspace of ``R^J``;
+        ``eps`` controls the noise floor orthogonal to that subspace.
+
+        This factory is used to construct datasets whose joint covariance has
+        intrinsic dimension < J, exposing the on-/off-manifold distinction
+        for SHAP imputers (Frye et al. 2021; Chen et al. 2023).
+
+        Args:
+            J: Number of joints.
+            rank: Effective rank of the joint covariance. Must satisfy
+                ``1 <= rank <= J``.
+            eps: Isotropic noise floor added to ``U U^T`` for PSD stability
+                and to model thin off-manifold dispersion.
+            seed: Random seed for ``U``.
+
+        Returns:
+            ``(J, J)`` float64 symmetric PSD array of rank ``J`` (full rank
+            with thin spectrum below ``rank``).
+
+        Raises:
+            ValueError: if ``rank < 1`` or ``rank > J``.
+        """
+        if rank < 1 or rank > J:
+            raise ValueError(f"rank must be in [1, J={J}]; got {rank}.")
+        rng = np.random.default_rng(seed)
+        U = rng.standard_normal((J, rank)) / np.sqrt(rank)
+        Sigma = U @ U.T + eps * np.eye(J)
+        return 0.5 * (Sigma + Sigma.T)
+
+    @staticmethod
     def data_driven(X_subset: np.ndarray) -> np.ndarray:
         """Estimate Sigma_joints from data via Ledoit-Wolf shrinkage.
 
@@ -790,6 +830,7 @@ class GaussianMotionDataset:
         sigma_joints: np.ndarray | None = None,
         sigma_time: np.ndarray | None = None,
         seed: int | None = None,
+        label_fn: object | None = None,
     ) -> None:
         self._benchmark = GaussianMotionBenchmark(
             J=J,
@@ -801,13 +842,18 @@ class GaussianMotionDataset:
             sigma_joints=sigma_joints,
             sigma_time=sigma_time,
         )
-        # Pre-generate sequences.
-        x_np = self._benchmark.sample(N, seed=seed)  # (N, J, F, T)
+        x_np = self._benchmark.sample(N, seed=seed)
 
-        # Simple proxy label: quantile-bin of joint-0 grand mean.
-        score = x_np[:, 0, :, :].mean(axis=(1, 2))  # (N,)
-        q33, q67 = np.percentile(score, [33.0, 67.0])
-        y_np = np.where(score < q33, 0, np.where(score < q67, 1, 2)).astype(np.int64)
+        if label_fn is not None:
+            y_np = np.asarray(label_fn(x_np), dtype=np.int64)
+            if y_np.shape != (N,):
+                raise ValueError(
+                    f"label_fn returned shape {y_np.shape}; expected ({N},)."
+                )
+        else:
+            score = x_np[:, 0, :, :].mean(axis=(1, 2))
+            q33, q67 = np.percentile(score, [33.0, 67.0])
+            y_np = np.where(score < q33, 0, np.where(score < q67, 1, 2)).astype(np.int64)
 
         self._x: Tensor = torch.tensor(x_np, dtype=torch.float32)  # (N, J, F, T)
         self._y: Tensor = torch.tensor(y_np, dtype=torch.int64)    # (N,)

@@ -346,8 +346,10 @@ def batched_oracle_shapley(
                 if cholesky_cache is not None:
                     cholesky_cache[ci] = params
 
-            # Sample using cached params
-            if isinstance(params, tuple) and params[0] == "oracle":
+            # Sample using cached params.
+            # Sentinel ("oracle", mask_np) has len=2; spatiotemporal params
+            # tuple has len=6 — distinguish by length, not by array equality.
+            if isinstance(params, tuple) and len(params) == 2 and isinstance(params[0], str):
                 # Use oracle's built-in sampler (has its own cache)
                 _, mask_np_cached = params
                 s = oracle._conditional_sample_np(
@@ -426,6 +428,108 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
     mask_cpu = mask.cpu()
     comp = torch.where(mask_cpu, x_obs_cpu, comp)
     return comp
+
+
+def impute_all_batched(
+    imp,
+    x_obs: Tensor,
+    coal_masks: list[Tensor],
+    device: torch.device,
+    initial_chunk: int = 64,
+) -> Tensor | None:
+    """Impute all coalitions in one (chunked) GPU call via sample_completions_batched.
+
+    Returns ``(N_coal, J, F, T)`` float32 tensor with observed entries enforced,
+    or ``None`` if batched API is unavailable (caller should fall back to
+    ``impute_one``).
+
+    For ``FlowImputer`` / ``VAEACImputer``, ``sample_completions_batched``
+    runs a single ODE integration (or VAEAC forward pass) for all B coalitions,
+    giving a ~B× speedup over calling ``sample_completions`` B times.
+
+    ``coalition_masks`` must be uniformly shaped: all ``(J,)`` spatial or all
+    ``(T,)`` temporal.  Mixed-axis coalitions (P_cell spatiotemporal) are
+    reduced to temporal via the ``_mask_to_coalition`` heuristic.
+    """
+    if not hasattr(imp, "sample_completions_batched"):
+        return None
+
+    from motionbench.imputers.carepd_imputer import _mask_to_coalition
+
+    J, F, T = x_obs.shape
+    N = len(coal_masks)
+
+    # Build 1-D coalition representation for each mask.
+    # _mask_to_coalition returns (1,J) spatial or (1,T) temporal.  Boundary
+    # coalitions (all-True / all-False) are always classified as "temporal"
+    # by _mask_to_coalition even when the player set is spatial.  Normalise
+    # all entries to the most common dimension by converting boundary
+    # (all-True / all-False) entries to match the inner coalitions.
+    coal_1d_list: list[Tensor] = []
+    for mask in coal_masks:
+        c1d, _ = _mask_to_coalition(mask)
+        coal_1d_list.append(c1d.squeeze(0))  # (J,) or (T,)
+
+    dims = [c.shape[0] for c in coal_1d_list]
+    if len(set(dims)) > 1:
+        # Find the dominant dimension (inner coalitions outnumber boundaries)
+        dim_counts: dict[int, int] = {}
+        for d in dims:
+            dim_counts[d] = dim_counts.get(d, 0) + 1
+        target_dim = max(dim_counts, key=dim_counts.get)
+        normalised: list[Tensor] = []
+        for c in coal_1d_list:
+            if c.shape[0] == target_dim:
+                normalised.append(c)
+            elif c.all():          # all-True boundary
+                normalised.append(torch.ones(target_dim, dtype=torch.bool))
+            elif not c.any():      # all-False boundary
+                normalised.append(torch.zeros(target_dim, dtype=torch.bool))
+            else:
+                # Non-trivial dimension mismatch — fall back to per-coalition
+                log.warning(
+                    "impute_all_batched: inconsistent coalition dims (%d vs %d), "
+                    "falling back to per-coalition imputation", c.shape[0], target_dim,
+                )
+                return None
+        coal_1d_list = normalised
+
+    stacked = torch.stack(coal_1d_list, dim=0)  # (N, J) or (N, T)
+
+    dev = device
+    x_in = x_obs.unsqueeze(0).to(dev).float()       # (1, J, F, T)
+    pad = torch.ones(1, T, dtype=torch.bool, device=dev)
+
+    completions = torch.zeros(N, J, F, T, dtype=torch.float32)
+
+    chunk = initial_chunk
+    while chunk >= 1:
+        try:
+            for start in range(0, N, chunk):
+                end = min(start + chunk, N)
+                batch_masks = stacked[start:end].to(dev)  # (B, J) or (B, T)
+                out = imp.sample_completions_batched(
+                    x=x_in,
+                    mask=pad,
+                    coalition_masks=batch_masks,
+                    n_samples=1,
+                )                                      # (B, 1, J, F, T)
+                completions[start:end] = out[:, 0].cpu().float()
+            break  # success
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            chunk = chunk // 2
+            if chunk < 1:
+                log.warning("impute_all_batched: OOM even at chunk=1, falling back")
+                return None
+            log.info("impute_all_batched: OOM, retrying with chunk=%d", chunk)
+
+    # Enforce observed entries bit-for-bit for every coalition.
+    x_cpu = x_obs.cpu().float()
+    for i, mask in enumerate(coal_masks):
+        completions[i] = torch.where(mask.cpu(), x_cpu, completions[i])
+
+    return completions
 
 
 # ---------------------------------------------------------------------------
@@ -518,31 +622,50 @@ def run_one_cell(
     # sequences so the expensive spatiotemporal Cholesky is only computed once.
     cholesky_cache: dict = {}
 
+    # Try batched imputation once to verify it works (and record the chunk size).
+    _batched_chunk: int | None = None   # None means "not yet tried"
+    _batched_ok: bool | None = None
+
     for i in range(n_seq_actual):
         x_i = seqs[i]   # (J, F, T) cpu
         target_i = int(targets[i])
 
-        # Impute all coalitions
-        comps = torch.zeros(n_coal_total, J, F, T, dtype=torch.float32)
-        for ci in range(n_coal_total):
-            mask_ci = coal_masks[ci]
-            n_obs = int(mask_ci.sum().item())
-            if n_obs == J * F * T:
-                comps[ci] = x_i.float()
-                continue
-            if n_obs == 0:
-                # empty coalition: zero or unconditional sample
+        # Impute all coalitions — try batched API first (huge speedup for Flow/VAEAC)
+        comps: Tensor | None = None
+        if _batched_ok is not False:
+            comps = impute_all_batched(
+                imp, x_i, coal_masks, device,
+                initial_chunk=(_batched_chunk or 64),
+            )
+            if comps is not None:
+                if _batched_ok is None:
+                    log.info("    impute_all_batched: SUCCESS (batched path active)")
+                _batched_ok = True
+            elif _batched_ok is None:
+                log.info("    impute_all_batched: UNAVAILABLE, using per-coalition fallback")
+                _batched_ok = False
+
+        if comps is None:
+            # Fallback: per-coalition loop
+            comps = torch.zeros(n_coal_total, J, F, T, dtype=torch.float32)
+            for ci in range(n_coal_total):
+                mask_ci = coal_masks[ci]
+                n_obs = int(mask_ci.sum().item())
+                if n_obs == J * F * T:
+                    comps[ci] = x_i.float()
+                    continue
+                if n_obs == 0:
+                    try:
+                        comps[ci] = impute_one(imp, x_i, mask_ci)
+                    except Exception:
+                        comps[ci] = torch.zeros(J, F, T)
+                    continue
                 try:
                     comps[ci] = impute_one(imp, x_i, mask_ci)
-                except Exception:
+                except Exception as exc:
+                    if i == 0 and ci == 0:
+                        log.warning("    impute_one failed for ci=%d: %s", ci, exc)
                     comps[ci] = torch.zeros(J, F, T)
-                continue
-            try:
-                comps[ci] = impute_one(imp, x_i, mask_ci)
-            except Exception as exc:
-                if i == 0 and ci == 0:
-                    log.warning("    impute_one failed for ci=%d: %s", ci, exc)
-                comps[ci] = torch.zeros(J, F, T)
 
         # Classifier forward pass (batch over all coalitions)
         with torch.no_grad():
