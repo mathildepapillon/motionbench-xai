@@ -177,7 +177,8 @@ python scripts/compute_ptbxl_cis.py \
 # ---- Step 6: Regenerate paper tables
 echo ""
 echo "--- Step 6: Regenerating paper tables ---"
-python scripts/generate_paper_tables.py
+# LaTeX table generation lives with the paper sources, which are not part
+# of this code release. Raw results are under results/.
 
 echo ""
 echo "============================================================"

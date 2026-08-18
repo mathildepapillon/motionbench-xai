@@ -13,7 +13,18 @@ independently.
 
 ## 1. Environments
 
-Two conda environments are used:
+For the synthetic half (including the quickstart and the deterministic
+player-set evaluation) a plain pip install is enough:
+
+```bash
+python3 -m pip install -e .        # Python >= 3.10; verified on 3.10
+python3 -m pip install -e ".[dev]" # + pytest / ruff / mypy
+```
+
+The optional WindowSHAP baselines additionally need
+`pip install git+https://github.com/vsubbian/WindowSHAP` (not on PyPI).
+
+For the full multi-GPU reproduction two conda environments are used:
 
 | Environment       | Purpose | File |
 |-------------------|---------|------|
@@ -226,6 +237,31 @@ Each script is idempotent: cached results are detected and skipped, so you can
 safely interrupt and resume.  Per-method results land under
 `results/<benchmark>/<dataset_or_fold>/<classifier>/<method>/result.json`
 and can be aggregated programmatically (see `motionbench/pipelines/leaderboard.py`).
+
+LaTeX table/figure generation lives with the paper sources, which are not
+part of this code release; the scripts above stop at the raw `results/`
+tree.  Pre-trained checkpoint digests and download locations are documented
+in [`checkpoints/README.md`](checkpoints/README.md).
+
+### 3.1 Deterministic player-set evaluation (CPU-friendly)
+
+The `player_eval` pipeline grades any player set × any imputer against
+**deterministic** oracles (exact conditional-mean fills — zero grading
+noise) on a shared fixed coalition design:
+
+```bash
+# quickstart cell (gauss_k4 × spatial × MLP × {KS-Zero, KS-Oracle}, CPU):
+python3 scripts/train_synthetic_clf.py --datasets gaussian_k4 \
+    --classifiers synthetic_mlp --force-cpu          # ~2 min
+python3 -m motionbench.cli.run experiments=quickstart # ~10 s
+
+# full sweep over temporal / spatial / cell players:
+python3 -m motionbench.cli.run experiments=player_set_eval
+```
+
+Coalition designs are exact enumerations for M <= 12 players and
+importance-corrected samples (seed 7919, budget 1024) above; see
+`motionbench/attribution/sampled_coalitions.py` and RESOLUTIONS.md §6/§8.
 
 ---
 

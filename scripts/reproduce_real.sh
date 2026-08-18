@@ -71,8 +71,8 @@ python scripts/compute_carepd_aopc_significance.py --seed 0
 # Step 4: Regenerate Table 4 + Figure 1                                    #
 # ----------------------------------------------------------------------- #
 echo "=== [4/4] Regenerate paper tables and figures ==="
-python scripts/generate_paper_tables.py
-python scripts/generate_paper_figures.py
+# LaTeX table/figure generation lives with the paper sources, which are not
+# part of this code release. Raw results are under results/.
 
 echo ""
 echo "=== Real-world pipeline complete. ==="
