@@ -414,6 +414,9 @@ def _build_attributor(
         n_samples = int(method_cfg.get("n_kernel_samples", 256))
         n_compl = int(method_cfg.get("n_completion_samples", 20))
         seed = int(method_cfg.get("seed", 42))
+        # Value-function semantics: "f_of_mean" (executed release semantics)
+        # or "mean_of_f" (paper Eq. 5).  See kernel_shap.py "Estimator".
+        value_fn = str(method_cfg.get("value_fn", "f_of_mean"))
         return cast(
             "BaseAttributor",
             instantiate(
@@ -423,6 +426,7 @@ def _build_attributor(
                 n_samples=n_samples,
                 n_completion_samples=n_compl,
                 seed=seed,
+                value_fn=value_fn,
             ),
         )
 

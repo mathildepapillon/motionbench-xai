@@ -1,4 +1,7 @@
 name: kernelshap_flow
+# Estimand: which deterministic grading target this method's imputer
+# defines — 'cond' (conditional game) or 'marg' (marginal game).
+game: cond
 attributor:
   _target_: motionbench.attribution.kernel_shap.KernelShapAttributor
 imputer:
@@ -11,3 +14,7 @@ players:
 n_kernel_samples: 16   # K=4 → 2^4=16 exact coalitions
 n_completion_samples: 3
 seed: 42
+# Value-function semantics: 'f_of_mean' = classifier at the mean completion
+# (the executed release semantics); 'mean_of_f' = paper Eq. 5 (average of
+# classifier outputs over completions).
+value_fn: f_of_mean

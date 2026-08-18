@@ -1,0 +1,4 @@
+name: spatial
+# One player per joint/channel spanning all features and time-steps (M = J).
+# J, F, T are injected at runtime from the dataset config.
+_target_: motionbench.players.spatial_joints.SpatialJoints
