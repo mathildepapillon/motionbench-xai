@@ -332,9 +332,9 @@ def test_flow_m10_burr_ablation(tmp_path):
     # --- Generate Burr-XII data -----------------------------------------------
     if _HAS_SCIPY:
         rng_np = 42
-        x_train_np = burr12.rvs(c=2.0, k=2.0, size=(N_train, J_b, F_b, T_b),
+        x_train_np = burr12.rvs(c=2.0, d=2.0, size=(N_train, J_b, F_b, T_b),
                                  random_state=rng_np)
-        x_test_np = burr12.rvs(c=2.0, k=2.0, size=(N_test, J_b, F_b, T_b),
+        x_test_np = burr12.rvs(c=2.0, d=2.0, size=(N_test, J_b, F_b, T_b),
                                 random_state=rng_np + 1)
         x_train = torch.from_numpy(x_train_np.astype("float32"))
         x_test = torch.from_numpy(x_test_np.astype("float32"))
