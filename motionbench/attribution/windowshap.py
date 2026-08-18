@@ -35,11 +35,41 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from torch import Tensor
-from windowshap.windowshap import (  # type: ignore[import-untyped]
-    DynamicWindowSHAP,
-    SlidingWindowSHAP,
-    StationaryWindowSHAP,
-)
+
+try:
+    from windowshap.windowshap import (  # type: ignore[import-untyped]
+        DynamicWindowSHAP,
+        SlidingWindowSHAP,
+        StationaryWindowSHAP,
+    )
+
+    _HAS_WINDOWSHAP = True
+except ImportError:  # pragma: no cover - exercised only without the extra
+    _HAS_WINDOWSHAP = False
+
+    class _MissingWindowSHAP:
+        """Placeholder that fails at construction with install instructions.
+
+        ``windowshap`` is not on PyPI; it is an optional dependency vendored
+        from the official repository.  Install it with::
+
+            pip install git+https://github.com/vsubbian/WindowSHAP
+
+        Importing this module without it succeeds (so the rest of
+        ``motionbench.attribution`` stays usable); instantiating any
+        WindowSHAP attributor raises ``ImportError``.
+        """
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            raise ImportError(
+                "The optional 'windowshap' package is required for WindowSHAP "
+                "attributors but is not installed.  Install it with:\n"
+                "    pip install git+https://github.com/vsubbian/WindowSHAP"
+            )
+
+    DynamicWindowSHAP = _MissingWindowSHAP  # type: ignore[assignment,misc]
+    SlidingWindowSHAP = _MissingWindowSHAP  # type: ignore[assignment,misc]
+    StationaryWindowSHAP = _MissingWindowSHAP  # type: ignore[assignment,misc]
 
 from motionbench.attribution.base import BaseAttributor
 
