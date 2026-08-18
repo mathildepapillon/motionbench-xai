@@ -56,10 +56,12 @@ class JointWindowCells(PlayerSet):
 
     @property
     def n_players(self) -> int:
+        """Number of players M = J * K."""
         return self._M
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) element-space shape this player set operates over."""
         return self._J, self._F, self._T
 
     def player_index(self, j: int, k: int) -> int:

@@ -314,10 +314,12 @@ class PTBXLVAEACImputer(BaseImputer):
 
     @property
     def is_on_manifold(self) -> bool:
+        """True: VAEAC samples approximate the data manifold."""
         return True
 
     @property
     def name(self) -> str:
+        """Short identifier for logging and leaderboard tables."""
         return "vaeac"
 
 
@@ -542,8 +544,10 @@ class PTBXLFlowImputer(BaseImputer):
 
     @property
     def is_on_manifold(self) -> bool:
+        """True: flow-matching samples approximate the data manifold."""
         return True
 
     @property
     def name(self) -> str:
+        """Short identifier for logging and leaderboard tables."""
         return "flow_matching"

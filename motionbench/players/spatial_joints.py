@@ -40,10 +40,12 @@ class SpatialJoints(PlayerSet):
 
     @property
     def n_players(self) -> int:
+        """Number of players M = J."""
         return self._J
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) element-space shape this player set operates over."""
         return self._J, self._F, self._T
 
     def coalition_mask(self, z: Tensor) -> Tensor:

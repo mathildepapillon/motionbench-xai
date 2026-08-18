@@ -152,6 +152,22 @@ class RealTimeSHAPAttributor(BaseAttributor):
         players: PlayerSet,
         target: int = 0,
     ) -> Tensor:
+        """Compute per-player SHAP values for one sequence via TimeSHAP.
+
+        Wraps ``timeshap.explainer.local_event`` (zeros baseline) and sums
+        the per-timestep event attributions into the benchmark's M players.
+
+        Args:
+            x: ``(J, F, T)`` float32 input sequence (no batch dim).
+            players: Player set used to aggregate per-timestep output.
+            target: Class index selected from the classifier's output.
+
+        Returns:
+            ``(M,)`` float32 per-player attribution.
+
+        Raises:
+            ValueError: if ``window_len`` does not evenly divide ``T``.
+        """
         from timeshap.explainer import local_event  # noqa: PLC0415
 
         J, F_coords, T = x.shape

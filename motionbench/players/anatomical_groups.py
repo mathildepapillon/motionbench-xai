@@ -96,10 +96,12 @@ class AnatomicalGroups(PlayerSet):
 
     @property
     def n_players(self) -> int:
+        """Number of players M (= number of groups)."""
         return len(self._group_names)
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) element-space shape this player set operates over."""
         return self._J, self._F, self._T
 
     @property

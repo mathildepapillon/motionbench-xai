@@ -386,6 +386,20 @@ class _UniformWindowAttributor(BaseAttributor):
         players: PlayerSet,
         target: int = 0,
     ) -> Tensor:
+        """Compute per-player SHAP values for one sequence via WindowSHAP.
+
+        Args:
+            x: ``(J, F, T)`` float32 input sequence (no batch dim).
+            players: Player set used to map the per-window SHAP output back
+                to the benchmark's M players (must be temporal-compatible).
+            target: Class index selected from the classifier's output.
+
+        Returns:
+            ``(M,)`` float32 per-player attribution.
+
+        Raises:
+            ValueError: if ``window_len`` does not evenly divide ``T``.
+        """
         J, F_coords, T = x.shape
         if self._window_len >= T:
             raise ValueError(

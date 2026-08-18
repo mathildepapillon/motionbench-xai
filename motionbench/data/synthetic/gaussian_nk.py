@@ -155,10 +155,12 @@ class GaussianNKDataset:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) per-sample coordinate shape."""
         return (self._J, self._F, self._T)
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Free-form dataset metadata (rho, alpha, K, ...)."""
         return {
             "skeleton": "synthetic_gaussian_nk",
             "frame_rate": 27.0,

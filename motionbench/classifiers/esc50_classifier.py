@@ -56,14 +56,17 @@ class ESC50ASTClassifier(nn.Module):
         return torch.softmax(logits, dim=-1)
 
     def to(self, *args, **kwargs):
+        """Move the wrapped module to a device; returns self."""
         self._model = self._model.to(*args, **kwargs)
         return super().to(*args, **kwargs)
 
     def eval(self):
+        """Set the wrapped module to eval mode; returns self."""
         self._model.eval()
         return super().eval()
 
     def train(self, mode: bool = True):
+        """Set the wrapped module to train mode; returns self."""
         # Keep model in eval mode for inference wrapper
         self._model.eval()
         return super().train(False)

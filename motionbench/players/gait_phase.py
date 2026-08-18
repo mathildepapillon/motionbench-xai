@@ -82,10 +82,12 @@ class GaitPhase(PlayerSet):
 
     @property
     def n_players(self) -> int:
+        """Number of players M (= number of gait phases)."""
         return self._M
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) element-space shape this player set operates over."""
         return self._J, self._F, self._T
 
     @property

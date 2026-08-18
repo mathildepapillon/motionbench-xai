@@ -166,10 +166,12 @@ class SkeletonGaitDataset:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) per-sample coordinate shape."""
         return (self._J, self._F, self._T)
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Free-form dataset metadata."""
         return {
             "skeleton": "h36m_17",
             "frame_rate": 27.0,
@@ -184,4 +186,5 @@ class SkeletonGaitDataset:
 
     @property
     def oracle(self) -> GaussianOracle:
+        """Exact GaussianOracle for this generative model."""
         return self._oracle

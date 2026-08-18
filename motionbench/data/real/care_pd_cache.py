@@ -100,10 +100,12 @@ class BMCLabCacheDataset:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) per-sample coordinate shape."""
         return (self._J, self._F, self._T)
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Free-form dataset metadata (skeleton name, frame rate, ...)."""
         # CARE-PD BMCLab fold1 contains UPDRS-gait labels {0, 1, 2}; no 3 in this fold.
         return {
             "skeleton": "h36m_17",

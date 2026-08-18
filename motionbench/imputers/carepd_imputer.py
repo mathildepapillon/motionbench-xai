@@ -373,6 +373,7 @@ class CarepdVAEACImputer(BaseImputer):
         self._skip = False
 
     def fit(self, train_data: "BaseDataset") -> "CarepdVAEACImputer":
+        """Resolve the pretrained checkpoint for this dataset family; returns self."""
         cls_name = type(train_data).__name__
         if cls_name not in _VAEAC_REGISTRY:
             log.warning(
@@ -427,6 +428,7 @@ class CarepdVAEACImputer(BaseImputer):
         n_samples: int,
         seed: int | None = None,
     ) -> Tensor:
+        """Draw n_samples completions; observed entries preserved bit-for-bit."""
         if not self._fitted:
             raise RuntimeError("CarepdVAEACImputer.fit() must be called first.")
         if self._skip or self._imputer is None:
@@ -464,10 +466,12 @@ class CarepdVAEACImputer(BaseImputer):
 
     @property
     def is_on_manifold(self) -> bool:
+        """True: VAEAC samples approximate the data manifold."""
         return True
 
     @property
     def name(self) -> str:
+        """Short identifier for logging and leaderboard tables."""
         return "vaeac"
 
 
@@ -496,6 +500,7 @@ class CarepdFlowImputer(BaseImputer):
         self._skip = False
 
     def fit(self, train_data: "BaseDataset") -> "CarepdFlowImputer":
+        """Resolve the pretrained checkpoint for this dataset family; returns self."""
         cls_name = type(train_data).__name__
         if cls_name not in _FLOW_REGISTRY:
             log.warning(
@@ -622,6 +627,7 @@ class CarepdFlowImputer(BaseImputer):
         )
 
     def clear_cache(self) -> None:
+        """Drop the memoised per-mask completions."""
         self._completion_cache = {}
 
     def impute(
@@ -631,6 +637,7 @@ class CarepdFlowImputer(BaseImputer):
         n_samples: int,
         seed: int | None = None,
     ) -> Tensor:
+        """Draw n_samples completions; observed entries preserved bit-for-bit."""
         if not self._fitted:
             raise RuntimeError("CarepdFlowImputer.fit() must be called first.")
         if self._skip or self._imputer is None:
@@ -681,8 +688,10 @@ class CarepdFlowImputer(BaseImputer):
 
     @property
     def is_on_manifold(self) -> bool:
+        """True: flow-matching samples approximate the data manifold."""
         return True
 
     @property
     def name(self) -> str:
+        """Short identifier for logging and leaderboard tables."""
         return "flow_matching"
