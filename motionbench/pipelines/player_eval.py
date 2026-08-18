@@ -242,8 +242,9 @@ def _ec_metrics(
 ) -> tuple[float, float]:
     """Per-sequence (EC1, EC3) against the deterministic target.
 
-    EC1 = mean|phi - phi*|; EC3 = 1 - Pearson(phi, phi*), with a constant
-    vector treated as correlation 0 (EC3 = 1), matching
+    EC1 = mean|phi - phi*|; EC3 = 1 - Pearson(phi, phi*) with the Pearson
+    coefficient clamped to [-1, 1] (so EC3 in [0, 2]) and a constant vector
+    treated as correlation 0 (EC3 = 1) — the same conventions as
     :class:`~motionbench.metrics.ground_truth.EC3Metric`.
 
     Args:
@@ -256,8 +257,8 @@ def _ec_metrics(
     ec1 = float(np.mean(np.abs(phi - phi_star)))
     if np.std(phi) < 1e-10 or np.std(phi_star) < 1e-10:
         return ec1, 1.0
-    ec3 = float(np.clip(1.0 - np.corrcoef(phi, phi_star)[0, 1], -1.0, 1.0))
-    return ec1, ec3
+    pearson = float(np.clip(np.corrcoef(phi, phi_star)[0, 1], -1.0, 1.0))
+    return ec1, 1.0 - pearson
 
 
 def _run_player_cell(

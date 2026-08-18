@@ -32,6 +32,14 @@ algebraic rate, so the integral is split at the cusp and evaluated with the
 substitution ``t = t0 -/+ y^2`` on each side, restoring spectral accuracy for
 Gauss-Legendre (:func:`cusp_split_nodes`).
 
+Accuracy domain: for the unit-variance latent fields used throughout this
+package, the conditional pairs satisfy ``sd <= 1`` and
+``mu ~ N(0, 1 - sd^2)``; on that domain a node-doubling check bounds the
+quadrature error below ``~1e-6`` (see ``tests/test_deterministic_oracle.py``).
+Feeding artificial pairs with ``|mu|`` large *and* ``sd`` near 1 — which the
+correlation-matrix models cannot produce — degrades the rule near the
+marginal's probability-clip kink.
+
 Marginal fill
 -------------
 ``E[x] = 0`` exactly for every family here: the Gaussian field is centered and
