@@ -68,7 +68,7 @@ class ZeroImputer(BaseImputer):
 
     is_on_manifold: bool = False
 
-    def fit(self, train_data: "BaseDataset") -> "ZeroImputer":
+    def fit(self, train_data: BaseDataset) -> ZeroImputer:
         """No-op fit — ZeroImputer requires no training statistics.
 
         Args:
@@ -126,7 +126,7 @@ class MeanImputer(BaseImputer):
 
     is_on_manifold: bool = False
 
-    def fit(self, train_data: "BaseDataset") -> "MeanImputer":
+    def fit(self, train_data: BaseDataset) -> MeanImputer:
         """Compute per-coordinate mean over the training dataset.
 
         Iterates over ``train_data`` once, accumulating a running sum.
@@ -149,10 +149,7 @@ class MeanImputer(BaseImputer):
         for item in train_data:
             x = item[0] if isinstance(item, (tuple, list)) else item
             x = x.to(dtype=torch.float32)
-            if running_sum is None:
-                running_sum = x.clone()
-            else:
-                running_sum = running_sum + x
+            running_sum = x.clone() if running_sum is None else running_sum + x
             n += 1
         if running_sum is None or n == 0:
             raise ValueError("train_data is empty; cannot compute mean.")
@@ -216,7 +213,7 @@ class MarginalDonorImputer(BaseImputer):
 
     is_on_manifold: bool = False
 
-    def fit(self, train_data: "BaseDataset") -> "MarginalDonorImputer":
+    def fit(self, train_data: BaseDataset) -> MarginalDonorImputer:
         """Store all training sequences as the donor pool.
 
         Args:
@@ -311,7 +308,7 @@ class GaussianNoiseImputer(BaseImputer):
         """
         self.scale = scale
 
-    def fit(self, train_data: "BaseDataset") -> "GaussianNoiseImputer":
+    def fit(self, train_data: BaseDataset) -> GaussianNoiseImputer:
         """Compute per-coordinate mean and standard deviation from training data.
 
         Iterates over ``train_data`` twice (one pass for mean, one for std)
@@ -333,10 +330,7 @@ class GaussianNoiseImputer(BaseImputer):
         for item in train_data:
             x = item[0] if isinstance(item, (tuple, list)) else item
             x = x.to(dtype=torch.float32)
-            if running_sum is None:
-                running_sum = x.clone()
-            else:
-                running_sum = running_sum + x
+            running_sum = x.clone() if running_sum is None else running_sum + x
             n += 1
         if running_sum is None or n == 0:
             raise ValueError("train_data is empty; cannot compute statistics.")
@@ -348,10 +342,7 @@ class GaussianNoiseImputer(BaseImputer):
             x = item[0] if isinstance(item, (tuple, list)) else item
             x = x.to(dtype=torch.float32)
             diff = x - mean
-            if running_sq is None:
-                running_sq = diff * diff
-            else:
-                running_sq = running_sq + diff * diff
+            running_sq = diff * diff if running_sq is None else running_sq + diff * diff
         # running_sq should not be None if first pass succeeded
         assert running_sq is not None
         var = running_sq / n

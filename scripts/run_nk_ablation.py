@@ -31,12 +31,15 @@ import traceback
 import warnings
 from math import comb
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 from omegaconf import OmegaConf
 from torch import Tensor
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(
@@ -264,10 +267,7 @@ def compute_coalition_values_neural(
 
         with torch.no_grad():
             logits = clf(comps)                    # (n_coal*n_mc, n_classes)
-        if logits.ndim == 2:
-            probs = torch.softmax(logits, dim=-1)[:, target_class]
-        else:
-            probs = logits
+        probs = torch.softmax(logits, dim=-1)[:, target_class] if logits.ndim == 2 else logits
         v_vals = probs.view(n_coal, n_mc).mean(dim=1).cpu().numpy()
     else:
         # Fallback: per-coalition loop using sample_completions
@@ -286,10 +286,7 @@ def compute_coalition_values_neural(
             comps = torch.where(obs_exp, x_exp2, comps)
             with torch.no_grad():
                 logits = clf(comps)
-            if logits.ndim == 2:
-                probs = torch.softmax(logits, dim=-1)[:, target_class]
-            else:
-                probs = logits
+            probs = torch.softmax(logits, dim=-1)[:, target_class] if logits.ndim == 2 else logits
             v_vals[ci] = probs.mean().item()
 
     return v_vals
@@ -327,10 +324,7 @@ def compute_coalition_values_simple(
     comps = torch.cat(completions, dim=0).to(device)  # (n_coal, J, F, T)
     with torch.no_grad():
         logits = clf(comps)
-    if logits.ndim == 2:
-        probs = torch.softmax(logits, dim=-1)[:, target_class]
-    else:
-        probs = logits
+    probs = torch.softmax(logits, dim=-1)[:, target_class] if logits.ndim == 2 else logits
     return probs.cpu().numpy().astype(np.float32)
 
 
@@ -375,10 +369,7 @@ def compute_coalition_values_marginal(
         comps = torch.where(obs_exp, x_obs_exp, donors).to(device)  # (n_mc, J, F, T)
         with torch.no_grad():
             logits = clf(comps)
-        if logits.ndim == 2:
-            probs = torch.softmax(logits, dim=-1)[:, target_class]
-        else:
-            probs = logits
+        probs = torch.softmax(logits, dim=-1)[:, target_class] if logits.ndim == 2 else logits
         v_vals[ci] = probs.mean().item()
 
     return v_vals
@@ -420,9 +411,9 @@ def run_sanity_check(device: torch.device) -> dict:
     """
     log.info("=== SANITY CHECK ===")
     from motionbench.data.synthetic.gaussian_motion import GaussianMotionDataset  # noqa: PLC0415
-    from motionbench.oracles.gaussian_oracle import GaussianOracle              # noqa: PLC0415
-    from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle     # noqa: PLC0415
-    from motionbench.players.temporal_windows import TemporalWindows             # noqa: PLC0415
+    from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle  # noqa: PLC0415
+    from motionbench.oracles.gaussian_oracle import GaussianOracle  # noqa: PLC0415
+    from motionbench.players.temporal_windows import TemporalWindows  # noqa: PLC0415
 
     ds = GaussianMotionDataset(J=J, F=F, T=T, N=50, K=K, rho=0.5, alpha=0.8, seed=42)
     bench = ds._benchmark
@@ -501,12 +492,9 @@ def run_sanity_check(device: torch.device) -> dict:
 def run_experiment(device: torch.device) -> dict:
     """Run all imputers on the non-Kronecker dataset and compute EC1."""
     log.info("=== EXPERIMENT ===")
-    from motionbench.data.synthetic.gaussian_nk import GaussianNKDataset           # noqa: PLC0415
-    from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle          # noqa: PLC0415
-    from motionbench.players.temporal_windows import TemporalWindows                  # noqa: PLC0415
-    from motionbench.imputers.off_manifold import (                                   # noqa: PLC0415
-        ZeroImputer, MeanImputer, MarginalDonorImputer,
-    )
+    from motionbench.data.synthetic.gaussian_nk import GaussianNKDataset  # noqa: PLC0415
+    from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle  # noqa: PLC0415
+    from motionbench.players.temporal_windows import TemporalWindows  # noqa: PLC0415
 
     # ---- Datasets ----
     log.info("Building NK datasets (train N=%d, test N=%d)...", N_TRAIN, N_TEST)
@@ -562,9 +550,9 @@ def run_experiment(device: torch.device) -> dict:
             x_i = x_test_list[i]
             tgt = int(targets[i])
 
-            def clf_fn_i(x_b: Tensor, _tgt: int = tgt) -> Tensor:
+            def clf_fn_i(x_b: Tensor, _tgt: int = tgt, _clf=clf) -> Tensor:  # noqa: ANN001
                 with torch.no_grad():
-                    out = clf(x_b.float().to(device))
+                    out = _clf(x_b.float().to(device))
                 if out.ndim == 2:
                     return torch.softmax(out, dim=-1)[:, _tgt].cpu()
                 return out.cpu()

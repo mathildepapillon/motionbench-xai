@@ -15,7 +15,6 @@ from torch import Tensor
 
 from motionbench.players.base import PlayerSet
 
-
 # ---------------------------------------------------------------------------
 # Mock implementation (minimal concrete subclass)
 # ---------------------------------------------------------------------------

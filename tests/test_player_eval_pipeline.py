@@ -8,7 +8,7 @@ runs end-to-end on CPU in seconds.
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -21,6 +21,9 @@ from motionbench.pipelines.player_eval import (
     _infer_game,
     run_player_eval,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Unit tests

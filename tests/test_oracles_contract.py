@@ -13,7 +13,7 @@ import torch
 from torch import Tensor
 
 from motionbench.oracles.base import Oracle
-from tests.conftest import J, F, T, M
+from tests.conftest import F, J, M, T
 
 # ---------------------------------------------------------------------------
 # Minimal mock PlayerSet (avoid importing unfinished module)

@@ -47,12 +47,12 @@ import argparse
 import random
 import time
 from pathlib import Path
+
 import numpy as np
 import torch
 from torch import Tensor
 
 from motionbench.imputers.flow_matching import FlowMatchingImputer
-
 
 # ---------------------------------------------------------------------------
 # Minimal in-memory dataset wrapper

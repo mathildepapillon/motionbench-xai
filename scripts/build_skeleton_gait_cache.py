@@ -21,8 +21,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from motionbench.data.synthetic.skeleton_gait_combined import SkeletonGaitDataset
-
+from motionbench.data.synthetic.skeleton_gait_combined import SkeletonGaitDataset  # noqa: E402
 
 CARE_PD_ROOT = Path(os.environ.get("CARE_PD_ROOT", REPO.parent / "CARE-PD"))
 CARE_PD_CACHE = CARE_PD_ROOT / "cache" / "vaeac_synthetic"

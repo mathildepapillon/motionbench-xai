@@ -16,8 +16,7 @@ from torch import Tensor
 
 from motionbench.attribution.attention_rollout import AttentionRolloutAttributor
 from motionbench.attribution.grad_cam import GradCAMAttributor
-from tests.conftest import J, F, M, T
-
+from tests.conftest import F, J, M, T
 
 # ---------------------------------------------------------------------------
 # Tiny inline models

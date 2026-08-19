@@ -26,7 +26,6 @@ Perturbations.  KDD 2021.  ``pip install timeshap``.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -37,6 +36,8 @@ from torch import Tensor
 from motionbench.attribution.base import BaseAttributor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from motionbench.players.base import PlayerSet
 
 
@@ -179,9 +180,8 @@ class RealTimeSHAPAttributor(BaseAttributor):
             raise ValueError(
                 f"window_len={self._window_len} must divide T={T} evenly.",
             )
-        K = T // self._window_len
+        T // self._window_len
         F_total = J * F_coords
-        win = self._window_len
 
         # (J, F, T) → (1, T, J*F)
         x_np = (
@@ -225,10 +225,7 @@ class RealTimeSHAPAttributor(BaseAttributor):
                         signed = int(raw.split()[-1])
                     except (TypeError, ValueError, IndexError):
                         continue
-                    if signed < 0:
-                        t_idx = T + signed
-                    else:
-                        t_idx = signed
+                    t_idx = T + signed if signed < 0 else signed
                 else:
                     continue
             if not (0 <= t_idx < T):

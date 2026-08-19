@@ -56,8 +56,8 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 REPO_ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from motionbench.classifiers.ported_ptbxl.resnet1d import ECGResNet1dClassifier
-from motionbench.data.real.ptbxl import PTBXLDataset
+from motionbench.classifiers.ported_ptbxl.resnet1d import ECGResNet1dClassifier  # noqa: E402
+from motionbench.data.real.ptbxl import PTBXLDataset  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -119,7 +119,7 @@ def _make_weighted_sampler(dataset: PTBXLDataset) -> WeightedRandomSampler:
     labels = [dataset._samples[i][1] for i in range(len(dataset))]
     class_counts = np.bincount(labels, minlength=2)
     class_weights = 1.0 / np.maximum(class_counts, 1)
-    sample_weights = torch.tensor([class_weights[l] for l in labels], dtype=torch.float)
+    sample_weights = torch.tensor([class_weights[lab] for lab in labels], dtype=torch.float)
     return WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
 
 

@@ -11,11 +11,9 @@ from __future__ import annotations
 
 import pytest
 import torch
-from torch import Tensor
 
 from motionbench.metrics.base import BaseMetric
-from tests.conftest import J, F, T, M
-
+from tests.conftest import F, J, M, T
 
 # ---------------------------------------------------------------------------
 # Minimal mocks
@@ -131,7 +129,7 @@ def test_evaluate_returns_string_keys(x_sample, classifier_fn):
     players = _MockPlayers()
     phi = torch.randn(M)
     result = m.evaluate(phi, x_sample, classifier_fn, players)
-    assert all(isinstance(k, str) for k in result.keys())
+    assert all(isinstance(k, str) for k in result)
 
 
 def test_requires_oracle_default():

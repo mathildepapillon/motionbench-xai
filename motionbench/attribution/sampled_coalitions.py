@@ -115,7 +115,7 @@ def sampled_coalition_set(
     """
     if M < 2:
         raise ValueError(f"Need at least 2 players; got M={M}.")
-    if M <= exact_max_m:
+    if exact_max_m >= M:
         return enumerate_coalitions(M)
     if budget < 1:
         raise ValueError(f"budget must be >= 1 in the sampled regime; got {budget}.")

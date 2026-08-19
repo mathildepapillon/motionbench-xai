@@ -221,7 +221,7 @@ def aggregate_over_classifiers(
 ) -> dict[tuple[str, str], dict[str, float]]:
     """Average primary metrics over classifiers → ``{(dataset, method): metrics}``."""
     accum: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    for (ds, clf, method), data in results.items():
+    for (ds, _clf, method), data in results.items():
         key = (ds, method)
         accum.setdefault(key, []).append(data)
 
@@ -303,7 +303,6 @@ def _axis_b_imputer_analysis(
 
     temporal_methods = [m for m in METHOD_ORDER if PLAYER_ABSTRACTION.get(m) == "temporal"]
 
-    imputer_order = ["off-manifold", "weak-on-manifold", "strong-on-manifold"]
 
     for ds, manifold_matters in DATASET_MANIFOLD_MATTERS.items():
         rows: list[tuple[str, str, str]] = []

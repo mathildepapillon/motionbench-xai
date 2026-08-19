@@ -7,13 +7,10 @@ Verifies that:
 """
 from __future__ import annotations
 
-import pytest
 import torch
-from torch import Tensor
 
 from motionbench.data.base import BaseDataset, GroundTruthDataset
 from motionbench.oracles.base import Oracle
-
 
 # ---------------------------------------------------------------------------
 # Mock oracle (minimal, used in GroundTruthDataset mock)

@@ -197,11 +197,11 @@ def _mask_to_coalition(mask: Tensor) -> tuple[Tensor, str]:
     return temporal_any.unsqueeze(0).contiguous(), "temporal"
 
 
-def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device):
+def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
     """Load a CARE-PD VAEAC checkpoint and return a VAEACImputer."""
     _ensure_carepd_on_path()
-    from model.vaeac import VAEAC                        # type: ignore[import]
-    from model.vaeac.imputer import VAEACImputer          # type: ignore[import]
+    from model.vaeac import VAEAC  # type: ignore[import]
+    from model.vaeac.imputer import VAEACImputer  # type: ignore[import]
 
     cfg = json.loads(cfg_path.read_text())
 
@@ -274,11 +274,11 @@ def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device):
     return VAEACImputer(model, device, stats_mean=None, stats_std=None, temperature=1.0)
 
 
-def _load_flow(ckpt_dir: Path, cfg_path: Path, device: torch.device):
+def _load_flow(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
     """Load a CARE-PD flow-matching checkpoint and return a FlowImputer."""
     _ensure_carepd_on_path()
-    from model.flow_matching import VelocityNet               # type: ignore[import]
-    from model.flow_shap.imputer import FlowImputer           # type: ignore[import]
+    from model.flow_matching import VelocityNet  # type: ignore[import]
+    from model.flow_shap.imputer import FlowImputer  # type: ignore[import]
 
     cfg = json.loads(cfg_path.read_text())
 
@@ -372,7 +372,7 @@ class CarepdVAEACImputer(BaseImputer):
         self._fitted = False
         self._skip = False
 
-    def fit(self, train_data: "BaseDataset") -> "CarepdVAEACImputer":
+    def fit(self, train_data: BaseDataset) -> CarepdVAEACImputer:
         """Resolve the pretrained checkpoint for this dataset family; returns self."""
         cls_name = type(train_data).__name__
         if cls_name not in _VAEAC_REGISTRY:
@@ -499,7 +499,7 @@ class CarepdFlowImputer(BaseImputer):
         self._fitted = False
         self._skip = False
 
-    def fit(self, train_data: "BaseDataset") -> "CarepdFlowImputer":
+    def fit(self, train_data: BaseDataset) -> CarepdFlowImputer:
         """Resolve the pretrained checkpoint for this dataset family; returns self."""
         cls_name = type(train_data).__name__
         if cls_name not in _FLOW_REGISTRY:
@@ -529,7 +529,8 @@ class CarepdFlowImputer(BaseImputer):
             # Override num_steps with our requested value
             cfg = json.loads(cfg_path.read_text())
             cfg["num_steps"] = self._num_steps
-            import tempfile, os
+            import os
+            import tempfile
             with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".json", delete=False
             ) as f:
@@ -581,7 +582,6 @@ class CarepdFlowImputer(BaseImputer):
 
         J, F, T = x_obs.shape
         T_win = T // K  # frames per window
-        device = self._imputer._device
 
         # Build all 2^K coalition masks (B, T) — each row is a binary temporal mask
         n_coal = 2 ** K

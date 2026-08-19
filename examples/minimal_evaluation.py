@@ -52,7 +52,7 @@ opt = torch.optim.Adam(clf.parameters(), lr=5e-3, weight_decay=1e-3)
 x_tr = torch.stack([train_ds[i][0] for i in range(len(train_ds))])
 y_tr = torch.stack([train_ds[i][1] for i in range(len(train_ds))])
 clf.train()
-for epoch in range(60):
+for _epoch in range(60):
     perm = torch.randperm(len(x_tr))
     for s in range(0, len(x_tr), 64):
         idx = perm[s : s + 64]

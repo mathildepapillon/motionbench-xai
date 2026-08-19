@@ -704,7 +704,7 @@ class _OracleImputer(BaseImputer):
     def __init__(self, oracle: Oracle) -> None:
         self._oracle = oracle
 
-    def fit(self, train_data: Any) -> "_OracleImputer":  # noqa: ANN401
+    def fit(self, train_data: Any) -> _OracleImputer:  # noqa: ANN401
         """No-op — oracle requires no additional fitting."""
         return self
 
@@ -842,7 +842,7 @@ class ManifoldFidelityGapMetric(BaseMetric):
 def _build_granularity(
     name: str,
     shape: tuple[int, int, int],
-) -> "PlayerSet | None":
+) -> PlayerSet | None:
     """Construct a player set at the requested granularity, or ``None`` if the
     granularity is incompatible with ``shape`` (e.g.\\ window count does not
     divide ``T``).

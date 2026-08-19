@@ -299,7 +299,7 @@ class PTBXLDataset:
         return signal  # (1000, 12)
 
     def _load_records(
-        self, db: "pd.DataFrame"
+        self, db: pd.DataFrame
     ) -> list[tuple[np.ndarray, int]]:
         """Load all waveforms in *db* and return ``(waveform, label)`` pairs.
 
@@ -430,6 +430,6 @@ class PTBXLDataset:
         return self._mean, self._std
 
     @property
-    def oracle(self) -> "Oracle | None":
+    def oracle(self) -> Oracle | None:
         """Always ``None`` — real ECG data has no closed-form oracle."""
         return None

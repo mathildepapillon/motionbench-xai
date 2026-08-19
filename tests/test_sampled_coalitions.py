@@ -19,7 +19,6 @@ from motionbench.attribution.sampled_coalitions import (
 )
 from motionbench.utils.coalitions import enumerate_coalitions, shapley_kernel_weight
 
-
 # ---------------------------------------------------------------------------
 # Exact regime (M <= EXACT_MAX_M)
 # ---------------------------------------------------------------------------
@@ -37,7 +36,7 @@ def test_exact_regime_matches_enumeration(M):
 def test_exact_regime_kernel_weights_formula():
     M = 6
     Z, w = sampled_coalition_set(M, budget=999)
-    for row, weight in zip(Z, w):
+    for row, weight in zip(Z, w, strict=False):
         s = int(row.sum())
         assert weight == pytest.approx(shapley_kernel_weight(s, M), abs=0)
 

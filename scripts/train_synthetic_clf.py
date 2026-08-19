@@ -56,7 +56,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import torch
 import torch.nn as nn
 from joblib import Parallel, delayed
@@ -68,7 +67,6 @@ from torch.utils.data import DataLoader, TensorDataset
 _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
-import numpy as np  # noqa: E402
 
 from motionbench.classifiers.synthetic_cnn import SyntheticCNNClassifier  # noqa: E402
 from motionbench.classifiers.synthetic_mlp import SyntheticMLPClassifier  # noqa: E402
@@ -570,7 +568,7 @@ def main() -> None:
     n_jobs = len(jobs)
     n_workers = args.n_workers if args.n_workers is not None else min(n_jobs, len(devices))
 
-    print(f"MotionBench-XAI — Synthetic Classifier Training")
+    print("MotionBench-XAI — Synthetic Classifier Training")
     print(f"  Jobs      : {n_jobs} ({len(args.datasets)} datasets × {len(args.classifiers)} classifiers)")
     print(f"  Devices   : {devices}")
     print(f"  Workers   : {n_workers} parallel jobs")
@@ -586,7 +584,7 @@ def main() -> None:
         delayed(_train_with_retry)(
             ds, clf, dev, args.checkpoint_dir, seed=args.seed, force=args.force,
         )
-        for (ds, clf), dev in zip(jobs, assigned_devices)
+        for (ds, clf), dev in zip(jobs, assigned_devices, strict=False)
     )
 
     total_elapsed = time.time() - t_start

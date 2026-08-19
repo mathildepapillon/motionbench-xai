@@ -21,13 +21,13 @@ import argparse
 import csv
 import sys
 import time
+from math import gcd
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 import torch
 from scipy.signal import resample_poly
-from math import gcd
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:

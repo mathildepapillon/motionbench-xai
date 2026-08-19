@@ -45,7 +45,7 @@ class ESC50ASTClassifier(nn.Module):
             ``(B, 50)`` float32 softmax probability tensor on the same device as ``x``.
         """
         # x: (B, 128, 1, 1024)
-        B = x.shape[0]
+        x.shape[0]
         # Squeeze F dim: (B, 128, 1024)
         x2 = x.squeeze(2)          # (B, 128, 1024)
         # Permute to (B, 1024, 128) = (B, time_steps, num_mel_bins) as AST expects
@@ -55,17 +55,17 @@ class ESC50ASTClassifier(nn.Module):
         logits = out.logits  # (B, 50)
         return torch.softmax(logits, dim=-1)
 
-    def to(self, *args, **kwargs):
+    def to(self, *args: object, **kwargs: object) -> ESC50ASTClassifier:
         """Move the wrapped module to a device; returns self."""
         self._model = self._model.to(*args, **kwargs)
         return super().to(*args, **kwargs)
 
-    def eval(self):
+    def eval(self) -> ESC50ASTClassifier:
         """Set the wrapped module to eval mode; returns self."""
         self._model.eval()
         return super().eval()
 
-    def train(self, mode: bool = True):
+    def train(self, mode: bool = True) -> ESC50ASTClassifier:
         """Set the wrapped module to train mode; returns self."""
         # Keep model in eval mode for inference wrapper
         self._model.eval()

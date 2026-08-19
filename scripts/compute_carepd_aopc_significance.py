@@ -251,7 +251,7 @@ def main() -> None:
     log.info("wrote %s", out_path)
 
     print("\n" + "=" * 92)
-    print("CARE-PD PlayerAOPC pairwise paired bootstrap test  (B=%d)" % args.B)
+    print(f"CARE-PD PlayerAOPC pairwise paired bootstrap test  (B={args.B})")
     print("Direction:  diff = mean(player_aopc[A]) - mean(player_aopc[B])")
     print("=" * 92)
     method_labels = {

@@ -16,19 +16,23 @@ Outputs:
 """
 from __future__ import annotations
 
-import json, logging, time, sys
+import json
+import logging
+import sys
+import time
 from pathlib import Path
 
 import numpy as np
 import torch
 from omegaconf import OmegaConf
-from scipy.stats import spearmanr, kendalltau
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from windowshap.windowshap import (
-    StationaryWindowSHAP, SlidingWindowSHAP, DynamicWindowSHAP,
+from windowshap.windowshap import (  # noqa: E402
+    DynamicWindowSHAP,
+    SlidingWindowSHAP,
+    StationaryWindowSHAP,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -199,7 +203,7 @@ def run_timeshap_event(adapter, x_test, x_bg, K):
     from timeshap.explainer import local_event
 
     T = adapter.T
-    F_total = x_test.shape[-1]
+    x_test.shape[-1]
     win_len = T // K
     n_test = x_test.shape[0]
     baseline = x_bg.mean(axis=0, keepdims=True)  # (1, T, F')

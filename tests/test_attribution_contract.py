@@ -12,8 +12,7 @@ import torch
 from torch import Tensor
 
 from motionbench.attribution.base import BaseAttributor
-from tests.conftest import J, F, T, M
-
+from tests.conftest import F, J, M, T
 
 # ---------------------------------------------------------------------------
 # Mock PlayerSet

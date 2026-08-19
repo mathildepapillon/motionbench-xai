@@ -40,9 +40,9 @@ import logging
 import os
 import sys
 import time
+import warnings
 from pathlib import Path
 
-import warnings
 warnings.filterwarnings("ignore")
 
 logging.basicConfig(

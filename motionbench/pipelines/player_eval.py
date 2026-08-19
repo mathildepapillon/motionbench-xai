@@ -395,7 +395,7 @@ def _run_player_cell(
             "dataset": dataset_name, "players": players_name,
             "classifier": clf_name, "method": method_name, "game": game,
             "M": int(M), "n_coalitions": int(len(Z)),
-            "exact_coalitions": bool(2 ** M <= len(Z)),
+            "exact_coalitions": bool(len(Z) >= 2 ** M),
             "coalition_seed": coalition_seed, "coalition_budget": budget,
             "value_fn": value_fn, "n_sequences": int(n_seq), "seed": seed,
             "ec1": float(np.mean(ec1s)), "ec3": float(np.mean(ec3s)),

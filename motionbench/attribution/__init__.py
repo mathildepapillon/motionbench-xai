@@ -13,9 +13,12 @@ from motionbench.attribution.captum_methods import (
 from motionbench.attribution.grad_cam import GradCAMAttributor
 from motionbench.attribution.group_segment_shap import GroupSegmentSHAPAttributor
 from motionbench.attribution.kernel_shap import KernelShapAttributor
+from motionbench.attribution.kernelshap_temporal import (  # TimeSHAPAttributor is a compat alias
+    KernelSHAPTemporalAttributor,
+    TimeSHAPAttributor,
+)
 from motionbench.attribution.lrp import LRPAttributor
 from motionbench.attribution.shats import ShaTSAttributor
-from motionbench.attribution.kernelshap_temporal import KernelSHAPTemporalAttributor, TimeSHAPAttributor  # TimeSHAPAttributor is a compat alias
 from motionbench.attribution.timeshap_real import RealTimeSHAPAttributor
 from motionbench.attribution.windowshap import (
     DynamicWindowSHAPAttributor,

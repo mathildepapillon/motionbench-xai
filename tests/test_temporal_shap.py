@@ -25,13 +25,14 @@ from motionbench.attribution.group_segment_shap import (
     direct_group_shapley,
     shapley_from_value_table,
 )
+from motionbench.attribution.kernelshap_temporal import (
+    KernelSHAPTemporalAttributor,
+    TimeSHAPAttributor,  # compat alias
+)
 from motionbench.attribution.shats import ShaTSAttributor
-from motionbench.attribution.kernelshap_temporal import KernelSHAPTemporalAttributor
-from motionbench.attribution.kernelshap_temporal import TimeSHAPAttributor  # compat alias
 from motionbench.attribution.windowshap import WindowSHAPAttributor
 from motionbench.imputers.base import BaseImputer
 from tests.conftest import F, J, M, T
-
 
 # ---------------------------------------------------------------------------
 # Shared test helpers
@@ -63,7 +64,7 @@ class _TemporalPlayerSet:
 class _ZeroImputer(BaseImputer):
     """Trivial imputer: fills hidden coordinates with zeros."""
 
-    def fit(self, train_data: object) -> "_ZeroImputer":  # type: ignore[override]
+    def fit(self, train_data: object) -> _ZeroImputer:  # type: ignore[override]
         return self
 
     def impute(

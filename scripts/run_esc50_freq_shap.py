@@ -64,7 +64,7 @@ REPO_ROOT   = Path(__file__).parents[1]
 SCRIPTS_DIR = Path(__file__).parent
 
 sys.path.insert(0, str(SCRIPTS_DIR))
-from run_care_pd_multiclf import (   # noqa: E402
+from run_care_pd_multiclf import (  # noqa: E402
     faithfulness_correlation,
     kernel_shap_exact,
     player_aopc,
@@ -203,7 +203,7 @@ def main() -> None:
     rng   = np.random.default_rng(42 + fold)
     N_av  = x_test_all.shape[0]
     N     = min(N_SEQ, N_av)
-    idx   = np.sort(rng.choice(N_av, size=N, replace=False)) if N < N_av else np.arange(N)
+    idx   = np.sort(rng.choice(N_av, size=N, replace=False)) if N_av > N else np.arange(N)
     x_val = x_test_all[idx]   # (N, 128, 1, 1024)
 
     N, J_raw, F, T = x_val.shape

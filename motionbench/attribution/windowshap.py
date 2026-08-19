@@ -28,7 +28,6 @@ for NLP Interpretability." (WindowSHAP extended from SHAP KernelExplainer.)
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -74,6 +73,8 @@ except ImportError:  # pragma: no cover - exercised only without the extra
 from motionbench.attribution.base import BaseAttributor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from motionbench.players.base import PlayerSet
 
 

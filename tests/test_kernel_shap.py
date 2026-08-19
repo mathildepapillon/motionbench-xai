@@ -20,13 +20,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 import torch
-from motionbench.imputers.off_manifold import ZeroImputer
 from torch import Tensor
 
 from motionbench.attribution.kernel_shap import (
     KernelShapAttributor,
     _MotionBenchMasker,
 )
+from motionbench.imputers.off_manifold import ZeroImputer
 from motionbench.players.base import PlayerSet
 
 # ---------------------------------------------------------------------------

@@ -149,7 +149,7 @@ def main(
           f"(force={force}, dry_run={dry_run}, groups={groups})")
 
     if dry_run:
-        for dataset, clf, method, rf, group in work:
+        for dataset, clf, method, _rf, group in work:
             print(f"  WOULD compute  {dataset}/{clf}/{method}  group={group}")
         return
 

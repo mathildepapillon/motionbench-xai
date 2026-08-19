@@ -66,7 +66,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 CARE_PD_ROOT = Path(os.environ.get("CARE_PD_ROOT", REPO_ROOT.parent / "CARE-PD"))
 
 # Import shared utilities from the existing pipeline
-from run_care_pd_multiclf import (   # noqa: E402
+from run_care_pd_multiclf import (  # noqa: E402
     build_coalition_masks,
     faithfulness_correlation,
     player_aopc,
@@ -97,7 +97,7 @@ def load_ptbxl_train_pool(fold: int, ptbxl_data_path: str) -> tuple[np.ndarray, 
                    stats["std"].astype(np.float32))
     train_fold_ids = stats["train_folds"].tolist()
 
-    from motionbench.data.real.ptbxl import PTBXLDataset, _FOLD_SPLITS
+    from motionbench.data.real.ptbxl import _FOLD_SPLITS, PTBXLDataset
     _FOLD_SPLITS["_train_folds"] = (train_fold_ids,)
     train_ds = PTBXLDataset(
         data_path=ptbxl_data_path,
@@ -308,7 +308,7 @@ def main() -> None:
              log_prefix, x_train.shape[0], Path(ckpt_str).name)
 
     z_bin, frame_mask = build_coalition_masks(K, T)
-    n_coal = 1 << K
+    1 << K
 
     # ---- donors: same RNG as the original kernelshap_marginal pipeline.
     rng = np.random.default_rng(42 + fold)

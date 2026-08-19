@@ -8,14 +8,18 @@ Usage:
     python scripts/build_ptbxl_cache.py --data_path "$PTBXL_DATA_ROOT"
 """
 from __future__ import annotations
-import argparse, sys
+
+import argparse
+import sys
 from pathlib import Path
+
 import numpy as np
 
 REPO = Path(__file__).parents[1]
 sys.path.insert(0, str(REPO))
 
-from motionbench.data.real.ptbxl import PTBXLDataset, _FOLD_SPLITS
+from motionbench.data.real.ptbxl import PTBXLDataset  # noqa: E402
+
 
 def main():
     ap = argparse.ArgumentParser()

@@ -228,7 +228,7 @@ def main() -> None:
             print(f"  Imputer: {imp_name}")
             imp = _build_imputer(imp_name, dataset, args.device)
             if imp is None:
-                print(f"    (skipped — no checkpoint)")
+                print("    (skipped — no checkpoint)")
                 continue
             results = _validate_one(
                 ds_name, dataset, imp_name, imp, masks,

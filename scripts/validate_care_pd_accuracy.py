@@ -153,7 +153,7 @@ def build_raw_batch(
         raw = data[key]  # (T, J, F)
         T = raw.shape[0]
 
-        if T >= seq_len:
+        if seq_len <= T:
             clip = raw[:seq_len].copy()
         else:
             pad = np.zeros(

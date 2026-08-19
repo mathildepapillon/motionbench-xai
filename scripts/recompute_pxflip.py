@@ -29,11 +29,9 @@ import json
 import shutil
 import sys
 import tempfile
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
-
 from omegaconf import OmegaConf
 
 # ---------------------------------------------------------------------------

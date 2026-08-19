@@ -17,12 +17,13 @@ Bourdoukan & Durner (2024) "ShaTS: Shapley Time Series." (preprint)
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from motionbench.attribution.base import BaseAttributor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from torch import Tensor
 
     from motionbench.players.base import PlayerSet

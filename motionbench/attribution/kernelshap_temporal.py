@@ -38,7 +38,6 @@ NeurIPS 2017.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -50,6 +49,8 @@ from torch import Tensor
 from motionbench.attribution.base import BaseAttributor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from motionbench.imputers.base import BaseImputer
     from motionbench.players.base import PlayerSet
 

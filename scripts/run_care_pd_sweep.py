@@ -36,6 +36,7 @@ def main() -> None:
                         help="If set, run only this single method (for per-GPU parallelism).")
     args, _ = parser.parse_known_args()
 
+    from motionbench.imputers.off_manifold import ZeroImputer
     from motionbench.pipelines.synthetic_eval import (
         _build_and_fit_imputer,
         _build_attributor,
@@ -46,7 +47,6 @@ def main() -> None:
         _instantiate_dataset,
         _load_sub_config,
     )
-    from motionbench.imputers.off_manifold import ZeroImputer
 
     with hydra.initialize_config_dir(
         config_dir=str((CAREPD_ROOT / "configs").resolve()),

@@ -62,12 +62,11 @@ SCRIPTS_DIR = Path(__file__).parent
 # ------------------------------------------------------------------- helpers
 # Import shared KernelSHAP utilities from run_care_pd_multiclf — no duplication.
 sys.path.insert(0, str(SCRIPTS_DIR))
-from run_care_pd_multiclf import (   # noqa: E402 (import after sys.path manipulation)
+from run_care_pd_multiclf import (  # noqa: E402 (import after sys.path manipulation)
     build_coalition_masks,
     faithfulness_correlation,
     kernel_shap_exact,
     player_aopc,
-    shapley_kernel,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -175,7 +174,7 @@ def main() -> None:
         test_folds = [10]  # default to standard held-out fold
 
     # Import here to avoid circular issues
-    from motionbench.data.real.ptbxl import PTBXLDataset, _FOLD_SPLITS
+    from motionbench.data.real.ptbxl import _FOLD_SPLITS, PTBXLDataset
 
     # Build a dataset for the test fold(s)
     _FOLD_SPLITS["_test_folds"] = (test_folds,)
@@ -198,10 +197,7 @@ def main() -> None:
     log.info("[fold%d] N=%d J=%d F=%d T=%d", fold, N, J, F, T)
 
     # Train pool for marginal donor sampling: use training folds
-    if stats_path.exists():
-        train_fold_ids = stats["train_folds"].tolist()
-    else:
-        train_fold_ids = list(range(1, 9))
+    train_fold_ids = stats["train_folds"].tolist() if stats_path.exists() else list(range(1, 9))
 
     _FOLD_SPLITS["_train_folds"] = (train_fold_ids,)
     train_ds = PTBXLDataset(
@@ -254,10 +250,9 @@ def main() -> None:
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
             from motionbench.imputers.ptbxl_imputer import (
-                PTBXLVAEACImputer,
                 _VAEAC_CKPT_DIR,
-                _resolve_cfg,
                 _VAEAC_DEFAULT_CFG,
+                _resolve_cfg,
             )
             cfg_path = _resolve_cfg(
                 _VAEAC_CKPT_DIR, "ptbxl_vaeac_cfg.json", _VAEAC_DEFAULT_CFG
@@ -269,19 +264,19 @@ def main() -> None:
     def get_flow():
         nonlocal flow_imputer
         if flow_imputer is None:
+            from motionbench.imputers.carepd_imputer import _load_flow
             from motionbench.imputers.ptbxl_imputer import (
                 _FLOW_CKPT_DIR,
-                _resolve_cfg,
                 _FLOW_DEFAULT_CFG,
+                _resolve_cfg,
             )
-            from motionbench.imputers.carepd_imputer import _load_flow
             cfg_path = _resolve_cfg(
                 _FLOW_CKPT_DIR, "ptbxl_flow_cfg.json", _FLOW_DEFAULT_CFG
             )
             cfg = json.loads(cfg_path.read_text())
             cfg["num_steps"] = 20   # speed-up for sweep
             import tempfile
-            tf = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+            tf = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)  # noqa: SIM115
             json.dump(cfg, tf)
             tf.close()
             try:

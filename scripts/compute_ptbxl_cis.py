@@ -40,8 +40,7 @@ SCRIPTS_DIR = Path(__file__).parent
 
 # Import shared helpers — no duplication
 sys.path.insert(0, str(SCRIPTS_DIR))
-from compute_real_cis_multiclf import (   # noqa: E402
-    bootstrap_ci_mean,
+from compute_real_cis_multiclf import (  # noqa: E402
     paired_bootstrap_pvalue,
     summarize_method,
 )

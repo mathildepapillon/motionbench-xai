@@ -29,7 +29,7 @@ Economics and Game Theory*, pp. 76–88.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -37,9 +37,11 @@ import torch
 from torch import Tensor
 
 from motionbench.attribution.base import BaseAttributor
-from motionbench.imputers.base import BaseImputer
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from motionbench.imputers.base import BaseImputer
     from motionbench.players.base import PlayerSet
 
 
@@ -151,7 +153,7 @@ class GroupSegmentSHAPAttributor(BaseAttributor):
     def attribute(
         self,
         x: Tensor,
-        players: "PlayerSet",
+        players: PlayerSet,
         target: int = 0,
     ) -> Tensor:
         """Compute exact group Shapley values at the player level.

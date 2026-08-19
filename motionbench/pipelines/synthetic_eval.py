@@ -610,8 +610,9 @@ def _evaluate_metrics(
     Returns:
         Dict mapping metric sub-score names to float values (averaged).
     """
-    import numpy as _np
     from collections import Counter  # noqa: PLC0415
+
+    import numpy as _np
 
     oracle = getattr(dataset, "oracle", None)  # None for real datasets
     clf_device = torch.device(device)
@@ -672,7 +673,7 @@ def _evaluate_metrics(
                 len(phi_list),
                 oracle_n_mc,
             )
-            for idx, (x_i, target_i) in enumerate(zip(x_list, target_list)):
+            for idx, (x_i, target_i) in enumerate(zip(x_list, target_list, strict=False)):
                 try:
                     oracle_phi_cache[idx] = oracle.true_shapley(
                         x_i, _make_clf_fn(target_i), players,
@@ -728,7 +729,7 @@ def _evaluate_metrics(
 
         # Stability/sanity use a limited subset; all others use the full list.
         # Track sample index so we can look up the pre-computed oracle phi.
-        indexed_triples = list(enumerate(zip(phi_list, x_list, target_list)))
+        indexed_triples = list(enumerate(zip(phi_list, x_list, target_list, strict=False)))
         if name in _NEEDS_MODULE:
             indexed_triples = indexed_triples[:stability_n]
 

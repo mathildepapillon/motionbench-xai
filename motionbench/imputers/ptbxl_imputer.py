@@ -81,6 +81,7 @@ detects which format is appropriate from the ``(J, F, T)`` mask.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -168,7 +169,7 @@ def _resolve_cfg(ckpt_dir: Path, cfg_filename: str, default: dict) -> Path:
     if cfg_path.exists():
         return cfg_path
     # Write fallback config to a temp file
-    tf = tempfile.NamedTemporaryFile(
+    tf = tempfile.NamedTemporaryFile(  # noqa: SIM115 - path outlives handle
         mode="w", suffix=".json", delete=False, prefix="ptbxl_cfg_"
     )
     json.dump(default, tf)
@@ -211,7 +212,7 @@ class PTBXLVAEACImputer(BaseImputer):
         self._skip = False
         self._tmp_cfg: Path | None = None
 
-    def fit(self, train_data: object) -> "PTBXLVAEACImputer":
+    def fit(self, train_data: object) -> PTBXLVAEACImputer:
         """Load the PTB-XL VAEAC checkpoint.
 
         The dataset class name is *not* used for registry lookup (unlike the
@@ -352,7 +353,7 @@ class PTBXLFlowImputer(BaseImputer):
         self._skip = False
         self._tmp_cfg: Path | None = None
 
-    def fit(self, train_data: object) -> "PTBXLFlowImputer":
+    def fit(self, train_data: object) -> PTBXLFlowImputer:
         """Load the PTB-XL Flow Matching checkpoint.
 
         Args:
@@ -379,7 +380,7 @@ class PTBXLFlowImputer(BaseImputer):
         cfg = json.loads(cfg_path.read_text())
         cfg["num_steps"] = self._num_steps
 
-        tmp = tempfile.NamedTemporaryFile(
+        tmp = tempfile.NamedTemporaryFile(  # noqa: SIM115 - path outlives handle
             mode="w", suffix=".json", delete=False, prefix="ptbxl_flow_cfg_"
         )
         json.dump(cfg, tmp)
@@ -406,10 +407,8 @@ class PTBXLFlowImputer(BaseImputer):
         finally:
             # Clean up temp config file
             if self._tmp_cfg and self._tmp_cfg.exists():
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(self._tmp_cfg)
-                except OSError:
-                    pass
                 self._tmp_cfg = None
 
         self._fitted = True
@@ -436,7 +435,6 @@ class PTBXLFlowImputer(BaseImputer):
 
         J, F, T = x_obs.shape
         T_win = T // K
-        device = self._imputer._device
         n_coal = 2 ** K
 
         all_coal_masks = torch.zeros(n_coal, T, dtype=torch.bool)

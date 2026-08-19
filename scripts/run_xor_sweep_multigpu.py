@@ -59,7 +59,6 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -178,8 +177,8 @@ def _run_cell(cell: Cell, gpu: int, results_dir: Path, n_sequences: int,
     return cell
 
 
-def _worker(slot_id: int, gpu: int, work_q: "queue.Queue[Cell | None]",
-            done_q: "queue.Queue[Cell]", results_dir: Path,
+def _worker(slot_id: int, gpu: int, work_q: queue.Queue[Cell | None],
+            done_q: queue.Queue[Cell], results_dir: Path,
             n_sequences: int, log_dir: Path) -> None:
     """Pull cells from ``work_q`` and execute them on ``gpu`` until None."""
     while True:
@@ -224,7 +223,9 @@ def _train_classifiers(gpus: list[int]) -> None:
 def _verify_imputers() -> None:
     """Verify that the GaussianMotionDataset imputer registry resolves."""
     from motionbench.imputers.carepd_imputer import (  # noqa: PLC0415
-        _CARE_PD_ROOT, _FLOW_REGISTRY, _VAEAC_REGISTRY,
+        _CARE_PD_ROOT,
+        _FLOW_REGISTRY,
+        _VAEAC_REGISTRY,
     )
     cls_key = "GaussianMotionDataset"
     missing: list[str] = []
@@ -369,7 +370,7 @@ def main() -> None:
         raise SystemExit("No CUDA devices detected — aborting.  "
                          "Install drivers or pass --gpus 0 [1 ...].")
 
-    print(f"motionbench-xai — XOR sweep multi-GPU runner")
+    print("motionbench-xai — XOR sweep multi-GPU runner")
     print(f"  Repo            : {REPO}")
     print(f"  Dataset         : {DATASET}")
     print(f"  GPUs            : {args.gpus}")

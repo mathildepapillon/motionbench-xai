@@ -292,7 +292,7 @@ def main() -> None:
     def get_vaeac():
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
-            from motionbench.imputers.carepd_imputer import _load_vaeac, _CARE_PD_ROOT
+            from motionbench.imputers.carepd_imputer import _CARE_PD_ROOT, _load_vaeac
             ckpt_dir = _CARE_PD_ROOT / "experiment_outs/vaeac_real/bmclab_fold1_real_gait_bm"
             cfg_path = _CARE_PD_ROOT / "configs/vaeac/bmclab_fold1_real_gait_bm.json"
             vaeac_imputer = _load_vaeac(ckpt_dir, cfg_path, device)
@@ -301,7 +301,7 @@ def main() -> None:
     def get_flow():
         nonlocal flow_imputer
         if flow_imputer is None:
-            from motionbench.imputers.carepd_imputer import _load_flow, _CARE_PD_ROOT
+            from motionbench.imputers.carepd_imputer import _CARE_PD_ROOT, _load_flow
             ckpt_dir = _CARE_PD_ROOT / "experiment_outs/flow_matching/bmclab_h36m3d_fold1"
             cfg_path = _CARE_PD_ROOT / "configs/flow_matching/bmclab_h36m3d_fold1.json"
             cfg = json.loads(cfg_path.read_text())

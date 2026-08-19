@@ -10,13 +10,12 @@ Manual / reproducibility tests (require downloaded checkpoints):
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 
 # ---------------------------------------------------------------------------
 # Shape constants matching motionbench convention
@@ -260,11 +259,7 @@ def test_predict_proba(clf_factory):
     """After softmax, logits sum to ~1 per sample."""
     Clf = clf_factory()
     # Use smallest non-trivial config for speed
-    if "PoseFormerV2" in Clf.__name__:
-        model = Clf(n_classes=N_CLASSES)
-    elif "MotionBERT" in Clf.__name__:
-        model = Clf(n_classes=N_CLASSES)
-    elif "POTR" in Clf.__name__:
+    if "PoseFormerV2" in Clf.__name__ or "MotionBERT" in Clf.__name__ or "POTR" in Clf.__name__:
         model = Clf(n_classes=N_CLASSES)
     else:
         model = Clf(n_classes=N_CLASSES)

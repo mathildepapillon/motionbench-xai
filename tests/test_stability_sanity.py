@@ -14,6 +14,7 @@ and deterministic seeds.
 from __future__ import annotations
 
 import copy
+from typing import Any
 
 import numpy as np
 import pytest
@@ -21,16 +22,16 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from motionbench.metrics.sanity_checks import (
+    ModelParameterRandomisationMetric,
+    RandomLogitMetric,
+)
 from motionbench.metrics.stability import (
     ContinuityMetric,
     LipschitzEstimateMetric,
     MaxSensitivityMetric,
 )
-from motionbench.metrics.sanity_checks import (
-    ModelParameterRandomisationMetric,
-    RandomLogitMetric,
-)
-from tests.conftest import J, F, T, M
+from tests.conftest import F, J, M, T
 
 # ---------------------------------------------------------------------------
 # Fixtures and helpers
@@ -112,10 +113,10 @@ def _make_gradient_explain_func(players: _MockPlayers) -> Any:
 
     def _explain_fn(
         model: nn.Module,
-        inputs: "np.ndarray",
-        targets: "np.ndarray",
+        inputs: np.ndarray,
+        targets: np.ndarray,
         **kwargs: AnyType,
-    ) -> "np.ndarray":
+    ) -> np.ndarray:
         try:
             device = next(model.parameters()).device
         except StopIteration:

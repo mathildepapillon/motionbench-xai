@@ -391,11 +391,11 @@ def test_flow_m10_burr_ablation(tmp_path):
             out = imp.impute(x_obs, mask, n_samples=4, seed=i)
             # Compare mean imputed sample to the actual hidden values
             mean_imputed = out.mean(0)
-            hidden_mse = F_mse(mean_imputed[~mask], x_obs[~mask])
+            hidden_mse = f_mse(mean_imputed[~mask], x_obs[~mask])
             total_mse += float(hidden_mse)
         return total_mse / len(x_test_t)
 
-    def F_mse(a: Tensor, b: Tensor) -> Tensor:
+    def f_mse(a: Tensor, b: Tensor) -> Tensor:
         """Inline MSE for linter clarity."""
         return ((a - b) ** 2).mean()
 

@@ -53,14 +53,13 @@ ORACLE_N_COALITIONS = 64
 # Helpers re-used from motionbench.pipelines.synthetic_eval
 # ---------------------------------------------------------------------------
 
-from motionbench.pipelines.synthetic_eval import (  # noqa: E402
-    _instantiate_dataset,
-    _build_classifier,
-    _build_players,
-)
 from motionbench.attribution.windowshap import WindowSHAPAttributor  # noqa: E402
-from motionbench.players.temporal_windows import TemporalWindows  # noqa: E402
 from motionbench.metrics.ground_truth import EC1Metric  # noqa: E402
+from motionbench.pipelines.synthetic_eval import (  # noqa: E402
+    _build_classifier,
+    _instantiate_dataset,
+)
+from motionbench.players.temporal_windows import TemporalWindows  # noqa: E402
 
 
 def _load_cfg(subdir: str, name: str):
@@ -160,10 +159,7 @@ def run_cell(
 
         with torch.no_grad():
             logits_i = classifier(x_i.unsqueeze(0).to(clf_device))
-        if logits_i.ndim == 2:
-            target_i = int(logits_i.argmax(dim=-1).item())
-        else:
-            target_i = 0
+        target_i = int(logits_i.argmax(dim=-1).item()) if logits_i.ndim == 2 else 0
 
         try:
             phi_i = attributor.attribute(x_i, players, target=target_i)
@@ -196,7 +192,7 @@ def run_cell(
                 return torch.softmax(logits, dim=-1)[:, tgt]
             return _fn
 
-        for idx, (phi_i, x_i, tgt_i) in enumerate(zip(phi_list, x_list, target_list)):
+        for idx, (phi_i, x_i, tgt_i) in enumerate(zip(phi_list, x_list, target_list, strict=False)):
             try:
                 # Pre-compute oracle phi once, then wrap to avoid redundant calls
                 phi_oracle = oracle.true_shapley(
@@ -213,7 +209,7 @@ def run_cell(
                         "_CachedOracle",
                         (),
                         {
-                            "true_shapley": lambda self, *a, **kw: phi_oracle,
+                            "true_shapley": lambda self, *a, _phi=phi_oracle, **kw: _phi,
                             "conditional_sample": oracle.conditional_sample,
                             "__getattr__": lambda self, n: getattr(oracle, n),
                         },

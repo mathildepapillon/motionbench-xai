@@ -12,16 +12,15 @@ correctly.
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
-from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
+from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 import pytest
 import torch
 from omegaconf import DictConfig, OmegaConf
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -123,7 +123,7 @@ class MockDataset:
 class MockImputer(BaseImputer):
     """Zero-fill imputer."""
 
-    def fit(self, train_data: BaseDataset) -> "MockImputer":  # type: ignore[override]
+    def fit(self, train_data: BaseDataset) -> MockImputer:  # type: ignore[override]
         self._fitted = True
         return self
 

@@ -155,7 +155,9 @@ def build_marginal_imputer(dataset):
 def build_vaeac_imputer(dataset, device_str: str):
     """Load raw CARE-PD VAEAC for GaussianMotionDataset."""
     from motionbench.imputers.carepd_imputer import (
-        _CARE_PD_ROOT, _VAEAC_REGISTRY, _load_vaeac,
+        _CARE_PD_ROOT,
+        _VAEAC_REGISTRY,
+        _load_vaeac,
     )
     cls_key = type(dataset).__name__
     if cls_key not in _VAEAC_REGISTRY:
@@ -255,8 +257,8 @@ def batched_oracle_shapley(
     Uses exact Gaussian conditionals; caches Cholesky factors across
     sequences for significant speedup.
     """
+    from motionbench.oracles.gaussian_oracle import _mask_is_spatial, _mask_is_temporal
     from motionbench.utils.coalitions import solve_shapley_wls
-    from motionbench.oracles.gaussian_oracle import _mask_is_temporal, _mask_is_spatial
 
     M = players.n_players
     N_coal = coalitions.shape[0]
@@ -553,7 +555,7 @@ def main() -> None:
         )
         oracle_phis = np.zeros((n_seq, M), dtype=np.float32)
         oracle_coal_rng = np.random.default_rng(99999)
-        from motionbench.utils.coalitions import sample_kernelshap_coalitions, solve_shapley_wls
+        from motionbench.utils.coalitions import sample_kernelshap_coalitions
         oracle_inner_coal, oracle_inner_w = sample_kernelshap_coalitions(
             M, N_ORACLE_PAIRS, oracle_coal_rng
         )

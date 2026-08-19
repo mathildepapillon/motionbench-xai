@@ -39,12 +39,11 @@ SCRIPTS_DIR = Path(__file__).parent
 
 # Import shared KernelSHAP utilities from run_care_pd_multiclf — no duplication.
 sys.path.insert(0, str(SCRIPTS_DIR))
-from run_care_pd_multiclf import (   # noqa: E402
+from run_care_pd_multiclf import (  # noqa: E402
     build_coalition_masks,
     faithfulness_correlation,
     kernel_shap_exact,
     player_aopc,
-    shapley_kernel,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -140,14 +139,14 @@ def main() -> None:
     N_avail = x_test_all.shape[0]
     N = min(N_SEQ, N_avail)
     rng = np.random.default_rng(42 + fold)
-    if N < N_avail:
+    if N_avail > N:
         idx = rng.choice(N_avail, size=N, replace=False)
         idx = np.sort(idx)
     else:
         idx = np.arange(N)
 
     x_val = x_test_all[idx]  # (N, 128, 1, 1024)
-    y_val = y_test_all[idx]  # (N,)
+    y_test_all[idx]  # (N,)
 
     N, J, F, T = x_val.shape
     log.info("[fold%d] N=%d J=%d F=%d T=%d", fold, N, J, F, T)

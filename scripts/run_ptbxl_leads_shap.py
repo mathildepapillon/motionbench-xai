@@ -57,7 +57,6 @@ import logging
 import sys
 import time
 import warnings
-from itertools import product
 from pathlib import Path
 
 import numpy as np
@@ -71,11 +70,10 @@ SCRIPTS_DIR = Path(__file__).parent
 
 # Import shared KernelSHAP utilities — no duplication with CARE-PD pipeline.
 sys.path.insert(0, str(SCRIPTS_DIR))
-from run_care_pd_multiclf import (   # noqa: E402
+from run_care_pd_multiclf import (  # noqa: E402
     faithfulness_correlation,
     kernel_shap_exact,
     player_aopc,
-    shapley_kernel,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -214,7 +212,7 @@ def main() -> None:
         train_stats = None
         test_folds  = [10]
 
-    from motionbench.data.real.ptbxl import PTBXLDataset, _FOLD_SPLITS
+    from motionbench.data.real.ptbxl import _FOLD_SPLITS, PTBXLDataset
 
     _FOLD_SPLITS["_test_folds"] = (test_folds,)
     test_ds = PTBXLDataset(
@@ -234,10 +232,7 @@ def main() -> None:
     assert J == J_LEADS, f"Expected 12 leads, got {J}"
 
     # Training pool for marginal donor sampling
-    if stats_path.exists():
-        train_fold_ids = stats["train_folds"].tolist()
-    else:
-        train_fold_ids = list(range(1, 9))
+    train_fold_ids = stats["train_folds"].tolist() if stats_path.exists() else list(range(1, 9))
     _FOLD_SPLITS["_train_folds"] = (train_fold_ids,)
     train_ds = PTBXLDataset(
         data_path=args.data_path,
@@ -286,10 +281,9 @@ def main() -> None:
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
             from motionbench.imputers.ptbxl_imputer import (
-                PTBXLVAEACImputer,
                 _VAEAC_CKPT_DIR,
-                _resolve_cfg,
                 _VAEAC_DEFAULT_CFG,
+                _resolve_cfg,
             )
             cfg_path = _resolve_cfg(_VAEAC_CKPT_DIR, "ptbxl_vaeac_cfg.json",
                                     _VAEAC_DEFAULT_CFG)
@@ -351,7 +345,7 @@ def main() -> None:
                     # flow_prior_sample only to *substitute* missing leads.
                     zeros_mask = torch.zeros(J, F, T, dtype=torch.bool)
                     results = []
-                    for b in range(B):
+                    for _b in range(B):
                         with torch.no_grad():
                             samp = self._imp.impute(
                                 x_sq, zeros_mask, n_samples=n_samples

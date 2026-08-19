@@ -110,7 +110,9 @@ def _build_clf(clf_name: str, J: int, F: int, T: int, K: int, n_classes: int, de
 
 def _build_vaeac_for(dataset, device):
     from motionbench.imputers.carepd_imputer import (
-        _load_vaeac, _CARE_PD_ROOT, _VAEAC_REGISTRY,
+        _CARE_PD_ROOT,
+        _VAEAC_REGISTRY,
+        _load_vaeac,
     )
     cls_key = type(dataset).__name__
     if cls_key not in _VAEAC_REGISTRY:
@@ -200,10 +202,7 @@ def run_one_combo(
             comps_flat = comps.view(n_coal * M, J, F, T)
             with torch.no_grad():
                 logits_b = clf(comps_flat)
-            if logits_b.ndim == 2:
-                p = torch.softmax(logits_b, dim=-1)[:, target_i]
-            else:
-                p = logits_b
+            p = torch.softmax(logits_b, dim=-1)[:, target_i] if logits_b.ndim == 2 else logits_b
             p = p.view(n_coal, M).mean(dim=1)  # average over M completions
         except Exception as exc:
             log.warning("    seq %d (M=%d): imputer/clf error %s", i, M, exc)
@@ -304,7 +303,7 @@ def write_latex_table(summary: dict) -> None:
     rows.append("$M$ & " + " & ".join(f"${m}$" for m in M_VALS) + r" \\")
     rows.append(r"\midrule")
     cells = []
-    for m_avg, m_std in zip(ec1_avg, ec1_std):
+    for m_avg, m_std in zip(ec1_avg, ec1_std, strict=False):
         cells.append(f"${m_avg:.4f}\\!\\pm\\!{m_std:.4f}$")
     rows.append("EC1 & " + " & ".join(cells) + r" \\")
     rows.append(r"\bottomrule")

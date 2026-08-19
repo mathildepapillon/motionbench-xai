@@ -43,12 +43,15 @@ import time
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 from omegaconf import OmegaConf
 from torch import Tensor
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(
@@ -66,7 +69,7 @@ RESULTS_DIR = REPO / "results" / "player_set_budget"
 # ---------------------------------------------------------------------------
 
 
-class CellTimeout(Exception):
+class CellTimeout(Exception):  # noqa: N818
     pass
 
 
@@ -140,7 +143,9 @@ def build_imputer(method_base: str, dataset, device_str: str):
 
     if method_base == "vaeac":
         from motionbench.imputers.carepd_imputer import (
-            _CARE_PD_ROOT, _VAEAC_REGISTRY, _load_vaeac,
+            _CARE_PD_ROOT,
+            _VAEAC_REGISTRY,
+            _load_vaeac,
         )
         cls_key = type(dataset).__name__
         if cls_key not in _VAEAC_REGISTRY:
@@ -237,7 +242,8 @@ def batched_oracle_shapley(
                 mask = players.coalition_mask(z_t)
                 mask_np = mask.numpy().astype(bool)
                 from motionbench.oracles.gaussian_oracle import (
-                    _mask_is_temporal, _mask_is_spatial,
+                    _mask_is_spatial,
+                    _mask_is_temporal,
                 )
                 if _mask_is_temporal(mask_np) or _mask_is_spatial(mask_np):
                     params = ("oracle", mask_np)
@@ -473,7 +479,7 @@ def run_one_cell(
         try:
             _target_i = target_i
 
-            def clf_fn(arr) -> Tensor:
+            def clf_fn(arr, _target_i: int = _target_i) -> Tensor:  # noqa: ANN001
                 if isinstance(arr, np.ndarray):
                     t_arr = torch.from_numpy(arr.astype(np.float32)).to(device)
                 elif isinstance(arr, Tensor):

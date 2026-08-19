@@ -17,7 +17,7 @@ A ``MockPlayerSet`` (equal-width temporal windows) and a ``MockOracle``
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -34,6 +34,9 @@ from motionbench.metrics.ground_truth import (
     TopKRecovery,
 )
 from motionbench.players.base import PlayerSet
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ---------------------------------------------------------------------------
 # Constants matching conftest.py

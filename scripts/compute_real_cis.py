@@ -153,7 +153,7 @@ def summarize_method(method_data: dict[int, dict], B: int, seed: int) -> dict:
         fd = method_data[f]
         faith_arr = fd["faith"]
         aopc_arr = fd["aopc"]
-        finite = np.isfinite(faith_arr)
+        np.isfinite(faith_arr)
         fold_faith_means.append(
             float(np.nanmean(faith_arr)) if faith_arr.size else float("nan")
         )

@@ -13,17 +13,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import torch
-from torch import Tensor
-
 if TYPE_CHECKING:
+    from torch import Tensor
+
     from motionbench.players.base import PlayerSet
 
 
 __all__ = ["coalition_to_element_mask", "assert_mask_shape"]
 
 
-def coalition_to_element_mask(z: Tensor, player_set: "PlayerSet") -> Tensor:
+def coalition_to_element_mask(z: Tensor, player_set: PlayerSet) -> Tensor:
     """Convert a ``(M,)`` binary coalition indicator to a ``(J, F, T)`` element mask.
 
     Delegates to :py:meth:`~motionbench.players.base.PlayerSet.coalition_mask`,

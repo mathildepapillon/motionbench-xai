@@ -27,14 +27,14 @@ Aas, K., Jullum, M., & Løland, A. (2021).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 from torch import Tensor
 
-from motionbench.oracles.base import Oracle
 from motionbench.imputers.base import BaseImputer
+from motionbench.oracles.base import Oracle
 from motionbench.utils.coalitions import (
     enumerate_coalitions,
     sample_kernelshap_coalitions,
@@ -42,6 +42,8 @@ from motionbench.utils.coalitions import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from motionbench.data.base import BaseDataset
     from motionbench.players.base import PlayerSet
 
@@ -245,7 +247,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
         self,
         x: Tensor,
         classifier: Callable[[Tensor], Tensor],
-        players: "PlayerSet",
+        players: PlayerSet,
         n_mc: int = 50,
         n_coalitions: int = 2000,
         seed: int | None = None,
@@ -329,7 +331,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
     # BaseImputer ABC                                                      #
     # ------------------------------------------------------------------ #
 
-    def fit(self, train_data: "BaseDataset") -> "FullGaussianOracle":
+    def fit(self, train_data: BaseDataset) -> FullGaussianOracle:
         """No-op: oracle requires no training."""
         return self
 
