@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import math
 from itertools import combinations
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -78,7 +79,7 @@ def sampled_coalition_set(
     budget: int,
     seed: int = DEFAULT_COALITION_SEED,
     exact_max_m: int = EXACT_MAX_M,
-) -> tuple[npt.NDArray[np.integer], npt.NDArray[np.float64]]:
+) -> tuple[npt.NDArray[np.integer[Any]], npt.NDArray[np.float64]]:
     """Build the fixed coalition design ``(Z, w)`` for ``M`` players.
 
     Exact enumeration if ``M <= exact_max_m``; otherwise the shap-style
@@ -203,7 +204,7 @@ def sampled_coalition_set(
 
 
 def phi_from_values(
-    Z: npt.NDArray[np.integer],
+    Z: npt.NDArray[np.integer[Any]],
     w: npt.NDArray[np.float64],
     v: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:

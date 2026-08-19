@@ -210,7 +210,8 @@ The `player_eval` pipeline replaces the Monte-Carlo oracle of step 5 with
 
 ```python
 from motionbench.attribution.sampled_coalitions import (
-    phi_from_values, sampled_coalition_set,
+    phi_from_values,
+    sampled_coalition_set,
 )
 from motionbench.oracles.deterministic import DeterministicConditionalOracle
 
@@ -220,8 +221,8 @@ Z, w = sampled_coalition_set(players.n_players, budget=1024)
 
 # Per-coalition conditional-mean operators, precomputed once per player set.
 det = DeterministicConditionalOracle.from_oracle(dataset.oracle, players, Z)
-fills = det.fill_all(x.numpy())          # (len(Z), J, F, T), no randomness
-phi_star = phi_from_values(Z, w, prob_fn(fills))   # exact target
+fills = det.fill_all(x.numpy())  # (len(Z), J, F, T), no randomness
+phi_star = phi_from_values(Z, w, prob_fn(fills))  # exact target
 
 # Any method evaluated on the same (Z, w) is graded coalition-noise-free:
 ec1 = float(abs(phi - phi_star).mean())

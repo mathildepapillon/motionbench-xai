@@ -24,6 +24,8 @@ dependencies = [
     "timeshap>=0.4.0",
     # PoseFormerV2 backbone (ported_care_pd) needs DCT ops
     "torch-dct>=0.1.6",
+    # MotionAGFormer backbone (ported_care_pd) needs timm layers
+    "timm>=0.9",
     # Empirical / copula imputers
     "pyvinecopulib>=0.6.3",
     # Scientific computing

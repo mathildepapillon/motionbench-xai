@@ -176,7 +176,8 @@ def _batched_prob_fn(
                     np.ascontiguousarray(arr[s : s + batch], dtype=np.float32)
                 ).to(device)
                 vals.append(torch.softmax(classifier(xb), -1)[:, target].float().cpu().numpy())
-        return np.concatenate(vals).astype(np.float64)
+        out: npt.NDArray[np.float64] = np.concatenate(vals).astype(np.float64)
+        return out
 
     return fn
 
@@ -186,7 +187,7 @@ def _method_values(
     x: npt.NDArray[np.float64],
     imputer: BaseImputer,
     masks: list[Tensor],
-    Z: npt.NDArray[np.integer],
+    Z: npt.NDArray[np.integer[Any]],
     n_completion: int,
     value_fn: str,
     seq_seed: list[int],

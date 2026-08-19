@@ -63,7 +63,7 @@ Example
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
@@ -117,7 +117,7 @@ def cusp_split_nodes(
         ``(t, w)`` of shape ``mu.shape + (2n,)``: ``sum_i g(mu + sd * t_i) w_i``
         integrates ``g(mu + sd * t)`` against the standard normal density.
     """
-    y, wy = np.polynomial.legendre.leggauss(n or GL_NODES)
+    y, wy = np.polynomial.legendre.leggauss(n or GL_NODES)  # type: ignore[no-untyped-call]
     t0 = np.clip(-mu / np.maximum(sd, 1e-300), -_GL_HALF_WIDTH, _GL_HALF_WIDTH)[..., None]
     ts, ws = [], []
     for sign, half in ((-1.0, t0 + _GL_HALF_WIDTH), (1.0, _GL_HALF_WIDTH - t0)):
@@ -193,7 +193,7 @@ class DeterministicConditionalOracle:
         sigma_joints: npt.NDArray[np.float64],
         sigma_time: npt.NDArray[np.float64],
         players: PlayerSet,
-        Z: npt.NDArray[np.integer],
+        Z: npt.NDArray[np.integer[Any]],
         marginal: Marginal | None = None,
     ) -> None:
         self.players = players
@@ -243,7 +243,7 @@ class DeterministicConditionalOracle:
         cls,
         oracle: object,
         players: PlayerSet,
-        Z: npt.NDArray[np.integer],
+        Z: npt.NDArray[np.integer[Any]],
     ) -> DeterministicConditionalOracle:
         """Build from a fitted sampling oracle's covariance structure.
 
@@ -305,8 +305,10 @@ class DeterministicConditionalOracle:
                 fill[:, :] = xf
                 fill[:, hid] = 0.0  # E[x] = 0 for both families
             elif not is_copula:
+                assert W is not None
                 fill[:, hid] = (W @ xf[:, obs].T).T
             else:
+                assert W is not None and sd is not None
                 mu_z = (W @ zf[:, obs].T).T  # (F, n_hid)
                 fill[:, hid] = self._copula_mean(mu_z, sd)
             out[i] = fill
