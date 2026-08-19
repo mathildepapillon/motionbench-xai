@@ -200,3 +200,33 @@ metric = EC1Metric()
 scores = metric.evaluate(phi, x, classifier, players, oracle=dataset.oracle)
 # → {"ec1": 0.034}
 ```
+
+---
+
+## Deterministic grading path (player_eval pipeline)
+
+The `player_eval` pipeline replaces the Monte-Carlo oracle of step 5 with
+**deterministic** targets, removing grading noise entirely:
+
+```python
+from motionbench.attribution.sampled_coalitions import (
+    phi_from_values, sampled_coalition_set,
+)
+from motionbench.oracles.deterministic import DeterministicConditionalOracle
+
+# Shared fixed coalition design: exact for M <= 12, importance-corrected
+# sampling above (seed 7919 by convention).
+Z, w = sampled_coalition_set(players.n_players, budget=1024)
+
+# Per-coalition conditional-mean operators, precomputed once per player set.
+det = DeterministicConditionalOracle.from_oracle(dataset.oracle, players, Z)
+fills = det.fill_all(x.numpy())          # (len(Z), J, F, T), no randomness
+phi_star = phi_from_values(Z, w, prob_fn(fills))   # exact target
+
+# Any method evaluated on the same (Z, w) is graded coalition-noise-free:
+ec1 = float(abs(phi - phi_star).mean())
+```
+
+Both modules are ported from the independent validation study's
+implementation and verified bit-identical against it (see
+`tests/test_sampled_coalitions.py`, `tests/test_deterministic_oracle.py`).

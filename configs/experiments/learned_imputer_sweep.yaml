@@ -34,7 +34,7 @@ methods:
 
 classifiers:
   - synthetic_cnn
-  - synthetic_lstm
+  - synthetic_mlp
   - synthetic_transformer
 
 n_sequences: 50
