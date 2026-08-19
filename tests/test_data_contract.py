@@ -5,6 +5,7 @@ Verifies that:
 2. Concrete implementations satisfy required method signatures and output shapes.
 3. oracle=None is valid for BaseDataset; oracle≠None is required for GroundTruthDataset.
 """
+
 from __future__ import annotations
 
 import torch

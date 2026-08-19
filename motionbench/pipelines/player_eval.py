@@ -100,9 +100,7 @@ __all__ = ["run_player_eval"]
 _COND_IMPUTER_MARKERS = ("Oracle", "VAEAC", "Flow")
 
 
-def _build_player_set(
-    players_cfg: DictConfig, J: int, F: int, T: int, K: int
-) -> PlayerSet:
+def _build_player_set(players_cfg: DictConfig, J: int, F: int, T: int, K: int) -> PlayerSet:
     """Instantiate a PlayerSet from a ``configs/players/*.yaml`` config.
 
     Injects ``J``/``F``/``T``/``K`` from the dataset, filtered to the
@@ -177,9 +175,7 @@ def _batched_prob_fn(
                 xb = torch.from_numpy(
                     np.ascontiguousarray(arr[s : s + batch], dtype=np.float32)
                 ).to(device)
-                vals.append(
-                    torch.softmax(classifier(xb), -1)[:, target].float().cpu().numpy()
-                )
+                vals.append(torch.softmax(classifier(xb), -1)[:, target].float().cpu().numpy())
         return np.concatenate(vals).astype(np.float64)
 
     return fn
@@ -290,8 +286,13 @@ def _run_player_cell(
     cell_dir = results_dir / players_name / dataset_name / clf_name / method_name
     result_path = cell_dir / "result.json"
     if result_path.exists():
-        log.info("[%s/%s/%s/%s] cached result found — skipping.",
-                 players_name, dataset_name, clf_name, method_name)
+        log.info(
+            "[%s/%s/%s/%s] cached result found — skipping.",
+            players_name,
+            dataset_name,
+            clf_name,
+            method_name,
+        )
         return dict(json.loads(result_path.read_text()))
 
     try:
@@ -319,8 +320,9 @@ def _run_player_cell(
         clf_cfg = _load_sub_config("classifiers", clf_name, cfg)
         n_classes = int(str(dataset.metadata.get("n_classes", 3)))
         classifier = _build_classifier(clf_cfg, J=J, F=F, T=T, K=K, n_classes=n_classes)
-        ckpt_dir = Path(str(cfg.get("checkpoint_dir",
-                                    "motionbench/classifiers/checkpoints/synthetic")))
+        ckpt_dir = Path(
+            str(cfg.get("checkpoint_dir", "motionbench/classifiers/checkpoints/synthetic"))
+        )
         ckpt_path = ckpt_dir / dataset_name / f"{clf_name}.pt"
         if ckpt_path.exists():
             ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=True)
@@ -336,8 +338,7 @@ def _run_player_cell(
                 f"Method {method_name!r} defines no imputer; the player-set "
                 "pipeline evaluates imputer-based KernelSHAP methods only."
             )
-        imputer = _build_and_fit_imputer(method_cfg, dataset, J=J, F=F, T=T,
-                                         device=str(device))
+        imputer = _build_and_fit_imputer(method_cfg, dataset, J=J, F=F, T=T, device=str(device))
         n_completion = int(method_cfg.get("n_completion_samples", 5))
         game = _infer_game(method_cfg)
 
@@ -364,8 +365,9 @@ def _run_player_cell(
             target = int(logits.argmax(dim=-1).item())
             clf_fn = _batched_prob_fn(classifier, target, device)
 
-            v = _method_values(clf_fn, x64, imputer, masks, Z, n_completion,
-                               value_fn, seq_seed=[seed, idx])
+            v = _method_values(
+                clf_fn, x64, imputer, masks, Z, n_completion, value_fn, seq_seed=[seed, idx]
+            )
             phi = phi_from_values(Z, w, v)
 
             if det is not None:
@@ -382,34 +384,58 @@ def _run_player_cell(
             ec3s.append(ec3)
             targets.append(target)
             if idx % 20 == 0:
-                log.info("[%s/%s/%s/%s] %d/%d ec1=%.4f ec3=%.4f (%.0fs)",
-                         players_name, dataset_name, clf_name, method_name,
-                         idx, n_seq, ec1, ec3, time.time() - t0)
+                log.info(
+                    "[%s/%s/%s/%s] %d/%d ec1=%.4f ec3=%.4f (%.0fs)",
+                    players_name,
+                    dataset_name,
+                    clf_name,
+                    method_name,
+                    idx,
+                    n_seq,
+                    ec1,
+                    ec3,
+                    time.time() - t0,
+                )
 
         np.savez_compressed(
             cell_dir / "per_sequence.npz",
-            phi=np.array(phis), phi_star=np.array(stars),
-            ec1=np.array(ec1s), ec3=np.array(ec3s), target=np.array(targets),
+            phi=np.array(phis),
+            phi_star=np.array(stars),
+            ec1=np.array(ec1s),
+            ec3=np.array(ec3s),
+            target=np.array(targets),
         )
         result: dict[str, Any] = {
-            "dataset": dataset_name, "players": players_name,
-            "classifier": clf_name, "method": method_name, "game": game,
-            "M": int(M), "n_coalitions": int(len(Z)),
-            "exact_coalitions": bool(len(Z) >= 2 ** M),
-            "coalition_seed": coalition_seed, "coalition_budget": budget,
-            "value_fn": value_fn, "n_sequences": int(n_seq), "seed": seed,
-            "ec1": float(np.mean(ec1s)), "ec3": float(np.mean(ec3s)),
+            "dataset": dataset_name,
+            "players": players_name,
+            "classifier": clf_name,
+            "method": method_name,
+            "game": game,
+            "M": int(M),
+            "n_coalitions": int(len(Z)),
+            "exact_coalitions": bool(len(Z) >= 2**M),
+            "coalition_seed": coalition_seed,
+            "coalition_budget": budget,
+            "value_fn": value_fn,
+            "n_sequences": int(n_seq),
+            "seed": seed,
+            "ec1": float(np.mean(ec1s)),
+            "ec3": float(np.mean(ec3s)),
             "elapsed_s": time.time() - t0,
         }
         result_path.write_text(json.dumps(result, indent=1))
         return result
     except Exception as exc:  # noqa: BLE001 - sweep must survive cell failures
-        log.exception("[%s/%s/%s/%s] cell failed",
-                      players_name, dataset_name, clf_name, method_name)
+        log.exception(
+            "[%s/%s/%s/%s] cell failed", players_name, dataset_name, clf_name, method_name
+        )
         cell_dir.mkdir(parents=True, exist_ok=True)
         error: dict[str, Any] = {
-            "dataset": dataset_name, "players": players_name,
-            "classifier": clf_name, "method": method_name, "error": str(exc),
+            "dataset": dataset_name,
+            "players": players_name,
+            "classifier": clf_name,
+            "method": method_name,
+            "error": str(exc),
         }
         (cell_dir / "error.json").write_text(json.dumps(error, indent=1))
         return error
@@ -443,9 +469,12 @@ def run_player_eval(cfg: DictConfig) -> pd.DataFrame:
         for mth in methods
     ]
     log.info(
-        "Player-set sweep: %d cells (%d datasets x %d player sets x "
-        "%d classifiers x %d methods)",
-        len(cells), len(datasets), len(player_sets), len(classifiers), len(methods),
+        "Player-set sweep: %d cells (%d datasets x %d player sets x %d classifiers x %d methods)",
+        len(cells),
+        len(datasets),
+        len(player_sets),
+        len(classifiers),
+        len(methods),
     )
 
     results = []

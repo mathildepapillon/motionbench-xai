@@ -38,9 +38,7 @@ class TemporalWindows(PlayerSet):
 
     def __init__(self, K: int, T: int, J: int, F: int) -> None:
         if T % K != 0:
-            raise ValueError(
-                f"T={T} must be divisible by K={K} for equal-width windows."
-            )
+            raise ValueError(f"T={T} must be divisible by K={K} for equal-width windows.")
         self._K = K
         self._T = T
         self._J = J
@@ -70,9 +68,7 @@ class TemporalWindows(PlayerSet):
             ValueError: if ``z.shape != (K,)``.
         """
         if z.shape != (self._K,):
-            raise ValueError(
-                f"Expected z.shape==({self._K},); got {tuple(z.shape)}."
-            )
+            raise ValueError(f"Expected z.shape==({self._K},); got {tuple(z.shape)}.")
         mask = torch.zeros(self._J, self._F, self._T, dtype=torch.bool)
         for k in range(self._K):
             if z[k]:

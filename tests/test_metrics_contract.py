@@ -7,6 +7,7 @@ Verifies:
 4. _check_deps raises ValueError when required dependencies are missing.
 5. Subclasses with requires_oracle=True refuse None oracle.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -28,7 +29,7 @@ class _MockPlayers:
         ws = T // M
         phi = torch.zeros(M)
         for k in range(M):
-            phi[k] = phi_coords[:, :, k * ws:(k + 1) * ws].sum()
+            phi[k] = phi_coords[:, :, k * ws : (k + 1) * ws].sum()
         return phi
 
 

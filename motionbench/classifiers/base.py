@@ -334,7 +334,7 @@ class Classifier(nn.Module, ABC):
                 k = k[7:]
             # Remap CARE-PD head key to the motionbench cls_head attribute
             if k.startswith("head.fc_layers.0."):
-                k = "cls_head." + k[len("head.fc_layers.0."):]
+                k = "cls_head." + k[len("head.fc_layers.0.") :]
             # Remap MotionAGFormer layer-scale names (checkpoint uses layer_scale_N,
             # our port uses the shorter ls1/ls2 attribute names)
             k = k.replace(".layer_scale_1", ".ls1").replace(".layer_scale_2", ".ls2")
@@ -348,4 +348,3 @@ class Classifier(nn.Module, ABC):
             result.missing_keys,
             result.unexpected_keys,
         )
-

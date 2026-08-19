@@ -389,8 +389,7 @@ def test_efficiency_error_kernel_shap() -> None:
     metric = EfficiencyErrorMetric(n_mc=1000, oracle_seed=1)
     result = metric.evaluate(phi, x, _linear_clf, players, oracle=oracle)
     assert result["efficiency_error"] < 1e-3, (
-        f"EfficiencyError={result['efficiency_error']:.2e} ≥ 1e-3 "
-        f"(Σφ={phi.sum():.6f}, expected≈50)"
+        f"EfficiencyError={result['efficiency_error']:.2e} ≥ 1e-3 (Σφ={phi.sum():.6f}, expected≈50)"
     )
 
 

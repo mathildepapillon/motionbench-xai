@@ -47,6 +47,7 @@ Usage
     # Run only a subset of methods (debugging)
     python scripts/run_xor_sweep_multigpu.py --methods kernelshap_zero kernelshap_vaeac
 """
+
 from __future__ import annotations
 
 import argparse
@@ -125,12 +126,10 @@ def _detect_gpus() -> list[int]:
 
 
 def _result_exists(cell: Cell, results_dir: Path) -> bool:
-    return (results_dir / cell.dataset / cell.classifier / cell.method
-            / "result.json").exists()
+    return (results_dir / cell.dataset / cell.classifier / cell.method / "result.json").exists()
 
 
-def _run_cell(cell: Cell, gpu: int, results_dir: Path, n_sequences: int,
-              log_dir: Path) -> Cell:
+def _run_cell(cell: Cell, gpu: int, results_dir: Path, n_sequences: int, log_dir: Path) -> Cell:
     """Run a single cell as a subprocess pinned to ``gpu``.
 
     The subprocess invokes the standard ``motionbench`` Hydra entry point
@@ -159,27 +158,39 @@ def _run_cell(cell: Cell, gpu: int, results_dir: Path, n_sequences: int,
     # collide with the config-group directories of the same name, so we use
     # a thin in-process helper that builds the cfg programmatically.
     cmd = [
-        sys.executable, str(REPO / "scripts" / "_run_one_cell.py"),
-        "--dataset", cell.dataset,
-        "--classifier", cell.classifier,
-        "--method", cell.method,
-        "--device", "cuda:0",
-        "--n-sequences", str(n_sequences),
-        "--results-dir", str(results_dir),
+        sys.executable,
+        str(REPO / "scripts" / "_run_one_cell.py"),
+        "--dataset",
+        cell.dataset,
+        "--classifier",
+        cell.classifier,
+        "--method",
+        cell.method,
+        "--device",
+        "cuda:0",
+        "--n-sequences",
+        str(n_sequences),
+        "--results-dir",
+        str(results_dir),
     ]
 
     t0 = time.time()
     with log_path.open("wb") as fh:
-        proc = subprocess.run(cmd, env=env, stdout=fh, stderr=subprocess.STDOUT,
-                              cwd=REPO)
+        proc = subprocess.run(cmd, env=env, stdout=fh, stderr=subprocess.STDOUT, cwd=REPO)
     cell.elapsed_s = time.time() - t0
     cell.rc = proc.returncode
     return cell
 
 
-def _worker(slot_id: int, gpu: int, work_q: queue.Queue[Cell | None],
-            done_q: queue.Queue[Cell], results_dir: Path,
-            n_sequences: int, log_dir: Path) -> None:
+def _worker(
+    slot_id: int,
+    gpu: int,
+    work_q: queue.Queue[Cell | None],
+    done_q: queue.Queue[Cell],
+    results_dir: Path,
+    n_sequences: int,
+    log_dir: Path,
+) -> None:
     """Pull cells from ``work_q`` and execute them on ``gpu`` until None."""
     while True:
         cell = work_q.get()
@@ -191,8 +202,7 @@ def _worker(slot_id: int, gpu: int, work_q: queue.Queue[Cell | None],
         except Exception as exc:  # pragma: no cover — defensive
             cell.rc = -99
             cell.elapsed_s = 0.0
-            print(f"  [slot{slot_id} gpu{gpu}] {cell.label} CRASH: {exc}",
-                  flush=True)
+            print(f"  [slot{slot_id} gpu{gpu}] {cell.label} CRASH: {exc}", flush=True)
         else:
             tag = "OK " if cell.rc == 0 else "FAIL"
             print(
@@ -208,13 +218,16 @@ def _train_classifiers(gpus: list[int]) -> None:
     """Dispatch synthetic-classifier training across the first 3 GPUs."""
     train_gpus = gpus[: min(3, len(gpus))]
     cmd = [
-        sys.executable, str(REPO / "scripts" / "train_synthetic_clf.py"),
-        "--datasets", DATASET,
-        "--classifiers", *CLASSIFIERS,
-        "--gpus", *map(str, train_gpus),
+        sys.executable,
+        str(REPO / "scripts" / "train_synthetic_clf.py"),
+        "--datasets",
+        DATASET,
+        "--classifiers",
+        *CLASSIFIERS,
+        "--gpus",
+        *map(str, train_gpus),
     ]
-    print(f"\n[STAGE 1] Training classifiers on GPUs {train_gpus}: "
-          f"{shlex.join(cmd)}\n", flush=True)
+    print(f"\n[STAGE 1] Training classifiers on GPUs {train_gpus}: {shlex.join(cmd)}\n", flush=True)
     rc = subprocess.call(cmd, cwd=REPO)
     if rc != 0:
         raise SystemExit(f"Classifier training failed (rc={rc}).")
@@ -227,6 +240,7 @@ def _verify_imputers() -> None:
         _FLOW_REGISTRY,
         _VAEAC_REGISTRY,
     )
+
     cls_key = "GaussianMotionDataset"
     missing: list[str] = []
     for name, registry in [("VAEAC", _VAEAC_REGISTRY), ("Flow", _FLOW_REGISTRY)]:
@@ -247,14 +261,22 @@ def _verify_imputers() -> None:
             f"{cls_key}:\n{msg}\n"
             "  Train them via CARE-PD or update the registry first."
         )
-    print("[STAGE 2] Imputer registry OK — re-using GaussianMotionDataset "
-          "VAEAC + Flow checkpoints.", flush=True)
+    print(
+        "[STAGE 2] Imputer registry OK — re-using GaussianMotionDataset VAEAC + Flow checkpoints.",
+        flush=True,
+    )
 
 
-def _run_sweep(gpus: list[int], jobs_per_gpu: int, methods: list[str],
-               classifiers: list[str], results_dir: Path,
-               n_sequences: int, log_dir: Path,
-               force: bool) -> list[Cell]:
+def _run_sweep(
+    gpus: list[int],
+    jobs_per_gpu: int,
+    methods: list[str],
+    classifiers: list[str],
+    results_dir: Path,
+    n_sequences: int,
+    log_dir: Path,
+    force: bool,
+) -> list[Cell]:
     """Dispatch one cell per subprocess across ``gpus × jobs_per_gpu`` slots."""
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -266,8 +288,10 @@ def _run_sweep(gpus: list[int], jobs_per_gpu: int, methods: list[str],
         pending = [c for c in cells_all if not _result_exists(c, results_dir)]
         cached = [c for c in cells_all if _result_exists(c, results_dir)]
 
-    print(f"\n[STAGE 3] Sweep: {len(cells_all)} cells "
-          f"({len(cached)} cached, {len(pending)} to run).", flush=True)
+    print(
+        f"\n[STAGE 3] Sweep: {len(cells_all)} cells ({len(cached)} cached, {len(pending)} to run).",
+        flush=True,
+    )
     if not pending:
         return cached
 
@@ -277,8 +301,7 @@ def _run_sweep(gpus: list[int], jobs_per_gpu: int, methods: list[str],
         work_q.put(c)
 
     n_slots = max(1, len(gpus) * jobs_per_gpu)
-    print(f"  Workers: {n_slots} slots ({len(gpus)} GPUs × {jobs_per_gpu} "
-          f"jobs/GPU)", flush=True)
+    print(f"  Workers: {n_slots} slots ({len(gpus)} GPUs × {jobs_per_gpu} jobs/GPU)", flush=True)
     print(f"  Logs   : {log_dir}", flush=True)
 
     threads: list[threading.Thread] = []
@@ -287,8 +310,7 @@ def _run_sweep(gpus: list[int], jobs_per_gpu: int, methods: list[str],
         work_q.put(None)  # one sentinel per worker
         t = threading.Thread(
             target=_worker,
-            args=(slot_id, gpu, work_q, done_q, results_dir, n_sequences,
-                  log_dir),
+            args=(slot_id, gpu, work_q, done_q, results_dir, n_sequences, log_dir),
             daemon=True,
             name=f"slot{slot_id}-gpu{gpu}",
         )
@@ -317,8 +339,7 @@ def _print_summary(cells: list[Cell], total_s: float) -> None:
         else:
             n_fail += 1
         gpu = "-" if c.gpu < 0 else str(c.gpu)
-        print(f"{c.classifier:<26} {c.method:<22} {gpu:>4} "
-              f"{c.elapsed_s:>7.1f}s {status:>8}")
+        print(f"{c.classifier:<26} {c.method:<22} {gpu:>4} {c.elapsed_s:>7.1f}s {status:>8}")
     print("=" * 78)
     print(f"  {n_ok} OK / {n_fail} failed / {len(cells)} total cells")
     print(f"  Total wall time: {total_s:.1f}s")
@@ -335,40 +356,68 @@ def _parse_args() -> argparse.Namespace:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--gpus", nargs="+", type=int, default=detected,
-                        help=f"CUDA device indices to use (default: detected "
-                             f"{detected}).")
-    parser.add_argument("--jobs-per-gpu", type=int, default=2,
-                        help="Concurrent cells per GPU (default: 2).")
-    parser.add_argument("--methods", nargs="+", default=METHODS,
-                        choices=METHODS, metavar="METHOD",
-                        help="Subset of methods to run (default: all 16).")
-    parser.add_argument("--classifiers", nargs="+", default=CLASSIFIERS,
-                        choices=CLASSIFIERS, metavar="CLF",
-                        help="Subset of classifiers (default: all 3).")
-    parser.add_argument("--n-sequences", type=int, default=200,
-                        help="Sequences per cell (default: 200 — matches "
-                             "configs/data/xor_label_gaussian.yaml N).")
-    parser.add_argument("--results-dir", type=Path,
-                        default=REPO / "results" / "synthetic",
-                        help="Where to write per-cell result.json files.")
-    parser.add_argument("--log-dir", type=Path,
-                        default=REPO / "outputs" / "xor_sweep_logs",
-                        help="Per-cell stdout/stderr log directory.")
-    parser.add_argument("--skip-train", action="store_true",
-                        help="Skip the classifier-training stage.")
-    parser.add_argument("--skip-verify", action="store_true",
-                        help="Skip the imputer-registry verification stage.")
-    parser.add_argument("--force", action="store_true",
-                        help="Re-run all cells, even if result.json exists.")
+    parser.add_argument(
+        "--gpus",
+        nargs="+",
+        type=int,
+        default=detected,
+        help=f"CUDA device indices to use (default: detected {detected}).",
+    )
+    parser.add_argument(
+        "--jobs-per-gpu", type=int, default=2, help="Concurrent cells per GPU (default: 2)."
+    )
+    parser.add_argument(
+        "--methods",
+        nargs="+",
+        default=METHODS,
+        choices=METHODS,
+        metavar="METHOD",
+        help="Subset of methods to run (default: all 16).",
+    )
+    parser.add_argument(
+        "--classifiers",
+        nargs="+",
+        default=CLASSIFIERS,
+        choices=CLASSIFIERS,
+        metavar="CLF",
+        help="Subset of classifiers (default: all 3).",
+    )
+    parser.add_argument(
+        "--n-sequences",
+        type=int,
+        default=200,
+        help="Sequences per cell (default: 200 — matches configs/data/xor_label_gaussian.yaml N).",
+    )
+    parser.add_argument(
+        "--results-dir",
+        type=Path,
+        default=REPO / "results" / "synthetic",
+        help="Where to write per-cell result.json files.",
+    )
+    parser.add_argument(
+        "--log-dir",
+        type=Path,
+        default=REPO / "outputs" / "xor_sweep_logs",
+        help="Per-cell stdout/stderr log directory.",
+    )
+    parser.add_argument(
+        "--skip-train", action="store_true", help="Skip the classifier-training stage."
+    )
+    parser.add_argument(
+        "--skip-verify", action="store_true", help="Skip the imputer-registry verification stage."
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Re-run all cells, even if result.json exists."
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
     if not args.gpus:
-        raise SystemExit("No CUDA devices detected — aborting.  "
-                         "Install drivers or pass --gpus 0 [1 ...].")
+        raise SystemExit(
+            "No CUDA devices detected — aborting.  Install drivers or pass --gpus 0 [1 ...]."
+        )
 
     print("motionbench-xai — XOR sweep multi-GPU runner")
     print(f"  Repo            : {REPO}")

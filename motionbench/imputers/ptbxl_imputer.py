@@ -109,22 +109,22 @@ REPO_ROOT = Path(__file__).parents[2]
 _PTBXL_IMPUTER_ROOT = REPO_ROOT / "results" / "ptbxl_imputers"
 
 _VAEAC_CKPT_DIR = _PTBXL_IMPUTER_ROOT / "vaeac"
-_FLOW_CKPT_DIR  = _PTBXL_IMPUTER_ROOT / "flow"
+_FLOW_CKPT_DIR = _PTBXL_IMPUTER_ROOT / "flow"
 
 # ---------------------------------------------------------------------------
 # Embedded fallback configs (used if the JSON file is absent)
 # ---------------------------------------------------------------------------
 _VAEAC_DEFAULT_CFG: dict = {
-    "n_joints":      12,
-    "n_coords":      1,
-    "d_model":       128,
-    "nhead":         4,
-    "num_layers":    4,
-    "ff_dim":        256,
-    "d_latent":      32,
-    "seq_len":       1000,
-    "dropout":       0.1,
-    "decoder_head":  "gaussian_scalar",
+    "n_joints": 12,
+    "n_coords": 1,
+    "d_model": 128,
+    "nhead": 4,
+    "num_layers": 4,
+    "ff_dim": 256,
+    "d_latent": 32,
+    "seq_len": 1000,
+    "dropout": 0.1,
+    "decoder_head": "gaussian_scalar",
     "ivanov_min_sigma": 0.01,
     "use_prior_memory": False,
     "prior_reg_sigma_mu": 1e4,
@@ -132,19 +132,19 @@ _VAEAC_DEFAULT_CFG: dict = {
 }
 
 _FLOW_DEFAULT_CFG: dict = {
-    "n_joints":         12,
-    "n_coords":         1,
-    "d_model":          128,
-    "nhead":            4,
-    "num_layers":       4,
-    "ff_dim":           256,
-    "time_emb_dim":     64,
-    "seq_len":          1000,
-    "dropout":          0.1,
-    "tokenization":     "frame",
+    "n_joints": 12,
+    "n_coords": 1,
+    "d_model": 128,
+    "nhead": 4,
+    "num_layers": 4,
+    "ff_dim": 256,
+    "time_emb_dim": 64,
+    "seq_len": 1000,
+    "dropout": 0.1,
+    "tokenization": "frame",
     "obs_conditioning": True,
-    "num_steps":        50,
-    "cfg_scale":        0.0,
+    "num_steps": 50,
+    "cfg_scale": 0.0,
 }
 
 
@@ -177,7 +177,8 @@ def _resolve_cfg(ckpt_dir: Path, cfg_filename: str, default: dict) -> Path:
     log.warning(
         "PTB-XL imputer: %s not found; using embedded default config "
         "(written to %s). Verify hyperparameters match the trained checkpoint.",
-        cfg_path, tf.name,
+        cfg_path,
+        tf.name,
     )
     return Path(tf.name)
 
@@ -253,7 +254,10 @@ class PTBXLVAEACImputer(BaseImputer):
                     log.warning(
                         "PTBXLVAEACImputer: shape mismatch — "
                         "data (J=%d, T=%d) vs model (J=%d, T=%d). Skipping.",
-                        J_data, T_data, J_model, T_model,
+                        J_data,
+                        T_data,
+                        J_model,
+                        T_model,
                     )
                     self._skip = True
                     self._imputer = None
@@ -302,12 +306,16 @@ class PTBXLVAEACImputer(BaseImputer):
         coalition_mask = coalition_mask.to(device)
 
         completions = self._imputer.sample_completions(
-            x=x_in, y=None, mask=pad, lengths=None,
-            coalition_mask=coalition_mask, n_samples=n_samples,
+            x=x_in,
+            y=None,
+            mask=pad,
+            lengths=None,
+            coalition_mask=coalition_mask,
+            n_samples=n_samples,
         )
-        out = torch.cat(completions, dim=0)   # (n_samples, J, F, T)
+        out = torch.cat(completions, dim=0)  # (n_samples, J, F, T)
         out_dev = out.device
-        x_dev   = x_obs.to(out_dev)
+        x_dev = x_obs.to(out_dev)
         mask_dev = mask.to(out_dev)
         obs = mask_dev.unsqueeze(0).expand_as(out)
         out = torch.where(obs, x_dev.unsqueeze(0).expand_as(out), out)
@@ -397,7 +405,10 @@ class PTBXLFlowImputer(BaseImputer):
                     log.warning(
                         "PTBXLFlowImputer: shape mismatch — "
                         "data (J=%d, T=%d) vs model (J=%d, T=%d). Skipping.",
-                        J_data, T_data, J_model, T_model,
+                        J_data,
+                        T_data,
+                        J_model,
+                        T_model,
                     )
                     self._skip = True
                     self._imputer = None
@@ -414,9 +425,7 @@ class PTBXLFlowImputer(BaseImputer):
         self._fitted = True
         return self
 
-    def precompute_all_temporal_coalitions(
-        self, x_obs: Tensor, K: int, n_samples: int = 1
-    ) -> None:
+    def precompute_all_temporal_coalitions(self, x_obs: Tensor, K: int, n_samples: int = 1) -> None:
         """Pre-compute completions for all 2^K temporal-window coalitions.
 
         Uses ``sample_completions_batched`` for a ~K-fold speedup over
@@ -435,7 +444,7 @@ class PTBXLFlowImputer(BaseImputer):
 
         J, F, T = x_obs.shape
         T_win = T // K
-        n_coal = 2 ** K
+        n_coal = 2**K
 
         all_coal_masks = torch.zeros(n_coal, T, dtype=torch.bool)
         for ci in range(n_coal):
@@ -446,19 +455,20 @@ class PTBXLFlowImputer(BaseImputer):
                     all_coal_masks[ci, t0:t1] = True
 
         x_in = x_obs.unsqueeze(0)
-        pad  = torch.ones(1, T, dtype=torch.bool)
+        pad = torch.ones(1, T, dtype=torch.bool)
 
         batched_out = self._imputer.sample_completions_batched(
-            x=x_in, mask=pad,
+            x=x_in,
+            mask=pad,
             coalition_masks=all_coal_masks,
             n_samples=n_samples,
-        )   # (n_coal, n_samples, J, F, T)
+        )  # (n_coal, n_samples, J, F, T)
         batched_out = batched_out.cpu()
 
         self._completion_cache: dict[tuple, Tensor] = {}
         for ci in range(n_coal):
             key = tuple(all_coal_masks[ci].tolist())
-            comps = batched_out[ci]   # (n_samples, J, F, T)
+            comps = batched_out[ci]  # (n_samples, J, F, T)
             m_k = all_coal_masks[ci].view(1, 1, 1, T).expand(n_samples, J, F, T)
             comps = torch.where(
                 m_k,
@@ -470,7 +480,9 @@ class PTBXLFlowImputer(BaseImputer):
         self._cached_x_obs = x_obs.cpu()
         log.debug(
             "PTBXLFlowImputer: pre-computed %d coalitions (K=%d, T=%d)",
-            n_coal, K, T,
+            n_coal,
+            K,
+            T,
         )
 
     def clear_cache(self) -> None:
@@ -503,8 +515,7 @@ class PTBXLFlowImputer(BaseImputer):
             raise RuntimeError("PTBXLFlowImputer.fit() must be called first.")
         if self._skip or self._imputer is None:
             raise NotImplementedError(
-                "No PTB-XL Flow checkpoint available. "
-                "Run: python scripts/train_flow.py data=ptbxl"
+                "No PTB-XL Flow checkpoint available. Run: python scripts/train_flow.py data=ptbxl"
             )
 
         # Fast path: use pre-computed coalition cache if available
@@ -524,17 +535,21 @@ class PTBXLFlowImputer(BaseImputer):
         J, F, T = x_obs.shape
         device = self._imputer._device
         x_in = x_obs.unsqueeze(0).to(device)
-        pad  = torch.ones(1, T, dtype=torch.bool, device=device)
+        pad = torch.ones(1, T, dtype=torch.bool, device=device)
         coalition_mask, _ = _mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
 
         completions = self._imputer.sample_completions(
-            x=x_in, y=None, mask=pad, lengths=None,
-            coalition_mask=coalition_mask, n_samples=n_samples,
+            x=x_in,
+            y=None,
+            mask=pad,
+            lengths=None,
+            coalition_mask=coalition_mask,
+            n_samples=n_samples,
         )
         out = torch.cat(completions, dim=0)
         out_dev = out.device
-        x_dev   = x_obs.to(out_dev)
+        x_dev = x_obs.to(out_dev)
         mask_dev = mask.to(out_dev)
         obs = mask_dev.unsqueeze(0).expand_as(out)
         out = torch.where(obs, x_dev.unsqueeze(0).expand_as(out), out)

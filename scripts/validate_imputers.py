@@ -60,9 +60,15 @@ DATASETS = {
         "_target_": "motionbench.data.real.care_pd_cache.BMCLabCacheDataset",
         "kwargs": {
             "cache_path": str(
-                Path(os.environ.get("CARE_PD_ROOT",
-                                    Path(__file__).resolve().parent.parent.parent / "CARE-PD"))
-                / "cache" / "flow_matching" / "BMCLab_h36m_80_fold1" / "cache.npz"
+                Path(
+                    os.environ.get(
+                        "CARE_PD_ROOT", Path(__file__).resolve().parent.parent.parent / "CARE-PD"
+                    )
+                )
+                / "cache"
+                / "flow_matching"
+                / "BMCLab_h36m_80_fold1"
+                / "cache.npz"
             ),
             "split": "val",
             "max_sequences": 50,
@@ -171,15 +177,19 @@ def _validate_one(
             samples_np = samples.detach().cpu().numpy()
             x_np = x_true.detach().cpu().numpy()
             m_np = mask.detach().cpu().numpy()
-            hidden = ~m_np                                 # bool
+            hidden = ~m_np  # bool
             if hidden.sum() == 0:
                 continue
-            err = (samples_np - x_np[None]) ** 2           # (n, J, F, T)
+            err = (samples_np - x_np[None]) ** 2  # (n, J, F, T)
             mse_hidden_list.append(err[:, hidden].mean())
             std_hidden_list.append(samples_np[:, hidden].std())
             std_truth_list.append(x_np[hidden].std())
         if not mse_hidden_list:
-            out[mask_name] = {"mse_hidden": float("nan"), "std_imp": float("nan"), "std_true": float("nan")}
+            out[mask_name] = {
+                "mse_hidden": float("nan"),
+                "std_imp": float("nan"),
+                "std_true": float("nan"),
+            }
         else:
             out[mask_name] = {
                 "mse_hidden": float(np.mean(mse_hidden_list)),
@@ -211,7 +221,7 @@ def main() -> None:
             print(f"Unknown dataset: {ds_name}, skipping")
             continue
         info = DATASETS[ds_name]
-        print(f"\n{'='*70}\nDataset: {ds_name}\n{'='*70}")
+        print(f"\n{'=' * 70}\nDataset: {ds_name}\n{'=' * 70}")
         cfg = OmegaConf.create({"_target_": info["_target_"], **info["kwargs"]})
         try:
             dataset = instantiate(cfg)
@@ -231,13 +241,20 @@ def main() -> None:
                 print("    (skipped — no checkpoint)")
                 continue
             results = _validate_one(
-                ds_name, dataset, imp_name, imp, masks,
-                n_seqs=args.n_seqs, n_samples=args.n_samples,
+                ds_name,
+                dataset,
+                imp_name,
+                imp,
+                masks,
+                n_seqs=args.n_seqs,
+                n_samples=args.n_samples,
             )
             ds_out[imp_name] = results
             for mask_name, stats in results.items():
-                print(f"    {mask_name:18s}  MSE={stats['mse_hidden']:.4f}  "
-                      f"std_imp={stats['std_imp']:.3f}  std_true={stats['std_true']:.3f}")
+                print(
+                    f"    {mask_name:18s}  MSE={stats['mse_hidden']:.4f}  "
+                    f"std_imp={stats['std_imp']:.3f}  std_true={stats['std_true']:.3f}"
+                )
         full[ds_name] = ds_out
 
     json_path = args.out_dir / "imputer_validation.json"
@@ -245,8 +262,10 @@ def main() -> None:
     print(f"\nFull JSON: {json_path}")
 
     md_path = args.out_dir / "imputer_validation.md"
-    lines = ["# Imputer Validation Report\n",
-             "MSE on hidden coordinates only (lower is better). std_imp/std_true compares imputed-sample dispersion to ground-truth dispersion (closer is better).\n"]
+    lines = [
+        "# Imputer Validation Report\n",
+        "MSE on hidden coordinates only (lower is better). std_imp/std_true compares imputed-sample dispersion to ground-truth dispersion (closer is better).\n",
+    ]
     for ds, ds_out in full.items():
         lines.append(f"\n## {ds}\n")
         lines.append("| Mask | Imputer | MSE↓ | std_imp | std_true |")

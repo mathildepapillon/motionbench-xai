@@ -88,11 +88,11 @@ Implement a `BaseImputer` (or a full `BaseAttributor`), drop a config in
 `examples/minimal_evaluation.py` for the direct API. The key interfaces:
 
 ```python
-players = SpatialJoints(J=5, F=3, T=16)           # any PlayerSet: z -> (J,F,T) mask
+players = SpatialJoints(J=5, F=3, T=16)  # any PlayerSet: z -> (J,F,T) mask
 completions = imputer.impute(x, mask, n_samples)  # any BaseImputer: q(x_hid | x_obs)
 Z, w = sampled_coalition_set(players.n_players, budget=1024)  # shared design
 det = DeterministicConditionalOracle.from_oracle(dataset.oracle, players, Z)
-phi_star = phi_from_values(Z, w, prob_fn(det.fill_all(x)))    # exact target
+phi_star = phi_from_values(Z, w, prob_fn(det.fill_all(x)))  # exact target
 ```
 
 Shape conventions everywhere: samples are `(J, F, T)` (joints × features ×

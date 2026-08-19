@@ -5,6 +5,7 @@ Non-manual, non-slow tests run in CI:
 
 All tests use deterministic seeds from conftest.py (SEED=42).
 """
+
 from __future__ import annotations
 
 import math
@@ -74,7 +75,9 @@ def _make_fitted_imputer(
     torch.manual_seed(seed)
     ds = _TinyDataset(n=n_samples_ds, J=J, F=F, T=T, seed=seed)
     imp = FlowMatchingImputer(
-        J=J, F=F, T=T,
+        J=J,
+        F=F,
+        T=T,
         hidden_dim=hidden_dim,
         num_steps=num_steps,
         noise_init_scale=noise_init_scale,
@@ -106,13 +109,13 @@ def test_flow_shape(fitted_imp: FlowMatchingImputer, x_sample: Tensor, mask_half
     """impute() output must have shape (n_samples, J, F, T)."""
     n = 6
     out = fitted_imp.impute(x_sample, mask_half, n_samples=n)
-    assert out.shape == (n, J, F, T), (
-        f"Expected ({n}, {J}, {F}, {T}), got {tuple(out.shape)}"
-    )
+    assert out.shape == (n, J, F, T), f"Expected ({n}, {J}, {F}, {T}), got {tuple(out.shape)}"
     assert out.dtype == torch.float32, f"Expected float32, got {out.dtype}"
 
 
-def test_flow_shape_n1(fitted_imp: FlowMatchingImputer, x_sample: Tensor, mask_half: Tensor) -> None:
+def test_flow_shape_n1(
+    fitted_imp: FlowMatchingImputer, x_sample: Tensor, mask_half: Tensor
+) -> None:
     """n_samples=1 should produce shape (1, J, F, T)."""
     out = fitted_imp.impute(x_sample, mask_half, n_samples=1)
     assert out.shape == (1, J, F, T)
@@ -147,9 +150,7 @@ def test_flow_observed_full_mask(fitted_imp: FlowMatchingImputer, x_sample: Tens
     full_mask = torch.ones(J, F, T, dtype=torch.bool)
     out = fitted_imp.impute(x_sample, full_mask, n_samples=5, seed=0)
     for i in range(5):
-        assert torch.allclose(out[i], x_sample), (
-            f"Full mask: sample {i} differs from x_obs"
-        )
+        assert torch.allclose(out[i], x_sample), f"Full mask: sample {i} differs from x_obs"
 
 
 def test_flow_observed_empty_mask(fitted_imp: FlowMatchingImputer, x_sample: Tensor) -> None:
@@ -197,9 +198,7 @@ def test_flow_serialization(
     # Check outputs match
     out1 = imp.impute(x_sample, mask_half, n_samples=4, seed=17)
     out2 = imp2.impute(x_sample, mask_half, n_samples=4, seed=17)
-    assert torch.allclose(out1, out2, atol=1e-5), (
-        "save/load round trip changed imputation output."
-    )
+    assert torch.allclose(out1, out2, atol=1e-5), "save/load round trip changed imputation output."
 
 
 def test_flow_save_raises_before_fit(tmp_path: Path) -> None:
@@ -252,7 +251,9 @@ def test_flow_smoke():
     J_s, F_s, T_s = 5, 3, 16
     ds = _TinyDataset(n=20, J=J_s, F=F_s, T=T_s, seed=0)
     imp = FlowMatchingImputer(
-        J=J_s, F=F_s, T=T_s,
+        J=J_s,
+        F=F_s,
+        T=T_s,
         hidden_dim=32,
         num_steps=10,
         noise_init_scale=1.0,
@@ -269,9 +270,7 @@ def test_flow_smoke():
     assert math.isfinite(initial), f"Initial loss is not finite: {initial}"
     assert math.isfinite(final), f"Final loss is not finite: {final}"
     # Over 5 epochs with 20 identical samples, loss should decrease noticeably.
-    assert final < initial, (
-        f"Loss did not decrease: initial={initial:.4f}, final={final:.4f}"
-    )
+    assert final < initial, f"Loss did not decrease: initial={initial:.4f}, final={final:.4f}"
 
     # Basic sanity on imputed output
     x_obs = ds[0][0]
@@ -332,10 +331,8 @@ def test_flow_m10_burr_ablation(tmp_path):
     # --- Generate Burr-XII data -----------------------------------------------
     if _HAS_SCIPY:
         rng_np = 42
-        x_train_np = burr12.rvs(c=2.0, d=2.0, size=(N_train, J_b, F_b, T_b),
-                                 random_state=rng_np)
-        x_test_np = burr12.rvs(c=2.0, d=2.0, size=(N_test, J_b, F_b, T_b),
-                                random_state=rng_np + 1)
+        x_train_np = burr12.rvs(c=2.0, d=2.0, size=(N_train, J_b, F_b, T_b), random_state=rng_np)
+        x_test_np = burr12.rvs(c=2.0, d=2.0, size=(N_test, J_b, F_b, T_b), random_state=rng_np + 1)
         x_train = torch.from_numpy(x_train_np.astype("float32"))
         x_test = torch.from_numpy(x_test_np.astype("float32"))
     else:
@@ -417,7 +414,9 @@ def test_flow_m10_burr_ablation(tmp_path):
         for scale in noise_init_scales:
             torch.manual_seed(42)
             imp = FlowMatchingImputer(
-                J=J_b, F=F_b, T=T_b,
+                J=J_b,
+                F=F_b,
+                T=T_b,
                 hidden_dim=HIDDEN_DIM,
                 num_steps=ns,
                 noise_init_scale=scale,
@@ -438,9 +437,7 @@ def test_flow_m10_burr_ablation(tmp_path):
         "Ablation did not complete all configurations."
     )
     for r in results:
-        assert math.isfinite(r["proxy_mse"]), (
-            f"Infinite proxy MSE for config {r}"
-        )
+        assert math.isfinite(r["proxy_mse"]), f"Infinite proxy MSE for config {r}"
 
     # --- Document expected findings ------------------------------------------
     # Expected: proxy_mse for noise_init_scale=2.0 < 1.0 < 0.5

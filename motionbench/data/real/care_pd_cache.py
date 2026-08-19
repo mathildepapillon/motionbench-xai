@@ -89,7 +89,12 @@ class BMCLabCacheDataset:
 
         logger.info(
             "BMCLabCacheDataset: %d sequences (J=%d, F=%d, T=%d) from %s split=%s",
-            self._N, self._J, self._F, self._T, self._cache_path, split,
+            self._N,
+            self._J,
+            self._F,
+            self._T,
+            self._cache_path,
+            split,
         )
 
     def __len__(self) -> int:

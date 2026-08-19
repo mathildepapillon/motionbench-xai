@@ -2,6 +2,7 @@
 
 Verifies shape, symmetry, and correctness of each coalition utility.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -113,9 +114,7 @@ def test_enumerate_coalitions_count() -> None:
     """enumerate_coalitions returns exactly 2^M rows."""
     for M in [3, 4, 5]:
         coalitions, weights = enumerate_coalitions(M)
-        assert coalitions.shape == (2**M, M), (
-            f"Expected ({2**M}, {M}), got {coalitions.shape}"
-        )
+        assert coalitions.shape == (2**M, M), f"Expected ({2**M}, {M}), got {coalitions.shape}"
         assert weights.shape == (2**M,)
 
 

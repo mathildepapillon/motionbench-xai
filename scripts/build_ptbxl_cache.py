@@ -7,6 +7,7 @@ Loads PTBXLDataset on training folds (1-8) and saves:
 Usage:
     python scripts/build_ptbxl_cache.py --data_path "$PTBXL_DATA_ROOT"
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,8 +26,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data_path", type=str, required=True)
     ap.add_argument("--max_sequences", type=int, default=None)
-    ap.add_argument("--output", type=str,
-                    default=str(REPO / "results" / "ptbxl_imputers" / "ptbxl_train_cache.npz"))
+    ap.add_argument(
+        "--output",
+        type=str,
+        default=str(REPO / "results" / "ptbxl_imputers" / "ptbxl_train_cache.npz"),
+    )
     args = ap.parse_args()
 
     out_path = Path(args.output)
@@ -47,6 +51,7 @@ def main():
 
     np.savez_compressed(out_path, x_train=xs)
     print(f"Saved to {out_path}")
+
 
 if __name__ == "__main__":
     main()

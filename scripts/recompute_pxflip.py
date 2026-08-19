@@ -22,6 +22,7 @@ Usage::
     # Recompute even cells whose existing value is not ~1.0 (force full redo):
     conda run -n motionbench python scripts/recompute_pxflip.py --force
 """
+
 from __future__ import annotations
 
 import argparse
@@ -81,8 +82,10 @@ def main(dry_run: bool = False, force: bool = False) -> None:
         if force or _is_saturated(result):
             to_recompute.append((dataset, clf, method, rf))
 
-    print(f"{len(to_recompute)} cells need pixel_flipping_auc recompute"
-          f" (force={force}, dry_run={dry_run})")
+    print(
+        f"{len(to_recompute)} cells need pixel_flipping_auc recompute"
+        f" (force={force}, dry_run={dry_run})"
+    )
 
     if dry_run:
         for dataset, clf, method, rf in to_recompute:

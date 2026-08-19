@@ -32,6 +32,7 @@ Usage::
     CUDA_VISIBLE_DEVICES=7 python scripts/run_gradient_fair_metric.py --fold 1 \\
         --methods ig smoothgrad
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,14 +57,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = REPO_ROOT / "results" / "care_pd_gradient_fair"
 CARE_PD_ROOT = Path(os.environ.get("CARE_PD_ROOT", REPO_ROOT.parent / "CARE-PD"))
 CACHE_TEMPLATE = str(
-    CARE_PD_ROOT / "cache" / "flow_matching"
-    / "BMCLab_h36m_80_classifier23fold_fold{fold}_eval" / "cache.npz"
+    CARE_PD_ROOT
+    / "cache"
+    / "flow_matching"
+    / "BMCLab_h36m_80_classifier23fold_fold{fold}_eval"
+    / "cache.npz"
 )
 CAREPD_ROOT = REPO_ROOT  # backwards-compat alias used elsewhere in this script
-CKPT_TEMPLATE = (
-    "motionbench/classifiers/checkpoints/real/"
-    "carepd_bmclab_fold{fold}_motionbert.pt"
-)
+CKPT_TEMPLATE = "motionbench/classifiers/checkpoints/real/carepd_bmclab_fold{fold}_motionbert.pt"
 
 K = 4
 DEVICE = "cuda:0"  # CUDA_VISIBLE_DEVICES controls which physical GPU
@@ -239,9 +240,7 @@ def compute_gradient_attrs(
     try:
         return _compute_attrs_on_device(method, clf, x, target, gpu_device)
     except Exception as exc:
-        log.warning(
-            "  GPU attribution failed for %s (%s); retrying on CPU.", method, exc
-        )
+        log.warning("  GPU attribution failed for %s (%s); retrying on CPU.", method, exc)
         # Move model back to GPU after CPU fallback so coalition value computation
         # in a subsequent call still works.
         result = _compute_attrs_on_device(method, clf, x, target, torch.device("cpu"))
@@ -257,19 +256,29 @@ def compute_gradient_attrs(
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument(
-        "--fold", type=int, default=1, choices=list(range(1, 24)),
+        "--fold",
+        type=int,
+        default=1,
+        choices=list(range(1, 24)),
         help="CARE-PD classifier fold (default: 1).",
     )
     ap.add_argument(
-        "--n_seq", type=int, default=200,
+        "--n_seq",
+        type=int,
+        default=200,
         help="Number of validation sequences to evaluate (default: 200).",
     )
     ap.add_argument(
-        "--methods", type=str, nargs="+", default=None,
+        "--methods",
+        type=str,
+        nargs="+",
+        default=None,
         help="Subset of gradient methods to run; default = all three.",
     )
     ap.add_argument(
-        "--results_dir", type=str, default=str(RESULTS_DIR),
+        "--results_dir",
+        type=str,
+        default=str(RESULTS_DIR),
         help="Output root directory (fold subdir created automatically).",
     )
     return ap.parse_args()
@@ -283,9 +292,7 @@ def main() -> None:
 
     cache_path = Path(CACHE_TEMPLATE.format(fold=fold))
     if not cache_path.exists():
-        raise FileNotFoundError(
-            f"CARE-PD eval cache not found for fold {fold}: {cache_path}"
-        )
+        raise FileNotFoundError(f"CARE-PD eval cache not found for fold {fold}: {cache_path}")
     ckpt_path = CAREPD_ROOT / CKPT_TEMPLATE.format(fold=fold)
     if not ckpt_path.exists():
         raise FileNotFoundError(
@@ -307,7 +314,11 @@ def main() -> None:
     N, J, F, T = x_val.shape
     log.info(
         "[fold%d] data: N=%d, J=%d, F=%d, T=%d, val_class_counts=%s",
-        fold, N, J, F, T,
+        fold,
+        N,
+        J,
+        F,
+        T,
         np.bincount(y_val[y_val >= 0], minlength=3).tolist(),
     )
     if N < N_SEQ:
@@ -322,6 +333,7 @@ def main() -> None:
     log.info("[fold%d] loading MotionBERT fold%d checkpoint...", fold, fold)
     t_load = time.time()
     from motionbench.classifiers.ported_care_pd.motionbert import MotionBERTClassifier
+
     clf = MotionBERTClassifier(
         n_classes=3,
         checkpoint_path=str(ckpt_path),
@@ -335,7 +347,8 @@ def main() -> None:
     targets = logits.argmax(dim=-1).cpu().numpy()
     log.info(
         "[fold%d] predicted class distribution: %s",
-        fold, np.bincount(targets, minlength=3).tolist(),
+        fold,
+        np.bincount(targets, minlength=3).tolist(),
     )
 
     # ------------------------------------------ coalition values (zero imputer)
@@ -343,7 +356,8 @@ def main() -> None:
     # imputation.  These are shared across all gradient methods.
     log.info(
         "[fold%d] precomputing coalition values (zero imputer) for %d sequences...",
-        fold, N,
+        fold,
+        N,
     )
     t_coal = time.time()
     v_all = np.zeros((N, n_coal), dtype=np.float32)
@@ -356,9 +370,7 @@ def main() -> None:
         v_all[i] = v_b.cpu().numpy()
         if (i + 1) % 50 == 0 or i == N - 1:
             log.info("  coalition values %d/%d", i + 1, N)
-    log.info(
-        "[fold%d] coalition values done in %.1fs", fold, time.time() - t_coal
-    )
+    log.info("[fold%d] coalition values done in %.1fs", fold, time.time() - t_coal)
 
     # ------------------------------------------------- gradient methods loop
     all_methods = ["ig", "deeplift", "smoothgrad"]
@@ -388,13 +400,14 @@ def main() -> None:
             target_i = int(targets[i])
 
             try:
-                phi_coords = _compute_attrs_on_device(
-                    method, clf, x_i, target_i, device
-                )
+                phi_coords = _compute_attrs_on_device(method, clf, x_i, target_i, device)
             except Exception as exc:
                 log.warning(
                     "  [fold%d] %s seq %d: GPU failed (%s); retrying CPU.",
-                    fold, method, i, exc,
+                    fold,
+                    method,
+                    i,
+                    exc,
                 )
                 n_fallback += 1
                 phi_coords = _compute_attrs_on_device(
@@ -408,14 +421,20 @@ def main() -> None:
             if (i + 1) % 25 == 0 or i == N - 1:
                 log.info(
                     "  [fold%d] %s  seq %d/%d  (avg %.2fs/seq)",
-                    fold, method, i + 1, N,
+                    fold,
+                    method,
+                    i + 1,
+                    N,
                     (time.time() - t_method) / (i + 1),
                 )
 
         if n_fallback > 0:
             log.warning(
                 "[fold%d] %s: %d/%d sequences fell back to CPU.",
-                fold, method, n_fallback, N,
+                fold,
+                method,
+                n_fallback,
+                N,
             )
 
         # ---------------------------------------------------------------- metrics
@@ -433,9 +452,7 @@ def main() -> None:
         n_finite = int(finite.sum())
 
         faith_mean = float(np.nanmean(faiths_arr))
-        faith_std = (
-            float(np.nanstd(faiths_arr, ddof=1)) if n_finite > 1 else float("nan")
-        )
+        faith_std = float(np.nanstd(faiths_arr, ddof=1)) if n_finite > 1 else float("nan")
         aopc_mean = float(np.mean(aopcs_arr))
         aopc_std = float(np.std(aopcs_arr, ddof=1)) if N > 1 else float("nan")
 
@@ -477,21 +494,28 @@ def main() -> None:
         }
         result_path.write_text(json.dumps(result, indent=2))
 
-        summary_rows.append({
-            "method": method,
-            "fold": int(fold),
-            "n": int(N),
-            "n_finite_faithfulness": n_finite,
-            "faith_mean": faith_mean,
-            "faith_std": faith_std,
-            "aopc_mean": aopc_mean,
-            "aopc_std": aopc_std,
-        })
+        summary_rows.append(
+            {
+                "method": method,
+                "fold": int(fold),
+                "n": int(N),
+                "n_finite_faithfulness": n_finite,
+                "faith_mean": faith_mean,
+                "faith_std": faith_std,
+                "aopc_mean": aopc_mean,
+                "aopc_std": aopc_std,
+            }
+        )
         log.info(
-            "  [fold%d] done %s in %.1fs — faith=%+.3f±%.3f, aopc=%.4f±%.4f "
-            "(n_finite=%d)",
-            fold, method, time.time() - t_method,
-            faith_mean, faith_std, aopc_mean, aopc_std, n_finite,
+            "  [fold%d] done %s in %.1fs — faith=%+.3f±%.3f, aopc=%.4f±%.4f (n_finite=%d)",
+            fold,
+            method,
+            time.time() - t_method,
+            faith_mean,
+            faith_std,
+            aopc_mean,
+            aopc_std,
+            n_finite,
         )
 
     # ---------------------------------------------------------------- LRP note
@@ -515,13 +539,20 @@ def main() -> None:
     log.info("=" * 60)
     log.info(
         "[fold%d] ALL DONE in %.1fs.  Results at %s",
-        fold, time.time() - t_total, fold_dir,
+        fold,
+        time.time() - t_total,
+        fold_dir,
     )
     for r in summary_rows:
         log.info(
             "  %-12s faith=%+.3f±%.3f  aopc=%+.4f±%.4f  (n=%d, n_finite=%d)",
-            r["method"], r["faith_mean"], r["faith_std"],
-            r["aopc_mean"], r["aopc_std"], r["n"], r["n_finite_faithfulness"],
+            r["method"],
+            r["faith_mean"],
+            r["faith_std"],
+            r["aopc_mean"],
+            r["aopc_std"],
+            r["n"],
+            r["n_finite_faithfulness"],
         )
 
 

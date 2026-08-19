@@ -40,6 +40,7 @@ Environment variables:
     CARE_PD_ROOT: root of the CARE-PD codebase (cache lookup).
     PTBXL_DATA_ROOT: root of the PTB-XL raw-data directory.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -93,11 +94,11 @@ def load_ptbxl_train_pool(fold: int, ptbxl_data_path: str) -> tuple[np.ndarray, 
     if not stats_path.exists():
         raise FileNotFoundError(f"PTB-XL stats not found: {stats_path}")
     stats = np.load(stats_path)
-    train_stats = (stats["mean"].astype(np.float32),
-                   stats["std"].astype(np.float32))
+    train_stats = (stats["mean"].astype(np.float32), stats["std"].astype(np.float32))
     train_fold_ids = stats["train_folds"].tolist()
 
     from motionbench.data.real.ptbxl import _FOLD_SPLITS, PTBXLDataset
+
     _FOLD_SPLITS["_train_folds"] = (train_fold_ids,)
     train_ds = PTBXLDataset(
         data_path=ptbxl_data_path,
@@ -126,33 +127,41 @@ def load_carepd_train_pool() -> np.ndarray:
 
 
 def load_ptbxl_classifier(fold: int, device: torch.device):
-    ckpt_path = (REPO_ROOT / "motionbench" / "classifiers"
-                 / "checkpoints" / "real" / f"ptbxl_fold{fold}.pt")
+    ckpt_path = (
+        REPO_ROOT / "motionbench" / "classifiers" / "checkpoints" / "real" / f"ptbxl_fold{fold}.pt"
+    )
     if not ckpt_path.exists():
         raise FileNotFoundError(f"PTB-XL classifier ckpt missing: {ckpt_path}")
     from motionbench.classifiers.ported_ptbxl.resnet1d import ECGResNet1dClassifier
-    clf = ECGResNet1dClassifier(n_classes=2,
-                                checkpoint_path=str(ckpt_path)).to(device)
+
+    clf = ECGResNet1dClassifier(n_classes=2, checkpoint_path=str(ckpt_path)).to(device)
     clf.eval()
     return clf, str(ckpt_path)
 
 
 def load_carepd_classifier(fold: int, device: torch.device):
-    ckpt_path = (REPO_ROOT / "motionbench" / "classifiers"
-                 / "checkpoints" / "real"
-                 / f"carepd_bmclab_fold{fold}_motionbert.pt")
+    ckpt_path = (
+        REPO_ROOT
+        / "motionbench"
+        / "classifiers"
+        / "checkpoints"
+        / "real"
+        / f"carepd_bmclab_fold{fold}_motionbert.pt"
+    )
     if not ckpt_path.exists():
         raise FileNotFoundError(f"CARE-PD MotionBERT ckpt missing: {ckpt_path}")
     from motionbench.classifiers.ported_care_pd.motionbert import MotionBERTClassifier
-    clf = MotionBERTClassifier(n_classes=3,
-                               checkpoint_path=str(ckpt_path)).to(device)
+
+    clf = MotionBERTClassifier(n_classes=3, checkpoint_path=str(ckpt_path)).to(device)
     clf.eval()
     return clf, str(ckpt_path)
 
 
 # ---------------------------------------------------------------- core
 def build_marginal_completions(
-    x_i: Tensor, donor_i: Tensor, frame_mask: Tensor,
+    x_i: Tensor,
+    donor_i: Tensor,
+    frame_mask: Tensor,
 ) -> Tensor:
     """Replace masked windows in x_i with values from the same donor.
 
@@ -175,10 +184,10 @@ def recompute_one_method(
     method: str,
     fold: int,
     method_dir: Path,
-    classifier_forward,            # callable(x_batch_dev) -> logits
-    donors: Tensor,                # (N, J, F, T) on CPU
-    frame_mask: Tensor,            # (n_coal, T) bool on CPU
-    z_bin: Tensor,                 # (n_coal, K) bool on CPU
+    classifier_forward,  # callable(x_batch_dev) -> logits
+    donors: Tensor,  # (N, J, F, T) on CPU
+    frame_mask: Tensor,  # (n_coal, T) bool on CPU
+    z_bin: Tensor,  # (n_coal, K) bool on CPU
     device: torch.device,
     log_prefix: str,
 ) -> dict | None:
@@ -191,14 +200,13 @@ def recompute_one_method(
 
     attr_path = method_dir / "attributions.npz"
     if not attr_path.exists():
-        log.warning("%s %s — attributions.npz missing, skipping.",
-                    log_prefix, method)
+        log.warning("%s %s — attributions.npz missing, skipping.", log_prefix, method)
         return None
 
     d = np.load(attr_path)
-    phi_all = d["phi"].astype(np.float32)             # (N, K)
-    x_all = d["x"].astype(np.float32)                 # (N, J, F, T)
-    target_all = d["target"].astype(np.int64)         # (N,)
+    phi_all = d["phi"].astype(np.float32)  # (N, K)
+    x_all = d["x"].astype(np.float32)  # (N, J, F, T)
+    target_all = d["target"].astype(np.int64)  # (N,)
     N = phi_all.shape[0]
     assert donors.shape[0] == N, (donors.shape, N)
 
@@ -216,9 +224,14 @@ def recompute_one_method(
         v_ref[i] = v_b.numpy()
 
         if (i + 1) % 50 == 0 or i == N - 1:
-            log.info("  %s %s  %d/%d  (%.2fs/seq)",
-                     log_prefix, method, i + 1, N,
-                     (time.time() - t_method) / (i + 1))
+            log.info(
+                "  %s %s  %d/%d  (%.2fs/seq)",
+                log_prefix,
+                method,
+                i + 1,
+                N,
+                (time.time() - t_method) / (i + 1),
+            )
 
     # ---- metrics
     faiths, aopcs = [], []
@@ -251,9 +264,15 @@ def recompute_one_method(
         "player_aopc_per_seq_fixed": aopcs_arr.tolist(),
     }
     out_path.write_text(json.dumps(result, indent=2))
-    log.info("  %s %s done %.1fs — faith_fixed=%+.3f aopc_fixed=%+.3f (n_fin=%d)",
-             log_prefix, method, time.time() - t_method,
-             faith_mean, aopc_mean, n_finite)
+    log.info(
+        "  %s %s done %.1fs — faith_fixed=%+.3f aopc_fixed=%+.3f (n_fin=%d)",
+        log_prefix,
+        method,
+        time.time() - t_method,
+        faith_mean,
+        aopc_mean,
+        n_finite,
+    )
     return result
 
 
@@ -264,9 +283,11 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--fold", type=int, required=True, choices=[1, 2, 3])
     ap.add_argument("--methods", nargs="+", default=None)
     ap.add_argument("--device", type=str, default="cuda:0")
-    ap.add_argument("--ptbxl_data_path", type=str,
-                    default=os.environ.get("PTBXL_DATA_ROOT",
-                                           str(REPO_ROOT / "data" / "ptb-xl")))
+    ap.add_argument(
+        "--ptbxl_data_path",
+        type=str,
+        default=os.environ.get("PTBXL_DATA_ROOT", str(REPO_ROOT / "data" / "ptb-xl")),
+    )
     return ap.parse_args()
 
 
@@ -304,8 +325,9 @@ def main() -> None:
 
         log_prefix = f"[care_pd fold{fold}]"
 
-    log.info("%s train pool: %d records  ckpt=%s",
-             log_prefix, x_train.shape[0], Path(ckpt_str).name)
+    log.info(
+        "%s train pool: %d records  ckpt=%s", log_prefix, x_train.shape[0], Path(ckpt_str).name
+    )
 
     z_bin, frame_mask = build_coalition_masks(K, T)
     1 << K
@@ -313,10 +335,9 @@ def main() -> None:
     # ---- donors: same RNG as the original kernelshap_marginal pipeline.
     rng = np.random.default_rng(42 + fold)
     donor_idx = rng.integers(0, x_train.shape[0], size=N_SEQ_DEFAULT)
-    donors_np = x_train[donor_idx]                      # (N, J, F, T)
-    donors = torch.from_numpy(donors_np).float()        # CPU
-    log.info("%s donors drawn (seed=%d, N=%d)",
-             log_prefix, 42 + fold, donors_np.shape[0])
+    donors_np = x_train[donor_idx]  # (N, J, F, T)
+    donors = torch.from_numpy(donors_np).float()  # CPU
+    log.info("%s donors drawn (seed=%d, N=%d)", log_prefix, 42 + fold, donors_np.shape[0])
 
     fold_dir = results_root / f"fold{fold}"
     if not fold_dir.exists():
@@ -326,8 +347,7 @@ def main() -> None:
     for method in methods:
         method_dir = fold_dir / method
         if not method_dir.exists():
-            log.warning("%s %s — method dir missing, skipping.",
-                        log_prefix, method)
+            log.warning("%s %s — method dir missing, skipping.", log_prefix, method)
             continue
         res = recompute_one_method(
             method=method,
@@ -344,8 +364,7 @@ def main() -> None:
             summary.append(res)
 
     log.info("=" * 60)
-    log.info("%s ALL DONE in %.1fs (%d methods)",
-             log_prefix, time.time() - t_total, len(summary))
+    log.info("%s ALL DONE in %.1fs (%d methods)", log_prefix, time.time() - t_total, len(summary))
 
 
 if __name__ == "__main__":

@@ -149,15 +149,17 @@ class CopulaOracle(Oracle, BaseImputer):
         self._T: int = self.Sigma_time.shape[0]
 
         # Cholesky for unconditional sampling (empty coalition edge case).
-        self._L_joints: npt.NDArray[np.float64] = np.asarray(np.linalg.cholesky(
-            self.Sigma_joints + 1e-8 * np.eye(self._J)), dtype=np.float64
+        self._L_joints: npt.NDArray[np.float64] = np.asarray(
+            np.linalg.cholesky(self.Sigma_joints + 1e-8 * np.eye(self._J)), dtype=np.float64
         )
-        self._L_time: npt.NDArray[np.float64] = np.asarray(np.linalg.cholesky(
-            self.Sigma_time + 1e-8 * np.eye(self._T)), dtype=np.float64
+        self._L_time: npt.NDArray[np.float64] = np.asarray(
+            np.linalg.cholesky(self.Sigma_time + 1e-8 * np.eye(self._T)), dtype=np.float64
         )
 
         # Cache for conditional parameters keyed by mask pattern.
-        self._cond_cache: dict[tuple[object, ...], tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]] = {}
+        self._cond_cache: dict[
+            tuple[object, ...], tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
+        ] = {}
 
     # ------------------------------------------------------------------
     # Copula transforms
@@ -563,9 +565,7 @@ class CopulaOracle(Oracle, BaseImputer):
             Soo = self.Sigma_joints[np.ix_(j_obs_a, j_obs_a)]
             Shh = self.Sigma_joints[np.ix_(j_hid_a, j_hid_a)]
             Sho = self.Sigma_joints[np.ix_(j_hid_a, j_obs_a)]
-            W = Sho @ np.linalg.solve(
-                Soo + 1e-10 * np.eye(len(j_obs_a)), np.eye(len(j_obs_a))
-            )
+            W = Sho @ np.linalg.solve(Soo + 1e-10 * np.eye(len(j_obs_a)), np.eye(len(j_obs_a)))
             Sc = Shh - W @ Sho.T
             Sc = 0.5 * (Sc + Sc.T) + 1e-8 * np.eye(len(j_hid_a))
             self._cond_cache[key] = (np.linalg.cholesky(Sc), W)

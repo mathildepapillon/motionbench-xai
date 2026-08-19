@@ -10,6 +10,7 @@ Environment variables:
     CARE_PD_ROOT: Root of the CARE-PD codebase (used for cache output).
         Defaults to the sibling directory of this repo.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,15 +31,22 @@ CARE_PD_CACHE = CARE_PD_ROOT / "cache" / "vaeac_synthetic"
 def _build(name: str, J: int = 17, T: int = 16, n_total: int = 1000) -> Path:
     print(f"=== Building {name}: J={J}, T={T}, n_total={n_total} ===")
     ds = SkeletonGaitDataset(
-        J=J, F=3, T=T, N=n_total,
-        decay=0.5, period_mean=7.0, period_std=1.0, n_harmonics=3,
-        n_classes=3, seed=2026,
+        J=J,
+        F=3,
+        T=T,
+        N=n_total,
+        decay=0.5,
+        period_mean=7.0,
+        period_std=1.0,
+        n_harmonics=3,
+        n_classes=3,
+        seed=2026,
     )
     Xs = []
     for i in range(len(ds)):
         x_i, _ = ds[i]
         Xs.append(x_i.numpy())
-    X = np.stack(Xs, axis=0)                              # (N, J, F, T)
+    X = np.stack(Xs, axis=0)  # (N, J, F, T)
     X = np.transpose(X, (0, 3, 1, 2)).astype(np.float32)  # (N, T, J, F)
 
     n_train = int(0.85 * n_total)

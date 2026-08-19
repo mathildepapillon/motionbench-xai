@@ -82,8 +82,7 @@ methods = {
 Z, w = sampled_coalition_set(M, budget=1024)
 det = DeterministicConditionalOracle.from_oracle(oracle, players, Z)
 masks_np = [
-    players.coalition_mask(torch.as_tensor(z != 0)).numpy()
-    for z in np.asarray(Z, dtype=np.int64)
+    players.coalition_mask(torch.as_tensor(z != 0)).numpy() for z in np.asarray(Z, dtype=np.int64)
 ]
 
 print(f"\n{'method':30s} {'EC1':>8s} {'EC3':>8s}   (n={N_EXPLAIN} sequences)")
@@ -114,9 +113,11 @@ for name, (imputer, game) in methods.items():
         phi_star = phi_from_values(Z, w, v_star)
 
         ec1s.append(float(np.mean(np.abs(phi - phi_star))))
-        pear = float(np.clip(np.corrcoef(phi, phi_star)[0, 1], -1, 1)) if (
-            np.std(phi) > 1e-10 and np.std(phi_star) > 1e-10
-        ) else 0.0
+        pear = (
+            float(np.clip(np.corrcoef(phi, phi_star)[0, 1], -1, 1))
+            if (np.std(phi) > 1e-10 and np.std(phi_star) > 1e-10)
+            else 0.0
+        )
         ec3s.append(1.0 - pear)
     print(f"{name:30s} {np.mean(ec1s):8.4f} {np.mean(ec3s):8.4f}")
 

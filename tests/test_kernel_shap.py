@@ -232,9 +232,7 @@ def test_kernelshap_matches_oracle() -> None:
     players = MockPlayerSet(J, F, T, K)
 
     # --- Ground-truth Shapley values via oracle --------------------------------
-    phi_oracle = oracle.true_shapley(
-        x, _linear_clf, players, n_mc=500, n_coalitions=1000, seed=1
-    )
+    phi_oracle = oracle.true_shapley(x, _linear_clf, players, n_mc=500, n_coalitions=1000, seed=1)
 
     # --- KernelSHAP with GaussianOracle as imputer ----------------------------
     attr = KernelShapAttributor(
@@ -305,7 +303,7 @@ def test_masker_shape_full_coalition() -> None:
     mask = np.ones(K, dtype=bool)
     (out,) = masker(mask, mask.astype(np.float64))
 
-    assert out.shape == (1, J * F * T), f"Expected (1, {J*F*T}), got {out.shape}"
+    assert out.shape == (1, J * F * T), f"Expected (1, {J * F * T}), got {out.shape}"
 
 
 def test_masker_empty_coalition_zeros_out() -> None:

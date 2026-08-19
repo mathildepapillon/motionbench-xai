@@ -24,6 +24,7 @@ Usage::
     CUDA_VISIBLE_DEVICES=0 python scripts/run_care_pd_extended.py --fold 2
     CUDA_VISIBLE_DEVICES=0 python scripts/run_care_pd_extended.py --fold 3
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,8 +48,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = REPO_ROOT / "results" / "care_pd_extended"
 CARE_PD_ROOT = Path(os.environ.get("CARE_PD_ROOT", REPO_ROOT.parent / "CARE-PD"))
 CACHE_TEMPLATE = str(
-    CARE_PD_ROOT / "cache" / "flow_matching"
-    / "BMCLab_h36m_80_classifier23fold_fold{fold}_eval" / "cache.npz"
+    CARE_PD_ROOT
+    / "cache"
+    / "flow_matching"
+    / "BMCLab_h36m_80_classifier23fold_fold{fold}_eval"
+    / "cache.npz"
 )
 # Per-fold _eval caches are validation-only (x1_train is empty). The training
 # pool from the legacy fold1 cache is reused as a generic donor source for the
@@ -57,12 +61,9 @@ CACHE_TEMPLATE = str(
 TRAIN_POOL_CACHE = CARE_PD_ROOT / "cache" / "flow_matching" / "BMCLab_h36m_80_fold1" / "cache.npz"
 # Backwards-compat alias used by older callsites in this script.
 CAREPD_ROOT = REPO_ROOT
-CKPT_TEMPLATE = (
-    "motionbench/classifiers/checkpoints/real/"
-    "carepd_bmclab_fold{fold}_motionbert.pt"
-)
+CKPT_TEMPLATE = "motionbench/classifiers/checkpoints/real/carepd_bmclab_fold{fold}_motionbert.pt"
 
-K = 4              # temporal windows
+K = 4  # temporal windows
 DEVICE = "cuda:0"  # overridden by CUDA_VISIBLE_DEVICES
 
 
@@ -93,7 +94,10 @@ def build_coalition_masks(K: int, T: int) -> tuple[Tensor, Tensor]:
 
 
 def build_completions_offmanifold(
-    x: Tensor, frame_mask_2k: Tensor, kind: str, mean_per_jf: Tensor | None = None,
+    x: Tensor,
+    frame_mask_2k: Tensor,
+    kind: str,
+    mean_per_jf: Tensor | None = None,
 ) -> Tensor:
     """Construct (16, J, F, T) batched completions for off-manifold imputers."""
     J, F, T = x.shape
@@ -128,6 +132,7 @@ def shapley_kernel(K: int, s: int) -> float:
     if s == 0 or s == K:
         return 1e6
     from math import comb
+
     return (K - 1) / (comb(K, s) * s * (K - s))
 
 
@@ -157,7 +162,7 @@ def faithfulness_correlation(z_bin: Tensor, v_vals: Tensor, phi: Tensor) -> floa
     """Pearson correlation between sum-of-attributions-of-removed-players
     and (v(N) - v(S)) over all coalitions."""
     z = z_bin.float()
-    not_z = (1.0 - z)
+    not_z = 1.0 - z
     sum_phi_absent = not_z @ phi
     delta = v_vals[-1] - v_vals
     a = sum_phi_absent.numpy()
@@ -189,14 +194,29 @@ def player_aopc(v_vals: Tensor, z_bin: Tensor, phi: Tensor, K: int) -> float:
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--fold", type=int, default=1, choices=list(range(1, 24)),
-                    help="CARE-PD classifier fold (1..23). Imputers always use fold1 ckpts.")
-    ap.add_argument("--n_seq", type=int, default=200,
-                    help="Number of validation sequences to evaluate.")
-    ap.add_argument("--methods", type=str, nargs="+", default=None,
-                    help="Subset of methods to run; default = all 5.")
-    ap.add_argument("--results_dir", type=str, default=str(RESULTS_DIR),
-                    help="Output root (per-fold subdir created automatically).")
+    ap.add_argument(
+        "--fold",
+        type=int,
+        default=1,
+        choices=list(range(1, 24)),
+        help="CARE-PD classifier fold (1..23). Imputers always use fold1 ckpts.",
+    )
+    ap.add_argument(
+        "--n_seq", type=int, default=200, help="Number of validation sequences to evaluate."
+    )
+    ap.add_argument(
+        "--methods",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Subset of methods to run; default = all 5.",
+    )
+    ap.add_argument(
+        "--results_dir",
+        type=str,
+        default=str(RESULTS_DIR),
+        help="Output root (per-fold subdir created automatically).",
+    )
     return ap.parse_args()
 
 
@@ -229,22 +249,29 @@ def main() -> None:
     # Eval caches are val-only — pull the donor/mean pool from the legacy
     # fold1 cache (full BMCLab train pool, fold-agnostic in distribution).
     if d["x1_train"].shape[0] == 0:
-        log.info("[fold%d] eval cache has no train pool; loading legacy "
-                 "BMCLab_h36m_80_fold1 cache for marginal donors", fold)
+        log.info(
+            "[fold%d] eval cache has no train pool; loading legacy "
+            "BMCLab_h36m_80_fold1 cache for marginal donors",
+            fold,
+        )
         d_train = np.load(TRAIN_POOL_CACHE, allow_pickle=True)
         x_train = np.transpose(d_train["x1_train"], (0, 2, 3, 1)).astype(np.float32)
     else:
         x_train = np.transpose(d["x1_train"], (0, 2, 3, 1)).astype(np.float32)
     N, J, F, T = x_val.shape
-    log.info("[fold%d] data: N=%d, J=%d, F=%d, T=%d, val_class_counts=%s, "
-             "train_pool_N=%d",
-             fold, N, J, F, T,
-             np.bincount(y_val[y_val >= 0], minlength=3).tolist(),
-             x_train.shape[0])
+    log.info(
+        "[fold%d] data: N=%d, J=%d, F=%d, T=%d, val_class_counts=%s, train_pool_N=%d",
+        fold,
+        N,
+        J,
+        F,
+        T,
+        np.bincount(y_val[y_val >= 0], minlength=3).tolist(),
+        x_train.shape[0],
+    )
 
     if N < N_SEQ:
-        log.warning("[fold%d] only %d valid sequences available (asked for %d)",
-                    fold, N, N_SEQ)
+        log.warning("[fold%d] only %d valid sequences available (asked for %d)", fold, N, N_SEQ)
 
     # ------------------------------------------------------------- coalitions
     z_bin, frame_mask = build_coalition_masks(K, T)
@@ -255,6 +282,7 @@ def main() -> None:
     log.info("[fold%d] loading MotionBERT (fold%d ckpt)...", fold, fold)
     t_load = time.time()
     from motionbench.classifiers.ported_care_pd.motionbert import MotionBERTClassifier
+
     clf = MotionBERTClassifier(
         n_classes=3,
         checkpoint_path=str(ckpt_path),
@@ -273,7 +301,7 @@ def main() -> None:
 
     rng = np.random.default_rng(42 + fold)
     donor_idx = rng.integers(0, x_train.shape[0], size=N)
-    donors = torch.from_numpy(x_train[donor_idx]).float()           # (N, J, F, T)
+    donors = torch.from_numpy(x_train[donor_idx]).float()  # (N, J, F, T)
 
     vaeac_imputer = None
     flow_imputer = None
@@ -284,6 +312,7 @@ def main() -> None:
             log.info("[fold%d] loading VAEAC imputer (fold1 ckpt — reused)...", fold)
             t = time.time()
             from motionbench.imputers.carepd_imputer import _CARE_PD_ROOT, _load_vaeac
+
             ckpt_dir = _CARE_PD_ROOT / "experiment_outs/vaeac_real/bmclab_fold1_real_gait_bm"
             cfg_path = _CARE_PD_ROOT / "configs/vaeac/bmclab_fold1_real_gait_bm.json"
             vaeac_imputer = _load_vaeac(ckpt_dir, cfg_path, device)
@@ -296,11 +325,13 @@ def main() -> None:
             log.info("[fold%d] loading Flow imputer (fold1 ckpt — reused)...", fold)
             t = time.time()
             from motionbench.imputers.carepd_imputer import _CARE_PD_ROOT, _load_flow
+
             ckpt_dir = _CARE_PD_ROOT / "experiment_outs/flow_matching/bmclab_h36m3d_fold1"
             cfg_path = _CARE_PD_ROOT / "configs/flow_matching/bmclab_h36m3d_fold1.json"
             cfg = json.loads(cfg_path.read_text())
             cfg["num_steps"] = 20
             import tempfile
+
             with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                 json.dump(cfg, f)
                 tmp_cfg = Path(f.name)
@@ -313,8 +344,11 @@ def main() -> None:
 
     # ------------------------------------------------------------- methods
     all_methods = [
-        "kernelshap_zero", "kernelshap_mean", "kernelshap_marginal",
-        "kernelshap_vaeac", "kernelshap_flow",
+        "kernelshap_zero",
+        "kernelshap_mean",
+        "kernelshap_marginal",
+        "kernelshap_vaeac",
+        "kernelshap_flow",
     ]
     methods = args.methods if args.methods else all_methods
     for m in methods:
@@ -352,7 +386,10 @@ def main() -> None:
                 comps = build_completions_offmanifold(x_i, frame_mask, "mean", mean_jf)
             elif method == "kernelshap_marginal":
                 comps = build_completions_offmanifold(
-                    x_i, frame_mask, "marginal", donors[i],
+                    x_i,
+                    frame_mask,
+                    "marginal",
+                    donors[i],
                 )
             elif method in ("kernelshap_vaeac", "kernelshap_flow"):
                 with torch.no_grad():
@@ -361,7 +398,7 @@ def main() -> None:
                         mask=torch.ones(1, T, dtype=torch.bool, device=device),
                         coalition_masks=frame_mask.to(device),
                         n_samples=1,
-                    )                                            # (16, 1, J, F, T)
+                    )  # (16, 1, J, F, T)
                 comps = out.squeeze(1).cpu().contiguous()
                 obs = frame_mask.view(n_coal, 1, 1, T).expand(n_coal, J, F, T)
                 comps = torch.where(obs, x_i.unsqueeze(0).expand_as(comps), comps).contiguous()
@@ -377,9 +414,14 @@ def main() -> None:
             phis[i] = phi.numpy()
 
             if (i + 1) % 25 == 0 or i == N - 1:
-                log.info("  [fold%d] %s seq %d/%d (avg %.2fs/seq)",
-                         fold, method, i + 1, N,
-                         (time.time() - t_method) / (i + 1))
+                log.info(
+                    "  [fold%d] %s seq %d/%d (avg %.2fs/seq)",
+                    fold,
+                    method,
+                    i + 1,
+                    N,
+                    (time.time() - t_method) / (i + 1),
+                )
 
         # ------------------------------------------------------------- metrics
         faiths = []
@@ -428,29 +470,44 @@ def main() -> None:
             "targets_per_seq": targets.tolist(),
         }
         result_path.write_text(json.dumps(result, indent=2))
-        summary_rows.append({
-            "method": method,
-            "fold": int(fold),
-            "n": int(N),
-            "faith_mean": faith_mean,
-            "faith_std": faith_std,
-            "aopc_mean": aopc_mean,
-            "aopc_std": aopc_std,
-        })
-        log.info("  [fold%d] done %s in %.1fs — faith=%.3f±%.3f, aopc=%.3f±%.3f (n_finite=%d)",
-                 fold, method, time.time() - t_method,
-                 faith_mean, faith_std, aopc_mean, aopc_std, n_finite)
+        summary_rows.append(
+            {
+                "method": method,
+                "fold": int(fold),
+                "n": int(N),
+                "faith_mean": faith_mean,
+                "faith_std": faith_std,
+                "aopc_mean": aopc_mean,
+                "aopc_std": aopc_std,
+            }
+        )
+        log.info(
+            "  [fold%d] done %s in %.1fs — faith=%.3f±%.3f, aopc=%.3f±%.3f (n_finite=%d)",
+            fold,
+            method,
+            time.time() - t_method,
+            faith_mean,
+            faith_std,
+            aopc_mean,
+            aopc_std,
+            n_finite,
+        )
 
     # Per-fold summary
     summary_path = fold_dir / "summary.json"
     summary_path.write_text(json.dumps(summary_rows, indent=2))
     log.info("=" * 60)
-    log.info("[fold%d] ALL DONE in %.1fs.  Results at %s",
-             fold, time.time() - t_total, fold_dir)
+    log.info("[fold%d] ALL DONE in %.1fs.  Results at %s", fold, time.time() - t_total, fold_dir)
     for r in summary_rows:
-        log.info("  %-25s faith=%+.3f±%.3f  aopc=%+.3f±%.3f  (n=%d)",
-                 r["method"], r["faith_mean"], r["faith_std"],
-                 r["aopc_mean"], r["aopc_std"], r["n"])
+        log.info(
+            "  %-25s faith=%+.3f±%.3f  aopc=%+.3f±%.3f  (n=%d)",
+            r["method"],
+            r["faith_mean"],
+            r["faith_std"],
+            r["aopc_mean"],
+            r["aopc_std"],
+            r["n"],
+        )
 
 
 if __name__ == "__main__":

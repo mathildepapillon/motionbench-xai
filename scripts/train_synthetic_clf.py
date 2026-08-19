@@ -47,6 +47,7 @@ python scripts/train_synthetic_clf.py \\
 # Force CPU (debugging only — not recommended):
 python scripts/train_synthetic_clf.py --force-cpu
 """
+
 from __future__ import annotations
 
 import argparse
@@ -102,42 +103,68 @@ DATASET_CONFIGS: dict[str, dict[str, Any]] = {
     "gaussian_k8": dict(
         cls=GaussianMotionDataset, J=5, F=3, T=16, K=8, rho=0.5, alpha=0.8, seed=43
     ),
-    "burr_m5": dict(
-        cls=BurrMotionBenchmark, J=5, F=3, T=20, K=5, rho=0.5, alpha=0.8, seed=44
-    ),
-    "burr_m10": dict(
-        cls=BurrMotionBenchmark, J=5, F=3, T=20, K=10, rho=0.5, alpha=0.8, seed=45
-    ),
+    "burr_m5": dict(cls=BurrMotionBenchmark, J=5, F=3, T=20, K=5, rho=0.5, alpha=0.8, seed=44),
+    "burr_m10": dict(cls=BurrMotionBenchmark, J=5, F=3, T=20, K=10, rho=0.5, alpha=0.8, seed=45),
     "skeleton_structured": dict(
         cls=SkeletonStructuredDataset,
-        J=17, F=3, T=16, K=4,
-        alpha_time=0.9, decay=0.5, n_classes=3, seed=46,
+        J=17,
+        F=3,
+        T=16,
+        K=4,
+        alpha_time=0.9,
+        decay=0.5,
+        n_classes=3,
+        seed=46,
     ),
     "gait_periodic": dict(
         cls=GaitPeriodicDataset,
-        J=17, F=3, T=16, K=4,
+        J=17,
+        F=3,
+        T=16,
+        K=4,
         # period_mean=7.0: T/period = 16/7 ≈ 2.29 (non-integer) so the cosine
         # kernel does NOT cancel over T frames and the grand-mean label is learnable.
-        period_mean=7.0, n_harmonics=3, n_classes=3, seed=47,
+        period_mean=7.0,
+        n_harmonics=3,
+        n_classes=3,
+        seed=47,
     ),
     # New datasets (May 2026): close coverage gaps for spatial / temporal
     # localization and low-rank manifold geometry.
     "low_rank_manifold": dict(
         cls=LowRankManifoldDataset,
-        J=17, F=3, T=16, K=4,
-        rank=4, eps=0.01, alpha_time=0.9, n_classes=3, seed=99,
+        J=17,
+        F=3,
+        T=16,
+        K=4,
+        rank=4,
+        eps=0.01,
+        alpha_time=0.9,
+        n_classes=3,
+        seed=99,
     ),
     "window_label_gaussian": dict(
         cls=GaussianMotionDataset,
-        J=5, F=3, T=16, K=4,
-        rho=0.5, alpha=0.8, seed=142,
+        J=5,
+        F=3,
+        T=16,
+        K=4,
+        rho=0.5,
+        alpha=0.8,
+        seed=142,
         # Localized: only window 1 of K=4 drives y.
         label_fn=LocalizedTemporal(window_idx=1, K=4, n_classes=3),
     ),
     "joint_subset_skeleton": dict(
         cls=SkeletonStructuredDataset,
-        J=17, F=3, T=16, K=4,
-        alpha_time=0.9, decay=0.5, n_classes=3, seed=146,
+        J=17,
+        F=3,
+        T=16,
+        K=4,
+        alpha_time=0.9,
+        decay=0.5,
+        n_classes=3,
+        seed=146,
         # Localized: only joint 6 (left ankle) drives y.
         label_fn=LocalizedSpatial(joint_idx=6, n_classes=3),
     ),
@@ -147,8 +174,13 @@ DATASET_CONFIGS: dict[str, dict[str, Any]] = {
     # a piecewise-constant decision surface with zero marginal effects.
     "xor_label_gaussian": dict(
         cls=GaussianMotionDataset,
-        J=5, F=3, T=16, K=4,
-        rho=0.5, alpha=0.8, seed=152,
+        J=5,
+        F=3,
+        T=16,
+        K=4,
+        rho=0.5,
+        alpha=0.8,
+        seed=152,
         label_fn=ThresholdedXOR(K=4, n_classes=3),
     ),
     # Fourth-quadrant pillar (May 2026): high-spatial × high-temporal —
@@ -156,9 +188,16 @@ DATASET_CONFIGS: dict[str, dict[str, Any]] = {
     # cell of the 2x2 design grid.
     "skeleton_gait_combined": dict(
         cls=SkeletonGaitDataset,
-        J=17, F=3, T=16, K=4,
-        decay=0.5, period_mean=7.0, period_std=1.0, n_harmonics=3,
-        n_classes=3, seed=51,
+        J=17,
+        F=3,
+        T=16,
+        K=4,
+        decay=0.5,
+        period_mean=7.0,
+        period_std=1.0,
+        n_harmonics=3,
+        n_classes=3,
+        seed=51,
     ),
 }
 
@@ -217,23 +256,38 @@ def _build_dataset(ds_cfg: dict[str, Any], N: int, seed: int) -> tuple[torch.Ten
     elif cls is BurrMotionBenchmark:
         kwargs = {**shared, "rho": ds_cfg["rho"], "alpha": ds_cfg["alpha"]}
     elif cls is SkeletonStructuredDataset:
-        kwargs = {**shared, "alpha_time": ds_cfg["alpha_time"], "decay": ds_cfg["decay"],
-                  "n_classes": ds_cfg["n_classes"]}
+        kwargs = {
+            **shared,
+            "alpha_time": ds_cfg["alpha_time"],
+            "decay": ds_cfg["decay"],
+            "n_classes": ds_cfg["n_classes"],
+        }
         if "label_fn" in ds_cfg:
             kwargs["label_fn"] = ds_cfg["label_fn"]
     elif cls is GaitPeriodicDataset:
-        kwargs = {**shared, "period_mean": ds_cfg["period_mean"],
-                  "n_harmonics": ds_cfg["n_harmonics"], "n_classes": ds_cfg["n_classes"]}
+        kwargs = {
+            **shared,
+            "period_mean": ds_cfg["period_mean"],
+            "n_harmonics": ds_cfg["n_harmonics"],
+            "n_classes": ds_cfg["n_classes"],
+        }
     elif cls is SkeletonGaitDataset:
-        kwargs = {**shared,
-                  "decay": ds_cfg["decay"],
-                  "period_mean": ds_cfg["period_mean"],
-                  "period_std": ds_cfg.get("period_std", 1.0),
-                  "n_harmonics": ds_cfg["n_harmonics"],
-                  "n_classes": ds_cfg["n_classes"]}
+        kwargs = {
+            **shared,
+            "decay": ds_cfg["decay"],
+            "period_mean": ds_cfg["period_mean"],
+            "period_std": ds_cfg.get("period_std", 1.0),
+            "n_harmonics": ds_cfg["n_harmonics"],
+            "n_classes": ds_cfg["n_classes"],
+        }
     elif cls is LowRankManifoldDataset:
-        kwargs = {**shared, "rank": ds_cfg["rank"], "eps": ds_cfg["eps"],
-                  "alpha_time": ds_cfg["alpha_time"], "n_classes": ds_cfg["n_classes"]}
+        kwargs = {
+            **shared,
+            "rank": ds_cfg["rank"],
+            "eps": ds_cfg["eps"],
+            "alpha_time": ds_cfg["alpha_time"],
+            "n_classes": ds_cfg["n_classes"],
+        }
     else:
         raise ValueError(f"Unknown dataset class: {cls}")
 
@@ -259,7 +313,9 @@ def _build_classifier(clf_name: str, ds_cfg: dict[str, Any], n_classes: int) -> 
     if clf_name == "synthetic_cnn":
         return SyntheticCNNClassifier(J=J, F=F, n_classes=n_classes)
     if clf_name == "synthetic_transformer":
-        return SyntheticTransformerClassifier(J=J, F=F, n_classes=n_classes, d_model=32, nhead=4, num_layers=2)
+        return SyntheticTransformerClassifier(
+            J=J, F=F, n_classes=n_classes, d_model=32, nhead=4, num_layers=2
+        )
     raise ValueError(f"Unknown classifier: {clf_name!r}")
 
 
@@ -358,7 +414,9 @@ def _train_single(
     ckpt_path = out_dir / f"{clf_name}.pt"
 
     clf_config: dict[str, Any] = {
-        "J": ds_cfg["J"], "F": ds_cfg["F"], "n_classes": n_classes,
+        "J": ds_cfg["J"],
+        "F": ds_cfg["F"],
+        "n_classes": n_classes,
     }
     if clf_name == "synthetic_mlp":
         clf_config.update({"T": ds_cfg["T"], "K": ds_cfg.get("K", 4)})
@@ -443,9 +501,14 @@ def _train_with_retry(
 
     hp = CLF_HPARAMS[clf_name]
     result = _train_single(
-        dataset_name, clf_name, device_str, checkpoint_dir,
-        lr=hp["lr"], epochs=hp["epochs"],
-        batch_size=hp["batch_size"], weight_decay=hp["weight_decay"],
+        dataset_name,
+        clf_name,
+        device_str,
+        checkpoint_dir,
+        lr=hp["lr"],
+        epochs=hp["epochs"],
+        batch_size=hp["batch_size"],
+        weight_decay=hp["weight_decay"],
         seed=seed,
     )
     if result["val_acc"] < MIN_ACC_RETRY:
@@ -454,9 +517,14 @@ def _train_with_retry(
             f"< {MIN_ACC_RETRY} — retrying with lr={hp['lr'] / 5:.6f}"
         )
         result = _train_single(
-            dataset_name, clf_name, device_str, checkpoint_dir,
-            lr=hp["lr"] / 5, epochs=hp["epochs"],
-            batch_size=hp["batch_size"], weight_decay=hp["weight_decay"],
+            dataset_name,
+            clf_name,
+            device_str,
+            checkpoint_dir,
+            lr=hp["lr"] / 5,
+            epochs=hp["epochs"],
+            batch_size=hp["batch_size"],
+            weight_decay=hp["weight_decay"],
             seed=seed + 1,
         )
     return result
@@ -480,7 +548,7 @@ def _parse_args() -> argparse.Namespace:
         choices=list(DATASET_CONFIGS.keys()),
         metavar="DATASET",
         help="Datasets to train on (default: all 11 — 9 main-paper datasets "
-             "plus 2 appendix-only datasets).",
+        "plus 2 appendix-only datasets).",
     )
     parser.add_argument(
         "--classifiers",
@@ -551,8 +619,7 @@ def main() -> None:
             invalid = [g for g in args.gpus if g >= n_cuda]
             if invalid:
                 raise ValueError(
-                    f"GPU indices {invalid} are out of range "
-                    f"(found {n_cuda} CUDA devices)."
+                    f"GPU indices {invalid} are out of range (found {n_cuda} CUDA devices)."
                 )
             gpu_ids = args.gpus
         else:
@@ -560,16 +627,14 @@ def main() -> None:
         devices = [f"cuda:{g}" for g in gpu_ids]
 
     # ---- Jobs ---------------------------------------------------------------
-    jobs: list[tuple[str, str]] = [
-        (ds, clf)
-        for ds in args.datasets
-        for clf in args.classifiers
-    ]
+    jobs: list[tuple[str, str]] = [(ds, clf) for ds in args.datasets for clf in args.classifiers]
     n_jobs = len(jobs)
     n_workers = args.n_workers if args.n_workers is not None else min(n_jobs, len(devices))
 
     print("MotionBench-XAI — Synthetic Classifier Training")
-    print(f"  Jobs      : {n_jobs} ({len(args.datasets)} datasets × {len(args.classifiers)} classifiers)")
+    print(
+        f"  Jobs      : {n_jobs} ({len(args.datasets)} datasets × {len(args.classifiers)} classifiers)"
+    )
     print(f"  Devices   : {devices}")
     print(f"  Workers   : {n_workers} parallel jobs")
     print(f"  Output dir: {args.checkpoint_dir}")
@@ -582,7 +647,12 @@ def main() -> None:
 
     results: list[dict[str, Any]] = Parallel(n_jobs=n_workers, backend="loky")(
         delayed(_train_with_retry)(
-            ds, clf, dev, args.checkpoint_dir, seed=args.seed, force=args.force,
+            ds,
+            clf,
+            dev,
+            args.checkpoint_dir,
+            seed=args.seed,
+            force=args.force,
         )
         for (ds, clf), dev in zip(jobs, assigned_devices, strict=False)
     )

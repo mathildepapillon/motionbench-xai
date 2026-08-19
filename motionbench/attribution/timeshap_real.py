@@ -184,14 +184,19 @@ class RealTimeSHAPAttributor(BaseAttributor):
         F_total = J * F_coords
 
         # (J, F, T) → (1, T, J*F)
-        x_np = (
-            x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy()
-        )[np.newaxis].astype(np.float32)
+        x_np = (x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy())[np.newaxis].astype(
+            np.float32
+        )
         baseline = np.zeros_like(x_np)  # (1, T, F_total) all-zeros baseline
 
         device = _resolve_classifier_device(self._classifier, x)
         adapter = _TimeSHAPClassifierAdapter(
-            self._classifier, J, F_coords, T, target, device,
+            self._classifier,
+            J,
+            F_coords,
+            T,
+            target,
+            device,
         )
 
         df = local_event(
@@ -256,7 +261,8 @@ class RealTimeSHAPAttributor(BaseAttributor):
         # sum_{t in window k} phi[j, f, t] == phi_window_k for each (j, f).
         per_step_per_coord = (phi_t / float(F_total))[:, np.newaxis]  # (T, 1)
         per_step_full = np.broadcast_to(
-            per_step_per_coord, (T, F_total),
+            per_step_per_coord,
+            (T, F_total),
         ).copy()  # (T, F_total)
         phi_3d = per_step_full.reshape(T, J, F_coords)
         phi_coords = torch.as_tensor(phi_3d, dtype=torch.float32).permute(1, 2, 0)

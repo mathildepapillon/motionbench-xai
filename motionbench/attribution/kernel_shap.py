@@ -166,9 +166,7 @@ class _MotionBenchMasker(shap.maskers.Masker):  # type: ignore[misc]
         completions: Tensor = self._imputer.impute(
             self._x_obs, element_mask, n_samples=self._n_completion
         )  # (n_completion, J, F, T)
-        result: npt.NDArray[np.float32] = (
-            completions.detach().cpu().numpy().astype(np.float32)
-        )
+        result: npt.NDArray[np.float32] = completions.detach().cpu().numpy().astype(np.float32)
         return result
 
 
@@ -237,9 +235,7 @@ class KernelShapAttributor(BaseAttributor):
     ) -> None:
         super().__init__(classifier)
         if value_fn not in ("f_of_mean", "mean_of_f"):
-            raise ValueError(
-                f"Unknown value_fn {value_fn!r}; use 'f_of_mean' or 'mean_of_f'."
-            )
+            raise ValueError(f"Unknown value_fn {value_fn!r}; use 'f_of_mean' or 'mean_of_f'.")
         self._imputer = imputer
         self._n_samples = n_samples
         self._n_completion_samples = n_completion_samples
@@ -288,9 +284,7 @@ class KernelShapAttributor(BaseAttributor):
         # Build the masker and classifier wrappers
         # ------------------------------------------------------------------ #
 
-        masker = _MotionBenchMasker(
-            x, players, self._imputer, self._n_completion_samples
-        )
+        masker = _MotionBenchMasker(x, players, self._imputer, self._n_completion_samples)
 
         # Detect classifier device so we can move inputs to match.
         # self._classifier may be a plain Python function (e.g. _prob_clf wrapper),

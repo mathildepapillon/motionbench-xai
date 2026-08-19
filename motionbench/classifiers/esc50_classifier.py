@@ -12,6 +12,7 @@ Usage::
     # x: (B, 128, 1, 1024) float32 tensor
     probs = clf(x)  # (B, 50)
 """
+
 from __future__ import annotations
 
 import torch
@@ -27,9 +28,12 @@ class ESC50ASTClassifier(nn.Module):
         device: Torch device to place the model on.
     """
 
-    def __init__(self, model_name: str = "bioamla/ast-esc50", device: str | torch.device = "cpu") -> None:
+    def __init__(
+        self, model_name: str = "bioamla/ast-esc50", device: str | torch.device = "cpu"
+    ) -> None:
         super().__init__()
         from transformers import ASTForAudioClassification
+
         self._model = ASTForAudioClassification.from_pretrained(
             model_name, ignore_mismatched_sizes=True
         )
@@ -47,9 +51,9 @@ class ESC50ASTClassifier(nn.Module):
         # x: (B, 128, 1, 1024)
         x.shape[0]
         # Squeeze F dim: (B, 128, 1024)
-        x2 = x.squeeze(2)          # (B, 128, 1024)
+        x2 = x.squeeze(2)  # (B, 128, 1024)
         # Permute to (B, 1024, 128) = (B, time_steps, num_mel_bins) as AST expects
-        x2 = x2.permute(0, 2, 1)   # (B, 1024, 128)
+        x2 = x2.permute(0, 2, 1)  # (B, 1024, 128)
 
         out = self._model(input_values=x2, output_hidden_states=False)
         logits = out.logits  # (B, 50)

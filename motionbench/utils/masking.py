@@ -56,6 +56,4 @@ def assert_mask_shape(mask: Tensor, J: int, F: int, T: int) -> None:
         ValueError: if ``mask.shape != (J, F, T)``.
     """
     if tuple(mask.shape) != (J, F, T):
-        raise ValueError(
-            f"Expected mask shape ({J}, {F}, {T}), got {tuple(mask.shape)}"
-        )
+        raise ValueError(f"Expected mask shape ({J}, {F}, {T}), got {tuple(mask.shape)}")

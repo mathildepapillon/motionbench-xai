@@ -56,9 +56,7 @@ __all__ = ["LowRankManifoldDataset"]
 LabelFunction = Callable[[npt.NDArray[Any], int], npt.NDArray[np.int64]]
 
 
-def _default_label_fn(
-    x_np: npt.NDArray[Any], n_classes: int
-) -> npt.NDArray[np.int64]:
+def _default_label_fn(x_np: npt.NDArray[Any], n_classes: int) -> npt.NDArray[np.int64]:
     """Quantile-split on joint-0 grand mean.
 
     Args:

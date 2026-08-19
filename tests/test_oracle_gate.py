@@ -60,9 +60,7 @@ def _f_window0(batch: torch.Tensor) -> torch.Tensor:
 
 def test_g1_unconditional_covariance(oracle):
     n = 60_000
-    xs = oracle._sample_unconditional(n, J, F, T, np.random.default_rng(0)).astype(
-        np.float64
-    )
+    xs = oracle._sample_unconditional(n, J, F, T, np.random.default_rng(0)).astype(np.float64)
     err_t = np.abs(np.cov(xs[:, 0, 0, :].T) - SIGMA_T).max()
     err_j = np.abs(np.cov(xs[:, :, 0, 0].T) - SIGMA_J).max()
     cross = abs(np.corrcoef(xs[:, 0, 0, 0], xs[:, 0, 1, 0])[0, 1])
@@ -77,9 +75,11 @@ def test_g2_conditional_moments(oracle, players):
     z = torch.tensor([1, 0, 1, 0], dtype=torch.int32)
     mask = players.coalition_mask(z)
     n = 40_000
-    cs = oracle.conditional_sample(
-        torch.tensor(x0, dtype=torch.float32), mask, n, seed=2
-    ).double().numpy()
+    cs = (
+        oracle.conditional_sample(torch.tensor(x0, dtype=torch.float32), mask, n, seed=2)
+        .double()
+        .numpy()
+    )
 
     mask_np = mask.numpy()
     t_obs = np.flatnonzero(mask_np[0, 0, :])
@@ -91,9 +91,7 @@ def test_g2_conditional_moments(oracle, players):
     err_mu = np.abs(cs[:, :, :, t_hid].mean(axis=0) - mu_true).max()
     emp_cc = np.cov(cs[:, 0, 0][:, t_hid].T)
     err_cc = np.abs(emp_cc - Sc * SIGMA_J[0, 0]).max()
-    obs_exact = float(
-        np.abs(cs[:, mask_np] - x0[mask_np].astype(np.float32)[None]).max()
-    )
+    obs_exact = float(np.abs(cs[:, mask_np] - x0[mask_np].astype(np.float32)[None]).max())
     assert err_mu < 0.05, f"conditional mean error {err_mu:.4f}"
     assert err_cc < 0.05, f"conditional covariance error {err_cc:.4f}"
     assert obs_exact == 0.0, "observed entries not preserved bit-for-bit"
@@ -101,9 +99,7 @@ def test_g2_conditional_moments(oracle, players):
 
 def test_g3_efficiency(oracle, players):
     rng = np.random.default_rng(3)
-    x0 = torch.tensor(
-        oracle._sample_unconditional(1, J, F, T, rng)[0], dtype=torch.float32
-    )
+    x0 = torch.tensor(oracle._sample_unconditional(1, J, F, T, rng)[0], dtype=torch.float32)
     phi = oracle.true_shapley(x0, _f_window0, players, n_mc=2000, seed=1)
     # Efficiency is enforced by the WLS boundary constraints: sum(phi) equals
     # v(N) - v(empty).  v(N) is deterministic; v(empty) is re-estimated here
@@ -172,12 +168,15 @@ def test_g5_linear_game_closed_form(oracle, players):
 
     deltas = []
     for i in range(4):
-        xi = oracle._sample_unconditional(1, J, F, T, np.random.default_rng(100 + i))[
-            0
-        ].astype(np.float64)
+        xi = oracle._sample_unconditional(1, J, F, T, np.random.default_rng(100 + i))[0].astype(
+            np.float64
+        )
         p_exact = exact_linear_phi(xi)
         p_mc = oracle.true_shapley(
-            torch.tensor(xi, dtype=torch.float32), f_linear, players, n_mc=50,
+            torch.tensor(xi, dtype=torch.float32),
+            f_linear,
+            players,
+            n_mc=50,
             seed=200 + i,
         ).numpy()
         deltas.append(np.mean(np.abs(p_mc - p_exact)))
@@ -191,9 +190,13 @@ def test_g6_copula_roundtrip():
     oracle = CopulaOracle(SIGMA_J, sigma_t_b, marginal=BurrXII(2.0, 2.0))
     players = TemporalWindows(K=K_b, T=T_b, J=J, F=F)
 
-    xb = oracle.conditional_sample(
-        torch.zeros(J, F, T_b), torch.zeros(J, F, T_b, dtype=torch.bool), 20_000, seed=2
-    ).double().numpy()
+    xb = (
+        oracle.conditional_sample(
+            torch.zeros(J, F, T_b), torch.zeros(J, F, T_b, dtype=torch.bool), 20_000, seed=2
+        )
+        .double()
+        .numpy()
+    )
     var_b = float(xb.var())
     assert abs(var_b - 1.0) < 0.15, f"Burr marginal variance {var_b:.3f}"
 
@@ -207,7 +210,5 @@ def test_g6_copula_roundtrip():
         torch.tensor(xb[0], dtype=torch.float32), mask, 2000, seed=3
     ).numpy()
     mask_np = mask.numpy()
-    obs_err = float(
-        np.abs(cb[:, mask_np] - xb[0][mask_np].astype(np.float32)[None]).max()
-    )
+    obs_err = float(np.abs(cb[:, mask_np] - xb[0][mask_np].astype(np.float32)[None]).max())
     assert obs_err == 0.0, "copula conditional does not preserve observed entries"

@@ -32,9 +32,7 @@ if TYPE_CHECKING:
 
 class TestInferGame:
     def test_explicit_key_wins(self):
-        cfg = OmegaConf.create(
-            {"game": "cond", "imputer": {"_target_": "x.ZeroImputer"}}
-        )
+        cfg = OmegaConf.create({"game": "cond", "imputer": {"_target_": "x.ZeroImputer"}})
         assert _infer_game(cfg) == "cond"
 
     def test_inferred_cond_for_oracle(self):
@@ -158,8 +156,13 @@ def test_end_to_end_zero_scores_zero_on_marginal_game(tiny_config_tree: Path):
     assert row["ec1"] < 1e-6, "KS-Zero must match the marginal target exactly"
     assert row["M"] == 3
     result_path = (
-        tiny_config_tree / "results" / "spatial" / "tiny_gauss" / "synthetic_mlp"
-        / "kernelshap_zero" / "result.json"
+        tiny_config_tree
+        / "results"
+        / "spatial"
+        / "tiny_gauss"
+        / "synthetic_mlp"
+        / "kernelshap_zero"
+        / "result.json"
     )
     assert result_path.exists()
     per_seq = np.load(result_path.parent / "per_sequence.npz")
@@ -183,8 +186,13 @@ def test_cell_resume_from_cache(tiny_config_tree: Path):
     cfg = _tiny_cfg(tiny_config_tree, ["kernelshap_zero"])
     df1 = run_player_eval(cfg)
     result_path = (
-        tiny_config_tree / "results" / "spatial" / "tiny_gauss" / "synthetic_mlp"
-        / "kernelshap_zero" / "result.json"
+        tiny_config_tree
+        / "results"
+        / "spatial"
+        / "tiny_gauss"
+        / "synthetic_mlp"
+        / "kernelshap_zero"
+        / "result.json"
     )
     stamped = json.loads(result_path.read_text())
     stamped["ec1"] = 123.0  # sentinel: must be returned untouched

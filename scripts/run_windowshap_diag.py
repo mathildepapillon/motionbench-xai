@@ -13,6 +13,7 @@ Usage::
     conda activate motionbench-xai
     CUDA_VISIBLE_DEVICES=3 python scripts/run_windowshap_diag.py
 """
+
 from __future__ import annotations
 
 import json
@@ -36,7 +37,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 REPO = Path(__file__).resolve().parent.parent
-DEVICE = "cuda:0"   # CUDA_VISIBLE_DEVICES=3 → physical GPU 3, logical 0
+DEVICE = "cuda:0"  # CUDA_VISIBLE_DEVICES=3 → physical GPU 3, logical 0
 N_SEQ = 50
 WINDOW_SIZES = [2, 4, 8, 16]
 DATASETS = ["gaussian_k4", "skeleton_gait_combined"]
@@ -90,9 +91,7 @@ def run_cell(
 ) -> dict[str, Any]:
     """Run WindowSHAP with ``window_len`` on ``dataset_name`` and return metrics."""
     method_tag = f"windowshap_w{window_len}"
-    result_path = (
-        RESULTS_ROOT / dataset_name / CLF_NAME / method_tag / "result.json"
-    )
+    result_path = RESULTS_ROOT / dataset_name / CLF_NAME / method_tag / "result.json"
 
     if result_path.exists():
         log.info("SKIP %s / %s (cached)", dataset_name, method_tag)
@@ -138,13 +137,15 @@ def run_cell(
     if effective_window_len != window_len:
         log.warning(
             "  window_len=%d >= T=%d; clamped to %d",
-            window_len, T, effective_window_len,
+            window_len,
+            T,
+            effective_window_len,
         )
 
     attributor = WindowSHAPAttributor(
         classifier=prob_clf,
         window_len=effective_window_len,
-        stride=effective_window_len,   # non-overlapping, same as default
+        stride=effective_window_len,  # non-overlapping, same as default
         seed=42,
     )
 
@@ -190,14 +191,18 @@ def run_cell(
                 with torch.no_grad():
                     logits = classifier(b.to(clf_device))
                 return torch.softmax(logits, dim=-1)[:, tgt]
+
             return _fn
 
         for idx, (phi_i, x_i, tgt_i) in enumerate(zip(phi_list, x_list, target_list, strict=False)):
             try:
                 # Pre-compute oracle phi once, then wrap to avoid redundant calls
                 phi_oracle = oracle.true_shapley(
-                    x_i, _make_clf_fn(tgt_i), players,
-                    n_mc=ORACLE_N_MC, n_coalitions=ORACLE_N_COALITIONS,
+                    x_i,
+                    _make_clf_fn(tgt_i),
+                    players,
+                    n_mc=ORACLE_N_MC,
+                    n_coalitions=ORACLE_N_COALITIONS,
                 )
                 result_dict = metric.evaluate(
                     phi=phi_i,
@@ -222,7 +227,9 @@ def run_cell(
     mean_ec1 = float(np.mean(ec1_vals)) if ec1_vals else float("nan")
     log.info(
         "  EC1=%.5f over %d seqs (%.1fs)",
-        mean_ec1, len(ec1_vals), time.time() - t0,
+        mean_ec1,
+        len(ec1_vals),
+        time.time() - t0,
     )
 
     result = {

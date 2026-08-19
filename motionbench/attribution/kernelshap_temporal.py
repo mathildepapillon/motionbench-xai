@@ -87,11 +87,7 @@ def _make_predict_fn(
             x_imp = imputer.impute(x, mask, n_samples=1)[0]
             with torch.no_grad():
                 pred = classifier(x_imp.unsqueeze(0))
-            scalar = (
-                float(pred[0, target].item())
-                if pred.ndim > 1
-                else float(pred[0].item())
-            )
+            scalar = float(pred[0, target].item()) if pred.ndim > 1 else float(pred[0].item())
             results.append(scalar)
         return np.array(results, dtype=np.float64)
 
@@ -160,9 +156,7 @@ class KernelSHAPTemporalAttributor(BaseAttributor):
         if self._seed is not None:
             np.random.seed(self._seed)
 
-        predict_fn = _make_predict_fn(
-            x, self._classifier, self._imputer, players, target
-        )
+        predict_fn = _make_predict_fn(x, self._classifier, self._imputer, players, target)
 
         # Background: all players absent → reference output when nothing is observed.
         background = np.zeros((1, M), dtype=np.float64)

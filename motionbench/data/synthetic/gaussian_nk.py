@@ -121,15 +121,11 @@ class GaussianNKDataset:
         if label_fn is not None:
             y_np = np.asarray(label_fn(x_np), dtype=np.int64)
             if y_np.shape != (N,):
-                raise ValueError(
-                    f"label_fn returned shape {y_np.shape}; expected ({N},)."
-                )
+                raise ValueError(f"label_fn returned shape {y_np.shape}; expected ({N},).")
         else:
             score = x_np[:, 0, :, :].mean(axis=(1, 2))
             q33, q67 = np.percentile(score, [33.0, 67.0])
-            y_np = np.where(
-                score < q33, 0, np.where(score < q67, 1, 2)
-            ).astype(np.int64)
+            y_np = np.where(score < q33, 0, np.where(score < q67, 1, 2)).astype(np.int64)
 
         self._x: Tensor = torch.tensor(x_np, dtype=torch.float32)
         self._y: Tensor = torch.tensor(y_np, dtype=torch.int64)
@@ -174,6 +170,7 @@ class GaussianNKDataset:
     def oracle(self) -> object:
         """Ground-truth :class:`~motionbench.oracles.full_gaussian_oracle.FullGaussianOracle`."""
         from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle  # noqa: PLC0415
+
         return FullGaussianOracle(
             Sigma_full=self.Sigma_full_nk,
             J=self._J,

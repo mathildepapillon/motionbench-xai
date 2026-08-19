@@ -7,6 +7,7 @@ indivisible-masking guarantee.
 A ``MockPlayerSet`` is defined here; all passing tests confirm that the
 ABC itself is correctly wired.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -52,7 +53,9 @@ class MockPlayerSet(PlayerSet):
 
     def aggregate(self, phi_coords: Tensor) -> Tensor:
         if phi_coords.shape != (self._J, self._F, self._T):
-            raise ValueError(f"expected phi_coords.shape=={self.shape}; got {tuple(phi_coords.shape)}")
+            raise ValueError(
+                f"expected phi_coords.shape=={self.shape}; got {tuple(phi_coords.shape)}"
+            )
         phi = torch.zeros(self._M)
         for k in range(self._M):
             t_start = k * self._window_size

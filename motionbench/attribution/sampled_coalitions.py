@@ -232,6 +232,9 @@ def phi_from_values(
     empty = int(np.flatnonzero(Z.sum(axis=1) == 0)[0])
     full = int(np.flatnonzero(Z.sum(axis=1) == Z.shape[1])[0])
     return solve_shapley_wls(
-        np.asarray(Z, dtype=np.intp), np.asarray(v, dtype=np.float64),
-        np.asarray(w, dtype=np.float64), float(v[empty]), float(v[full]),
+        np.asarray(Z, dtype=np.intp),
+        np.asarray(v, dtype=np.float64),
+        np.asarray(w, dtype=np.float64),
+        float(v[empty]),
+        float(v[full]),
     )

@@ -97,9 +97,7 @@ class BMCLabDataset:
         if not self._labels_path.exists():
             raise FileNotFoundError(f"Labels file not found: {self._labels_path}")
 
-        self._label_df: dict[str, dict[str, dict[str, object]]] = joblib.load(
-            self._labels_path
-        )
+        self._label_df: dict[str, dict[str, dict[str, object]]] = joblib.load(self._labels_path)
         self._samples: list[tuple[np.ndarray[tuple[int, ...], np.dtype[np.float32]], int]] = (
             self._load_sequences()
         )

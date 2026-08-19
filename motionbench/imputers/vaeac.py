@@ -72,8 +72,7 @@ class _FramePositionalEncoding(nn.Module):
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(max_len, dtype=torch.float32).unsqueeze(1)
         div_term = torch.exp(
-            torch.arange(0, d_model, 2, dtype=torch.float32)
-            * (-math.log(10_000.0) / d_model)
+            torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10_000.0) / d_model)
         )
         pe[:, 0::2] = torch.sin(position * div_term)
         if d_model % 2 == 0:
@@ -273,9 +272,7 @@ class _EncoderHead(nn.Module):
         self.logvar_head = nn.Linear(d_model, d_latent)
         self.apply(_init_linear)
 
-    def forward(
-        self, feat: Tensor, pad_mask: Tensor | None = None
-    ) -> tuple[Tensor, Tensor]:
+    def forward(self, feat: Tensor, pad_mask: Tensor | None = None) -> tuple[Tensor, Tensor]:
         """Encode token features into latent distribution parameters.
 
         Args:
@@ -373,9 +370,7 @@ class _GaussianScalarHead(nn.Module):
         """
         sigma2 = (2.0 * self.log_sigma).exp()
         nll_per = (
-            0.5 * (x_target - x_pred) ** 2 / sigma2
-            + self.log_sigma
-            + 0.5 * math.log(2.0 * math.pi)
+            0.5 * (x_target - x_pred) ** 2 / sigma2 + self.log_sigma + 0.5 * math.log(2.0 * math.pi)
         )
         hid_f = hid_mask.to(nll_per.dtype)
         n_hid = hid_f.sum().clamp(min=1.0)
@@ -466,17 +461,13 @@ class _VAEAC(nn.Module):
         """Build prior-encoder token: ``[(x·mask)_flat, mask_flat]``."""
         B, T = x.shape[:2]
         obs_f = obs.to(x.dtype)
-        return torch.cat(
-            [(x * obs_f).reshape(B, T, -1), obs_f.reshape(B, T, -1)], dim=-1
-        )
+        return torch.cat([(x * obs_f).reshape(B, T, -1), obs_f.reshape(B, T, -1)], dim=-1)
 
     def _tok_dec(self, z: Tensor, x: Tensor, obs: Tensor) -> Tensor:
         """Build decoder token: ``[z, (x·mask)_flat, mask_flat]``."""
         B, T = x.shape[:2]
         obs_f = obs.to(x.dtype)
-        return torch.cat(
-            [z, (x * obs_f).reshape(B, T, -1), obs_f.reshape(B, T, -1)], dim=-1
-        )
+        return torch.cat([z, (x * obs_f).reshape(B, T, -1), obs_f.reshape(B, T, -1)], dim=-1)
 
     # ------------------------------------------------------------------
     # Training loss
@@ -515,9 +506,7 @@ class _VAEAC(nn.Module):
             hid = hid & pad_mask[:, :, None, None]
         recon_nll = self.head.nll(x, x_pred, hid)
 
-        kl_per = 0.5 * (
-            lv_p - lv_q + (lv_q.exp() + (mu_q - mu_p) ** 2) / lv_p.exp() - 1.0
-        )
+        kl_per = 0.5 * (lv_p - lv_q + (lv_q.exp() + (mu_q - mu_p) ** 2) / lv_p.exp() - 1.0)
         if pad_mask is not None:
             pm_f = pad_mask.to(kl_per.dtype)[:, :, None]
             kl = (kl_per * pm_f).sum() / pm_f.sum().clamp(min=1.0) / kl_per.shape[-1]
@@ -690,9 +679,7 @@ class VAEACImputer(BaseImputer):
                 "Either call fit(dataset) or load a checkpoint with load()."
             )
         if x_obs.shape != mask.shape:
-            raise ValueError(
-                f"x_obs.shape {tuple(x_obs.shape)} != mask.shape {tuple(mask.shape)}"
-            )
+            raise ValueError(f"x_obs.shape {tuple(x_obs.shape)} != mask.shape {tuple(mask.shape)}")
         J, F, T = x_obs.shape
         if (J, F, T) != (self._J, self._F, self._T):
             raise ValueError(
@@ -711,9 +698,7 @@ class VAEACImputer(BaseImputer):
         m_vaeac = m.permute(2, 0, 1).unsqueeze(0)
 
         self._model.eval()
-        completions = self._model.sample_completions(
-            x_vaeac, m_vaeac, n_samples=n_samples
-        )
+        completions = self._model.sample_completions(x_vaeac, m_vaeac, n_samples=n_samples)
         # completions: (n_samples, T, J, F) → (n_samples, J, F, T)
         output = completions.permute(0, 2, 3, 1).contiguous()
 

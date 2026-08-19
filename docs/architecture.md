@@ -66,12 +66,14 @@ Structural protocol (no inheritance needed).
 class BaseDataset(Protocol):
     def __getitem__(idx: int) -> tuple[Tensor, Tensor]: ...  # (J,F,T), scalar
     def __len__() -> int: ...
-    shape: tuple[int,int,int]  # (J, F, T)
-    metadata: dict             # {"skeleton": ..., "frame_rate": ...}
-    oracle: Optional[Oracle]   # None for real data
+
+    shape: tuple[int, int, int]  # (J, F, T)
+    metadata: dict  # {"skeleton": ..., "frame_rate": ...}
+    oracle: Optional[Oracle]  # None for real data
+
 
 class GroundTruthDataset(BaseDataset, Protocol):
-    oracle: Oracle             # required, non-Optional
+    oracle: Oracle  # required, non-Optional
 ```
 
 **Synthetic datasets** implement `GroundTruthDataset` and expose a closed-form
@@ -180,7 +182,7 @@ All coordinates use `(J, F, T)` layout. No exceptions.
 ```python
 # 1. Dataset provides data and oracle
 dataset = GaussianMotionDataset(K=4, J=5, F=3, T=16)
-x, y = dataset[0]          # (J, F, T), scalar
+x, y = dataset[0]  # (J, F, T), scalar
 
 # 2. PlayerSet defines the game
 players = TemporalWindows(K=4, T=16, J=5, F=3)

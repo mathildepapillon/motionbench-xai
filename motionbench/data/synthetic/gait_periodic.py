@@ -59,9 +59,7 @@ __all__ = ["GaitPeriodicDataset", "gait_stddev_label_fn"]
 LabelFunction = Callable[[npt.NDArray[Any], int], npt.NDArray[np.int64]]
 
 
-def _default_label_fn(
-    x_np: npt.NDArray[Any], n_classes: int
-) -> npt.NDArray[np.int64]:
+def _default_label_fn(x_np: npt.NDArray[Any], n_classes: int) -> npt.NDArray[np.int64]:
     """Quantile-split on joint-0 grand mean (proxy label until Task 1D).
 
     Args:
@@ -77,9 +75,7 @@ def _default_label_fn(
     return labels
 
 
-def gait_stddev_label_fn(
-    x_np: npt.NDArray[Any], n_classes: int
-) -> npt.NDArray[np.int64]:
+def gait_stddev_label_fn(x_np: npt.NDArray[Any], n_classes: int) -> npt.NDArray[np.int64]:
     """Quantile-split on temporal standard deviation of joint-0 signal.
 
     More learnable than the grand-mean default when the cosine temporal kernel

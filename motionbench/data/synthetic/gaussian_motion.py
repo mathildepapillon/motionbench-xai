@@ -117,24 +117,31 @@ class SigmaJointsFactory:
                 not match the skeleton's joint count.
         """
         if skeleton != "h36m_17":
-            raise ValueError(
-                f"Unsupported skeleton {skeleton!r}.  Only 'h36m_17' is hardcoded."
-            )
+            raise ValueError(f"Unsupported skeleton {skeleton!r}.  Only 'h36m_17' is hardcoded.")
         if J != 17:
-            raise ValueError(
-                f"h36m_17 skeleton has 17 joints; got J={J}."
-            )
+            raise ValueError(f"h36m_17 skeleton has 17 joints; got J={J}.")
         # H36M-17 kinematic tree edges (parent → child).
         # Joint indices: 0=pelvis,1=r_hip,2=r_knee,3=r_ankle,
         # 4=l_hip,5=l_knee,6=l_ankle,7=spine,8=thorax,9=neck,
         # 10=head,11=l_shoulder,12=l_elbow,13=l_wrist,
         # 14=r_shoulder,15=r_elbow,16=r_wrist
         edges = [
-            (0, 1), (1, 2), (2, 3),   # right leg
-            (0, 4), (4, 5), (5, 6),   # left leg
-            (0, 7), (7, 8), (8, 9), (9, 10),  # spine/neck/head
-            (8, 11), (11, 12), (12, 13),  # left arm
-            (8, 14), (14, 15), (15, 16),  # right arm
+            (0, 1),
+            (1, 2),
+            (2, 3),  # right leg
+            (0, 4),
+            (4, 5),
+            (5, 6),  # left leg
+            (0, 7),
+            (7, 8),
+            (8, 9),
+            (9, 10),  # spine/neck/head
+            (8, 11),
+            (11, 12),
+            (12, 13),  # left arm
+            (8, 14),
+            (14, 15),
+            (15, 16),  # right arm
         ]
         # BFS distance matrix.
         adj: list[list[int]] = [[] for _ in range(J)]
@@ -153,7 +160,7 @@ class SigmaJointsFactory:
                         dist[start, nb] = dist[start, node] + 1.0
                         queue.append(nb)
 
-        C = decay ** dist
+        C = decay**dist
         # Symmetrise for numerical cleanliness.
         return 0.5 * (C + C.T)
 
@@ -253,9 +260,7 @@ class SigmaJointsFactory:
         if arr.ndim == 4:
             arr = arr.mean(axis=(2, 3))  # (N, J)
         if arr.ndim != 2:
-            raise ValueError(
-                f"X_subset must be (N, J) or (N, J, F, T); got shape {arr.shape}."
-            )
+            raise ValueError(f"X_subset must be (N, J) or (N, J, F, T); got shape {arr.shape}.")
         lw = LedoitWolf(assume_centered=False)
         lw.fit(arr)
         return lw.covariance_
@@ -411,15 +416,11 @@ class GaussianMotionBenchmark:
         else:
             sj = np.asarray(sigma_joints, dtype=np.float64)
             if sj.shape != (J, J):
-                raise ValueError(
-                    f"sigma_joints shape {sj.shape} does not match J={J}."
-                )
+                raise ValueError(f"sigma_joints shape {sj.shape} does not match J={J}.")
             sj = 0.5 * (sj + sj.T)
             eig_min = float(np.linalg.eigvalsh(sj).min())
             if eig_min < -1e-6:
-                raise ValueError(
-                    f"sigma_joints is not PSD (min eigenvalue {eig_min:.3e})."
-                )
+                raise ValueError(f"sigma_joints is not PSD (min eigenvalue {eig_min:.3e}).")
             self.Sigma_joints = sj
             self.sigma_joints_source = sigma_joints_source or "custom"
 
@@ -430,31 +431,22 @@ class GaussianMotionBenchmark:
         else:
             st = np.asarray(sigma_time, dtype=np.float64)
             if st.shape != (T, T):
-                raise ValueError(
-                    f"sigma_time shape {st.shape} does not match T={T}."
-                )
+                raise ValueError(f"sigma_time shape {st.shape} does not match T={T}.")
             st = 0.5 * (st + st.T)
             eig_min = float(np.linalg.eigvalsh(st).min())
             if eig_min < -1e-6:
-                raise ValueError(
-                    f"sigma_time is not PSD (min eigenvalue {eig_min:.3e})."
-                )
+                raise ValueError(f"sigma_time is not PSD (min eigenvalue {eig_min:.3e}).")
             self.Sigma_time = st
             self.sigma_time_source = sigma_time_source or "custom"
 
         # Cholesky factors for unconditional sampling.
-        self.L_joints: np.ndarray = np.linalg.cholesky(
-            self.Sigma_joints + 1e-8 * np.eye(J)
-        )
-        self.L_time: np.ndarray = np.linalg.cholesky(
-            self.Sigma_time + 1e-8 * np.eye(T)
-        )
+        self.L_joints: np.ndarray = np.linalg.cholesky(self.Sigma_joints + 1e-8 * np.eye(J))
+        self.L_time: np.ndarray = np.linalg.cholesky(self.Sigma_time + 1e-8 * np.eye(T))
 
         # Window assignments for K equal-width windows.
         quarter = T // K
         self.window_assignments: list[list[int]] = [
-            list(range(k * quarter, (k + 1) * quarter if k < K - 1 else T))
-            for k in range(K)
+            list(range(k * quarter, (k + 1) * quarter if k < K - 1 else T)) for k in range(K)
         ]
 
         # Cache for conditional parameters (keyed by observation pattern).
@@ -556,9 +548,7 @@ class GaussianMotionBenchmark:
         Soo = self.Sigma_joints[np.ix_(j_obs_a, j_obs_a)]
         Shh = self.Sigma_joints[np.ix_(j_hid_a, j_hid_a)]
         Sho = self.Sigma_joints[np.ix_(j_hid_a, j_obs_a)]
-        W = Sho @ np.linalg.solve(
-            Soo + 1e-10 * np.eye(len(j_obs_a)), np.eye(len(j_obs_a))
-        )
+        W = Sho @ np.linalg.solve(Soo + 1e-10 * np.eye(len(j_obs_a)), np.eye(len(j_obs_a)))
         Sigma_cond = Shh - W @ Sho.T
         Sigma_cond = 0.5 * (Sigma_cond + Sigma_cond.T)
         Sigma_cond += 1e-8 * np.eye(len(j_hid_a))
@@ -769,9 +759,7 @@ class GaussianMotionBenchmark:
             self.Sigma_joints[j_hid[:, None], j_obs[None, :]]
             * self.Sigma_time[t_hid[:, None], t_obs[None, :]]
         )
-        W = Sigma_ho @ np.linalg.solve(
-            Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs)
-        )
+        W = Sigma_ho @ np.linalg.solve(Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs))
         Sigma_cond = Sigma_hh - W @ Sigma_ho.T
         Sigma_cond = 0.5 * (Sigma_cond + Sigma_cond.T)
         Sigma_cond += 1e-8 * np.eye(n_hid)
@@ -847,16 +835,14 @@ class GaussianMotionDataset:
         if label_fn is not None:
             y_np = np.asarray(label_fn(x_np), dtype=np.int64)
             if y_np.shape != (N,):
-                raise ValueError(
-                    f"label_fn returned shape {y_np.shape}; expected ({N},)."
-                )
+                raise ValueError(f"label_fn returned shape {y_np.shape}; expected ({N},).")
         else:
             score = x_np[:, 0, :, :].mean(axis=(1, 2))
             q33, q67 = np.percentile(score, [33.0, 67.0])
             y_np = np.where(score < q33, 0, np.where(score < q67, 1, 2)).astype(np.int64)
 
         self._x: Tensor = torch.tensor(x_np, dtype=torch.float32)  # (N, J, F, T)
-        self._y: Tensor = torch.tensor(y_np, dtype=torch.int64)    # (N,)
+        self._y: Tensor = torch.tensor(y_np, dtype=torch.int64)  # (N,)
         self._N = N
         self._J = J
         self._F = F

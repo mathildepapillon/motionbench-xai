@@ -11,6 +11,7 @@ Fast (non-slow) tests verify instantiation, property contracts, and the
 ShaTSAttributor NotImplementedError.  Full attribute() calls are marked
 ``@pytest.mark.slow`` because they invoke the underlying SHAP solvers.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -418,6 +419,5 @@ def test_group_segment_shap_efficiency() -> None:
     expected_sum = v_grand - v_empty
     actual_sum = float(phi.sum().item())
     assert abs(actual_sum - expected_sum) < 1e-4, (
-        f"Efficiency violated: sum(phi)={actual_sum:.6f} != "
-        f"v(all)-v(none)={expected_sum:.6f}"
+        f"Efficiency violated: sum(phi)={actual_sum:.6f} != v(all)-v(none)={expected_sum:.6f}"
     )

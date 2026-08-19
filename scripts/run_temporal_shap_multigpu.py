@@ -26,6 +26,7 @@ Usage::
         --n-sequences 200 \\
         --wipe-stale
 """
+
 from __future__ import annotations
 
 import argparse
@@ -69,8 +70,7 @@ class Cell:
         return f"{self.dataset}/{self.classifier}/{self.method}"
 
 
-def _wipe_stale(results_dir: Path, cells: list[Cell],
-                target_n: int) -> int:
+def _wipe_stale(results_dir: Path, cells: list[Cell], target_n: int) -> int:
     """Delete result.json files whose ``n_sequences`` is below the target.
 
     A "stale" file is one that already exists but was generated at a
@@ -98,8 +98,7 @@ def _wipe_stale(results_dir: Path, cells: list[Cell],
     return n
 
 
-def _filter_pending(results_dir: Path, cells: list[Cell],
-                    target_n: int) -> list[Cell]:
+def _filter_pending(results_dir: Path, cells: list[Cell], target_n: int) -> list[Cell]:
     """Skip cells that already have a result.json at >= target_n sequences."""
     pending = []
     for c in cells:
@@ -114,9 +113,15 @@ def _filter_pending(results_dir: Path, cells: list[Cell],
     return pending
 
 
-def _run_cell(cell: Cell, gpu: int, results_dir: Path, n_sequences: int,
-              log_dir: Path, metrics_mode: str = "gt_only",
-              omp_threads: int = 2) -> Cell:
+def _run_cell(
+    cell: Cell,
+    gpu: int,
+    results_dir: Path,
+    n_sequences: int,
+    log_dir: Path,
+    metrics_mode: str = "gt_only",
+    omp_threads: int = 2,
+) -> Cell:
     cell.gpu = gpu
     log_path = log_dir / f"{cell.dataset}__{cell.classifier}__{cell.method}.log"
 
@@ -130,80 +135,108 @@ def _run_cell(cell: Cell, gpu: int, results_dir: Path, n_sequences: int,
     env["TORCH_NUM_THREADS"] = str(omp_threads)
 
     cmd = [
-        sys.executable, str(REPO / "scripts" / "_run_one_cell.py"),
-        "--dataset", cell.dataset,
-        "--classifier", cell.classifier,
-        "--method", cell.method,
-        "--device", "cuda:0",
-        "--n-sequences", str(n_sequences),
-        "--results-dir", str(results_dir),
-        "--metrics-mode", metrics_mode,
+        sys.executable,
+        str(REPO / "scripts" / "_run_one_cell.py"),
+        "--dataset",
+        cell.dataset,
+        "--classifier",
+        cell.classifier,
+        "--method",
+        cell.method,
+        "--device",
+        "cuda:0",
+        "--n-sequences",
+        str(n_sequences),
+        "--results-dir",
+        str(results_dir),
+        "--metrics-mode",
+        metrics_mode,
     ]
 
     t0 = time.time()
     with log_path.open("w") as logf:
-        proc = subprocess.run(cmd, cwd=REPO, env=env, stdout=logf,
-                              stderr=subprocess.STDOUT)
+        proc = subprocess.run(cmd, cwd=REPO, env=env, stdout=logf, stderr=subprocess.STDOUT)
     cell.elapsed_s = time.time() - t0
     cell.rc = proc.returncode
     return cell
 
 
-def _worker(slot_id: int, gpu: int, work_q: queue.Queue,
-            done_q: queue.Queue, results_dir: Path, n_sequences: int,
-            log_dir: Path, metrics_mode: str = "gt_only",
-            omp_threads: int = 2) -> None:
+def _worker(
+    slot_id: int,
+    gpu: int,
+    work_q: queue.Queue,
+    done_q: queue.Queue,
+    results_dir: Path,
+    n_sequences: int,
+    log_dir: Path,
+    metrics_mode: str = "gt_only",
+    omp_threads: int = 2,
+) -> None:
     while True:
         cell = work_q.get()
         if cell is None:
             work_q.task_done()
             return
         try:
-            _run_cell(cell, gpu, results_dir, n_sequences, log_dir,
-                      metrics_mode=metrics_mode, omp_threads=omp_threads)
+            _run_cell(
+                cell,
+                gpu,
+                results_dir,
+                n_sequences,
+                log_dir,
+                metrics_mode=metrics_mode,
+                omp_threads=omp_threads,
+            )
             tag = "OK " if cell.rc == 0 else f"rc{cell.rc}"
         except Exception as exc:  # pragma: no cover
             cell.rc = -2
             tag = f"EXC {type(exc).__name__}"
         finally:
-            print(f"  [slot{slot_id} gpu{gpu}] {tag} {cell.label}  "
-                  f"({cell.elapsed_s:.1f}s)", flush=True)
+            print(
+                f"  [slot{slot_id} gpu{gpu}] {tag} {cell.label}  ({cell.elapsed_s:.1f}s)",
+                flush=True,
+            )
         done_q.put(cell)
         work_q.task_done()
 
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--gpus", nargs="+", type=int,
-                   default=[0, 1, 2, 3, 4, 5, 6, 7])
+    p.add_argument("--gpus", nargs="+", type=int, default=[0, 1, 2, 3, 4, 5, 6, 7])
     p.add_argument("--jobs-per-gpu", type=int, default=4)
     p.add_argument("--omp-threads", type=int, default=2)
-    p.add_argument("--metrics-mode",
-                   choices=["full", "gt_only", "gt_plus_faith"],
-                   default="gt_only",
-                   help="Default 'gt_only' since the temporal-SHAP baselines "
-                        "are reported only in EC1/EC3 ground-truth tables.")
+    p.add_argument(
+        "--metrics-mode",
+        choices=["full", "gt_only", "gt_plus_faith"],
+        default="gt_only",
+        help="Default 'gt_only' since the temporal-SHAP baselines "
+        "are reported only in EC1/EC3 ground-truth tables.",
+    )
     p.add_argument("--n-sequences", type=int, default=200)
-    p.add_argument("--results-dir", type=Path,
-                   default=REPO / "results" / "synthetic")
-    p.add_argument("--log-dir", type=Path,
-                   default=REPO / "outputs" / "temporal_shap_n200_logs")
-    p.add_argument("--wipe-stale", action="store_true",
-                   help="Delete pre-existing result.json files whose "
-                        "n_sequences is below --n-sequences before dispatch.")
-    p.add_argument("--methods", nargs="+", default=METHODS,
-                   choices=METHODS,
-                   help="Subset of temporal-SHAP methods to run.")
-    p.add_argument("--datasets", nargs="+", default=DATASETS,
-                   choices=DATASETS)
-    p.add_argument("--classifiers", nargs="+", default=CLASSIFIERS,
-                   choices=CLASSIFIERS)
+    p.add_argument("--results-dir", type=Path, default=REPO / "results" / "synthetic")
+    p.add_argument("--log-dir", type=Path, default=REPO / "outputs" / "temporal_shap_n200_logs")
+    p.add_argument(
+        "--wipe-stale",
+        action="store_true",
+        help="Delete pre-existing result.json files whose "
+        "n_sequences is below --n-sequences before dispatch.",
+    )
+    p.add_argument(
+        "--methods",
+        nargs="+",
+        default=METHODS,
+        choices=METHODS,
+        help="Subset of temporal-SHAP methods to run.",
+    )
+    p.add_argument("--datasets", nargs="+", default=DATASETS, choices=DATASETS)
+    p.add_argument("--classifiers", nargs="+", default=CLASSIFIERS, choices=CLASSIFIERS)
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
     args.log_dir.mkdir(parents=True, exist_ok=True)
-    all_cells = [Cell(d, c, m) for d in args.datasets
-                 for c in args.classifiers for m in args.methods]
+    all_cells = [
+        Cell(d, c, m) for d in args.datasets for c in args.classifiers for m in args.methods
+    ]
     print(f"Total target cells: {len(all_cells)}")
     if args.dry_run:
         for c in all_cells:
@@ -212,12 +245,10 @@ def main() -> None:
 
     if args.wipe_stale:
         deleted = _wipe_stale(args.results_dir, all_cells, args.n_sequences)
-        print(f"Wiped {deleted} result.json files with n_sequences < "
-              f"{args.n_sequences}")
+        print(f"Wiped {deleted} result.json files with n_sequences < {args.n_sequences}")
 
     cells = _filter_pending(args.results_dir, all_cells, args.n_sequences)
-    print(f"Pending (no result.json at N>={args.n_sequences} yet): "
-          f"{len(cells)}/{len(all_cells)}\n")
+    print(f"Pending (no result.json at N>={args.n_sequences} yet): {len(cells)}/{len(all_cells)}\n")
 
     if not cells:
         print(f"Nothing to do; every cell has result.json with N>={args.n_sequences}.")
@@ -229,9 +260,11 @@ def main() -> None:
         work_q.put(c)
 
     n_slots = max(1, len(args.gpus) * args.jobs_per_gpu)
-    print(f"Dispatching {len(cells)} cells across {n_slots} slots "
-          f"({len(args.gpus)} GPUs x {args.jobs_per_gpu} jobs/GPU, "
-          f"{args.omp_threads} threads/proc, metrics={args.metrics_mode})")
+    print(
+        f"Dispatching {len(cells)} cells across {n_slots} slots "
+        f"({len(args.gpus)} GPUs x {args.jobs_per_gpu} jobs/GPU, "
+        f"{args.omp_threads} threads/proc, metrics={args.metrics_mode})"
+    )
     print(f"Per-cell logs: {args.log_dir}\n")
 
     threads: list[threading.Thread] = []
@@ -240,10 +273,19 @@ def main() -> None:
         work_q.put(None)
         t = threading.Thread(
             target=_worker,
-            args=(slot_id, gpu, work_q, done_q, args.results_dir,
-                  args.n_sequences, args.log_dir, args.metrics_mode,
-                  args.omp_threads),
-            daemon=True, name=f"slot{slot_id}-gpu{gpu}",
+            args=(
+                slot_id,
+                gpu,
+                work_q,
+                done_q,
+                args.results_dir,
+                args.n_sequences,
+                args.log_dir,
+                args.metrics_mode,
+                args.omp_threads,
+            ),
+            daemon=True,
+            name=f"slot{slot_id}-gpu{gpu}",
         )
         t.start()
         threads.append(t)

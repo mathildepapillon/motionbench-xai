@@ -310,9 +310,7 @@ class DeterministicConditionalOracle:
                 mu_z = (W @ zf[:, obs].T).T  # (F, n_hid)
                 fill[:, hid] = self._copula_mean(mu_z, sd)
             out[i] = fill
-        return (
-            out.reshape(len(self.ops), F, J, T).transpose(0, 2, 1, 3).astype(np.float32)
-        )
+        return out.reshape(len(self.ops), F, J, T).transpose(0, 2, 1, 3).astype(np.float32)
 
     def _x_to_z(self, x: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """Forward copula transform ``z = Phi^-1(F(x))`` with probability clip."""

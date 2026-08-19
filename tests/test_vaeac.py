@@ -7,6 +7,7 @@ Tests
 3. test_vaeac_serialization        — save/load; impute output identical (same seed).
 4. test_vaeac_smoke                — 2-epoch training; loss decreases.  @slow.
 """
+
 from __future__ import annotations
 
 import tempfile

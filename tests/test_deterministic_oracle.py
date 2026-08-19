@@ -82,9 +82,7 @@ def test_copula_fill_matches_mc_temporal():
     Z = np.asarray([z], dtype=np.int8)
     det = DeterministicConditionalOracle(SIGMA_J, SIGMA_T, players, Z, marginal=marginal)
     # A sequence with valid Burr marginals: push a Gaussian draw through the copula.
-    x = marginal.quantile(
-        np.random.default_rng(11).uniform(0.05, 0.95, size=(J, F, T))
-    )
+    x = marginal.quantile(np.random.default_rng(11).uniform(0.05, 0.95, size=(J, F, T)))
     fill = det.fill_all(x)[0].astype(np.float64)
     mask = players.coalition_mask(torch.tensor(z, dtype=torch.bool)).numpy()
     mc = _mc_cond_mean(oracle, x, mask, n=120_000, seed=5)
@@ -134,13 +132,9 @@ def test_boundary_coalitions():
 def test_from_oracle_constructor():
     players = SpatialJoints(J=J, F=F, T=T)
     Z, _w = sampled_coalition_set(J, budget=8)
-    gauss = DeterministicConditionalOracle.from_oracle(
-        GaussianOracle(SIGMA_J, SIGMA_T), players, Z
-    )
+    gauss = DeterministicConditionalOracle.from_oracle(GaussianOracle(SIGMA_J, SIGMA_T), players, Z)
     assert gauss.marginal is None
-    cop = DeterministicConditionalOracle.from_oracle(
-        CopulaOracle(SIGMA_J, SIGMA_T), players, Z
-    )
+    cop = DeterministicConditionalOracle.from_oracle(CopulaOracle(SIGMA_J, SIGMA_T), players, Z)
     assert cop.marginal is not None
     with pytest.raises(TypeError):
         DeterministicConditionalOracle.from_oracle(object(), players, Z)

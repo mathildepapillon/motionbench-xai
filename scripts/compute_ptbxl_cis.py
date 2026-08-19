@@ -25,6 +25,7 @@ Usage::
     python scripts/compute_ptbxl_cis.py
     python scripts/compute_ptbxl_cis.py --folds 1 2 3
 """
+
 from __future__ import annotations
 
 import argparse
@@ -61,6 +62,7 @@ ALL_METHODS = [
 
 # ---------------------------------------------------------------------- helpers
 
+
 def load_method_data(results_dir: Path, folds: list[int]) -> dict:
     """Load ``{method: {fold: {faith, aopc, ...}}}`` from PTB-XL results.
 
@@ -81,12 +83,13 @@ def load_method_data(results_dir: Path, folds: list[int]) -> dict:
             r = json.loads(p.read_text())
             out[m][f] = {
                 "faith": np.asarray(r.get("faithfulness_per_seq", []), dtype=np.float64),
-                "aopc":  np.asarray(r.get("player_aopc_per_seq",  []), dtype=np.float64),
+                "aopc": np.asarray(r.get("player_aopc_per_seq", []), dtype=np.float64),
             }
     return out
 
 
 # ---------------------------------------------------------------------- main
+
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -113,7 +116,7 @@ def main() -> None:
     for ma, mb in [
         ("kernelshap_marginal", "kernelshap_vaeac"),
         ("kernelshap_marginal", "kernelshap_flow"),
-        ("kernelshap_vaeac",    "kernelshap_flow"),
+        ("kernelshap_vaeac", "kernelshap_flow"),
     ]:
         if ma not in data or mb not in data:
             continue
@@ -161,7 +164,7 @@ def main() -> None:
     for m, md in summary["methods"].items():
         fk = md["faithfulness"]
         ak = md["player_aopc"]
-        n  = md["n_total_sequences"]
+        n = md["n_total_sequences"]
         fs = f"{fk['pooled_mean']:+.3f} [{fk['ci95_low']:+.3f},{fk['ci95_high']:+.3f}]"
         as_ = f"{ak['pooled_mean']:+.3f} [{ak['ci95_low']:+.3f},{ak['ci95_high']:+.3f}]"
         print(f"{m:<25} {n:>4}  {fs:<28}  {as_:<28}")

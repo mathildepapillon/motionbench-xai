@@ -104,9 +104,7 @@ class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
 
         seq_len: int = self.background_ts.shape[1]
         num_sw: int = int(np.ceil((seq_len - self.window_len) / self.stride)) + 1
-        ts_phi = np.zeros(
-            (self.num_test, num_sw, 2, self.background_ts.shape[2]), dtype=np.float64
-        )
+        ts_phi = np.zeros((self.num_test, num_sw, 2, self.background_ts.shape[2]), dtype=np.float64)
         dem_phi = np.zeros((self.num_test, num_sw, self.num_dem_ftr), dtype=np.float64)
 
         if nsamples == "auto":
@@ -127,9 +125,9 @@ class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
             #   new SHAP scalar: returns (N,F) (2D) → add leading dim
             #   new SHAP multi:  returns (N,F,C) → transpose to (C,N,F)
             if sv_np.ndim == 2:
-                sv_np = sv_np[np.newaxis]                    # (1, N, F)
+                sv_np = sv_np[np.newaxis]  # (1, N, F)
             elif sv_np.ndim == 3 and sv_np.shape[-1] < sv_np.shape[-2]:
-                sv_np = sv_np.transpose(2, 0, 1)             # (N,F,C) → (C,N,F)
+                sv_np = sv_np.transpose(2, 0, 1)  # (N,F,C) → (C,N,F)
 
             dem_sv = sv_np[:, :, : self.num_dem_ftr]
             ts_sv = sv_np[:, :, self.num_dem_ftr :]
@@ -139,13 +137,11 @@ class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
             if self.num_dem_ftr > 0:
                 dem_phi[:, stride_cnt, :] = dem_sv[0]
 
-        ts_phi_agg = np.full(
-            (self.num_test, num_sw, self.num_ts_step, self.num_ts_ftr), np.nan
-        )
+        ts_phi_agg = np.full((self.num_test, num_sw, self.num_ts_step, self.num_ts_ftr), np.nan)
         for k in range(num_sw):
-            ts_phi_agg[
-                :, k, k * self.stride : k * self.stride + self.window_len, :
-            ] = ts_phi[:, k, 0, :][:, np.newaxis, :]
+            ts_phi_agg[:, k, k * self.stride : k * self.stride + self.window_len, :] = ts_phi[
+                :, k, 0, :
+            ][:, np.newaxis, :]
         ts_phi_agg = np.nanmean(ts_phi_agg, axis=1).astype(np.float32)
         dem_phi = np.nanmean(dem_phi, axis=1).astype(np.float32)
 
@@ -287,9 +283,7 @@ class WindowSHAPAttributor(BaseAttributor):
         """
         J, F_coords, T = x.shape
         if self._window_len >= T:
-            raise ValueError(
-                f"window_len={self._window_len} must be less than T={T}."
-            )
+            raise ValueError(f"window_len={self._window_len} must be less than T={T}.")
 
         stride = self._stride if self._stride is not None else self._window_len
 
@@ -303,9 +297,7 @@ class WindowSHAPAttributor(BaseAttributor):
         # All-zeros background (one sample).
         bg_np = np.zeros_like(x_np)  # (1, T, J*F)
 
-        model_adapter = _ClassifierAdapter(
-            self._classifier, J, F_coords, T, target
-        )
+        model_adapter = _ClassifierAdapter(self._classifier, J, F_coords, T, target)
 
         explainer = _Compat049SlidingWindowSHAP(
             model=model_adapter,
@@ -416,9 +408,9 @@ class _UniformWindowAttributor(BaseAttributor):
         if self._seed is not None:
             np.random.seed(self._seed)
 
-        x_np = (
-            x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy()
-        )[np.newaxis].astype(np.float32)
+        x_np = (x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy())[np.newaxis].astype(
+            np.float32
+        )
         bg_np = np.zeros_like(x_np)
 
         adapter = _ClassifierAdapter(self._classifier, J, F_coords, T, target)
@@ -465,11 +457,14 @@ class StationaryWindowSHAPAttributor(_UniformWindowAttributor):
         # The package builds an explainer on first call with nsamples='auto';
         # rebuild it with our explicit budget so runs are reproducible.
         explainer.explainer = _shap.KernelExplainer(
-            explainer.wraper_predict, explainer.background_data,
+            explainer.wraper_predict,
+            explainer.background_data,
         )
         sv = np.asarray(
             explainer.explainer.shap_values(
-                explainer.test_data, nsamples=self._nsamples, silent=True,
+                explainer.test_data,
+                nsamples=self._nsamples,
+                silent=True,
             ),
         )
         # Normalise to (1, n_features) regardless of SHAP version.
@@ -539,11 +534,6 @@ class DynamicWindowSHAPAttributor(_UniformWindowAttributor):
             T = x_seq_btf.shape[1]
             F_total = x_seq_btf.shape[2]
             K = T // self._window_len
-            return (
-                phi_full[0]
-                .reshape(K, self._window_len, F_total)
-                .sum(axis=1)
-                .astype(np.float32)
-            )
+            return phi_full[0].reshape(K, self._window_len, F_total).sum(axis=1).astype(np.float32)
         finally:
             _shap.KernelExplainer.shap_values = _orig  # type: ignore[assignment]

@@ -14,6 +14,7 @@ Outputs:
     results/synthetic/<ds>/<clf>/<method_pkg>/result.json
     results/synthetic/<ds>/<clf>/<method_pkg>/attributions.npz
 """
+
 from __future__ import annotations
 
 import json
@@ -39,10 +40,13 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 DATASETS = [
-    "gaussian_k4", "skeleton_structured", "gait_periodic",
-    "skeleton_gait_combined", "burr_m5",
+    "gaussian_k4",
+    "skeleton_structured",
+    "gait_periodic",
+    "skeleton_gait_combined",
+    "burr_m5",
 ]
-CLASSIFIERS = ["synthetic_mlp"]   # one classifier for time budget; oracle is shared
+CLASSIFIERS = ["synthetic_mlp"]  # one classifier for time budget; oracle is shared
 N_SEQ = int(__import__("os").environ.get("N_SEQ", "20"))
 N_BG = int(__import__("os").environ.get("N_BG", "10"))
 NSAMPLES = int(__import__("os").environ.get("NSAMPLES", "256"))
@@ -94,8 +98,8 @@ def shapley_metrics(phi_pred: np.ndarray, phi_true: np.ndarray) -> dict:
     for i in range(n):
         a = phi_pred[i] - phi_pred[i].mean()
         b = phi_true[i] - phi_true[i].mean()
-        std_a = float(np.sqrt((a ** 2).sum()))
-        std_b = float(np.sqrt((b ** 2).sum()))
+        std_a = float(np.sqrt((a**2).sum()))
+        std_b = float(np.sqrt((b**2).sum()))
         if std_a > 1e-12 and std_b > 1e-12:
             p = float(np.dot(a, b) / (std_a * std_b))
             p = max(-1.0, min(1.0, p))
@@ -124,14 +128,20 @@ def run_windowshap_stationary(adapter, x_test, x_bg, K):
     phi_K_all = np.zeros((n_test, K))
     for i in range(n_test):
         explainer = StationaryWindowSHAP(
-            model=adapter, window_len=win_len,
-            B_ts=x_bg, test_ts=x_test[i : i + 1], model_type="lstm",
+            model=adapter,
+            window_len=win_len,
+            B_ts=x_bg,
+            test_ts=x_test[i : i + 1],
+            model_type="lstm",
         )
         # Override default nsamples to keep runtime bounded
         explainer.explainer = None  # force re-init
         # Monkey-patch to use NSAMPLES instead of 'auto'
         import shap as _shap
-        explainer.explainer = _shap.KernelExplainer(explainer.wraper_predict, explainer.background_data)
+
+        explainer.explainer = _shap.KernelExplainer(
+            explainer.wraper_predict, explainer.background_data
+        )
         sv = explainer.explainer.shap_values(explainer.test_data, nsamples=NSAMPLES, silent=True)
         sv = np.array(sv)  # (num_test, n_features) or (n_outputs, num_test, n_features)
         if sv.ndim == 2:
@@ -147,8 +157,12 @@ def run_windowshap_sliding(adapter, x_test, x_bg, K):
     win_len = T // K
     stride = max(win_len // 2, 1)
     explainer = SlidingWindowSHAP(
-        model=adapter, stride=stride, window_len=win_len,
-        B_ts=x_bg, test_ts=x_test, model_type="lstm",
+        model=adapter,
+        stride=stride,
+        window_len=win_len,
+        B_ts=x_bg,
+        test_ts=x_test,
+        model_type="lstm",
     )
     phi_full = explainer.shap_values()  # (num_test, T, F')
     n_test = phi_full.shape[0]
@@ -165,6 +179,7 @@ def run_windowshap_dynamic(adapter, x_test, x_bg, K):
     We monkey-patch ``shap_values`` to add the missing leading axis.
     """
     import shap as _shap
+
     _orig = _shap.KernelExplainer.shap_values
 
     def _patched(self, X, **kw):
@@ -177,6 +192,7 @@ def run_windowshap_dynamic(adapter, x_test, x_bg, K):
         elif sv.ndim == 2:
             sv = sv[None]
         return sv
+
     _shap.KernelExplainer.shap_values = _patched
     try:
         T = adapter.T
@@ -186,11 +202,14 @@ def run_windowshap_dynamic(adapter, x_test, x_bg, K):
         phi_K_all = np.zeros((n_test, K))
         for i in range(n_test):
             explainer = DynamicWindowSHAP(
-                model=adapter, delta=0.05, n_w=8,
-                B_ts=x_bg, test_ts=x_test[i : i + 1], model_type="lstm",
+                model=adapter,
+                delta=0.05,
+                n_w=8,
+                B_ts=x_bg,
+                test_ts=x_test[i : i + 1],
+                model_type="lstm",
             )
-            phi_full = explainer.shap_values(nsamples_in_loop=NSAMPLES,
-                                             nsamples_final=NSAMPLES)
+            phi_full = explainer.shap_values(nsamples_in_loop=NSAMPLES, nsamples_final=NSAMPLES)
             # phi_full shape (1, T, F_total); aggregate to fixed K windows
             phi_K_all[i] = phi_full[0].reshape(K, win_len, F_total).sum(axis=(1, 2))
     finally:
@@ -248,6 +267,7 @@ def run_timeshap_event(adapter, x_test, x_bg, K):
 # --------------------------------------------------------------------- #
 def run_one_cell(ds_name: str, clf_name: str, methods: list[str]):
     from motionbench.pipelines.synthetic_eval import _build_classifier
+
     ds_cfg_d = OmegaConf.to_container(
         OmegaConf.load(REPO / "configs" / "data" / f"{ds_name}.yaml"),
         resolve=True,
@@ -256,6 +276,7 @@ def run_one_cell(ds_name: str, clf_name: str, methods: list[str]):
     target = ds_cfg_d.pop("_target_")
     mod_path, cls_name = target.rsplit(".", 1)
     import importlib
+
     mod = importlib.import_module(mod_path)
     DatasetCls = getattr(mod, cls_name)
     dataset = DatasetCls(**ds_cfg_d)
@@ -307,9 +328,9 @@ def run_one_cell(ds_name: str, clf_name: str, methods: list[str]):
 
     runners = {
         "windowshap_stationary": run_windowshap_stationary,
-        "windowshap_sliding":    run_windowshap_sliding,
-        "windowshap_dynamic":    run_windowshap_dynamic,
-        "timeshap_event":        run_timeshap_event,
+        "windowshap_sliding": run_windowshap_sliding,
+        "windowshap_dynamic": run_windowshap_dynamic,
+        "timeshap_event": run_timeshap_event,
     }
 
     for method in methods:
@@ -334,25 +355,36 @@ def run_one_cell(ds_name: str, clf_name: str, methods: list[str]):
                 phi_pred_all[idx] = fn(adapter, x_test_btf[idx], x_bg_btf, K)
             elapsed = time.time() - t0
             metrics = shapley_metrics(phi_pred_all, phi_true)
-            metrics.update({
-                "method": method,
-                "dataset": ds_name,
-                "classifier": clf_name,
-                "elapsed_s": elapsed,
-            })
-            np.savez(out_dir / "attributions.npz",
-                     phi=phi_pred_all, phi_true=phi_true, target=targets)
+            metrics.update(
+                {
+                    "method": method,
+                    "dataset": ds_name,
+                    "classifier": clf_name,
+                    "elapsed_s": elapsed,
+                }
+            )
+            np.savez(
+                out_dir / "attributions.npz", phi=phi_pred_all, phi_true=phi_true, target=targets
+            )
             with open(out_dir / "result.json", "w") as f:
                 json.dump(metrics, f, indent=2)
-            log.info("  done %s in %.1fs  EC1=%.4f  EC3=%.4f  top1=%.2f",
-                     method, elapsed, metrics["ec1"], metrics["ec3"], metrics["top1_recovery"])
+            log.info(
+                "  done %s in %.1fs  EC1=%.4f  EC3=%.4f  top1=%.2f",
+                method,
+                elapsed,
+                metrics["ec1"],
+                metrics["ec3"],
+                metrics["top1_recovery"],
+            )
         except Exception as e:
             log.exception("FAILED %s/%s/%s: %s", ds_name, clf_name, method, e)
 
 
 def main():
-    methods_arg = sys.argv[1] if len(sys.argv) > 1 else (
-        "windowshap_stationary,windowshap_sliding,windowshap_dynamic"
+    methods_arg = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else ("windowshap_stationary,windowshap_sliding,windowshap_dynamic")
     )
     methods = methods_arg.split(",")
     t_total = time.time()

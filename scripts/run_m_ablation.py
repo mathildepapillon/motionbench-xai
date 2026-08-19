@@ -18,6 +18,7 @@ Usage::
     conda activate motionbench-xai
     CUDA_VISIBLE_DEVICES=7 python scripts/run_m_ablation.py
 """
+
 from __future__ import annotations
 
 import json
@@ -66,6 +67,7 @@ def shapley_kernel(K: int, s: int) -> float:
     if s == 0 or s == K:
         return 1e6
     from math import comb
+
     return (K - 1) / (comb(K, s) * s * (K - s))
 
 
@@ -103,6 +105,7 @@ def _build_clf(clf_name: str, J: int, F: int, T: int, K: int, n_classes: int, de
     clf_yaml = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
     from motionbench.pipelines.synthetic_eval import _build_classifier
+
     clf = _build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
     clf.eval()
     return clf
@@ -114,6 +117,7 @@ def _build_vaeac_for(dataset, device):
         _VAEAC_REGISTRY,
         _load_vaeac,
     )
+
     cls_key = type(dataset).__name__
     if cls_key not in _VAEAC_REGISTRY:
         raise RuntimeError(f"No VAEAC registry entry for {cls_key}")
@@ -141,10 +145,15 @@ def _oracle_phi(dataset, x_i, target_i: int, clf, K: int, T: int, J: int, F: int
         return o.float().cpu()
 
     from motionbench.players.temporal_windows import TemporalWindows
+
     players_ts = TemporalWindows(K=K, T=T, J=J, F=F)
     try:
         phi_true = oracle.true_shapley(
-            x_i, clf_fn, players_ts, n_mc=20, n_coalitions=1 << K,
+            x_i,
+            clf_fn,
+            players_ts,
+            n_mc=20,
+            n_coalitions=1 << K,
         )
     except TypeError:
         phi_true = oracle.true_shapley(x_i, clf_fn, players_ts, n_mc=20)
@@ -152,8 +161,16 @@ def _oracle_phi(dataset, x_i, target_i: int, clf, K: int, T: int, J: int, F: int
 
 
 def run_one_combo(
-    dataset, clf, imp, K: int, T: int, J: int, F: int,
-    n_seq: int, M: int, device,
+    dataset,
+    clf,
+    imp,
+    K: int,
+    T: int,
+    J: int,
+    F: int,
+    n_seq: int,
+    M: int,
+    device,
 ) -> list[float]:
     """Return per-sequence EC1 for one (classifier, M) combo."""
     z_bin, frame_mask = build_coalition_masks(K, T)
@@ -167,9 +184,7 @@ def run_one_combo(
     X = torch.stack(seqs).to(device)
     with torch.no_grad():
         logits = clf(X)
-    targets = (
-        logits.argmax(dim=-1).cpu().numpy() if logits.ndim == 2 else np.array(ys)
-    )
+    targets = logits.argmax(dim=-1).cpu().numpy() if logits.ndim == 2 else np.array(ys)
 
     ec1_per_seq: list[float] = []
     for i in range(n_seq):
@@ -191,11 +206,7 @@ def run_one_combo(
                 out = out.unsqueeze(1)  # (n_coal, 1, J, F, T) safety net
             comps = out.contiguous()  # (n_coal, M, J, F, T)
 
-            obs = (
-                frame_mask.to(device)
-                .view(n_coal, 1, 1, 1, T)
-                .expand(n_coal, M, J, F, T)
-            )
+            obs = frame_mask.to(device).view(n_coal, 1, 1, 1, T).expand(n_coal, M, J, F, T)
             x_exp = x_i.to(device).view(1, 1, J, F, T).expand(n_coal, M, J, F, T)
             comps = torch.where(obs, x_exp, comps).contiguous()
 
@@ -243,18 +254,22 @@ def main() -> None:
             ec1_per_clf[clf_name].append(mean_ec1)
             log.info(
                 "  [%s | M=%d]  mean EC1 = %.5f  over %d seqs  (%.1fs)",
-                clf_name, M, mean_ec1, len(ec1s), time.time() - t0,
+                clf_name,
+                M,
+                mean_ec1,
+                len(ec1s),
+                time.time() - t0,
             )
         del clf
         torch.cuda.empty_cache()
 
     ec1_avg = [
-        float(np.mean([ec1_per_clf[c][i] for c in CLASSIFIERS]))
-        for i in range(len(M_VALUES))
+        float(np.mean([ec1_per_clf[c][i] for c in CLASSIFIERS])) for i in range(len(M_VALUES))
     ]
     ec1_std_across_clfs = [
         float(np.std([ec1_per_clf[c][i] for c in CLASSIFIERS], ddof=1))
-        if len(CLASSIFIERS) > 1 else 0.0
+        if len(CLASSIFIERS) > 1
+        else 0.0
         for i in range(len(M_VALUES))
     ]
 

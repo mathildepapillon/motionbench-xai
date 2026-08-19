@@ -194,5 +194,5 @@ class AttentionRolloutAttributor(BaseAttributor):
         raise ValueError(
             f"Cannot map rollout sequence length S={S} to input shape "
             f"(J={J}, F={F_dim}, T={T}). "
-            f"Expected S ∈ {{J*F*T={J*F_dim*T}, T={T}, J*F={J*F_dim}}}."
+            f"Expected S ∈ {{J*F*T={J * F_dim * T}, T={T}, J*F={J * F_dim}}}."
         )

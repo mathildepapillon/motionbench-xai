@@ -41,6 +41,7 @@ Usage
     python scripts/compute_real_cis.py --B 10000
     python scripts/compute_real_cis.py --paired marginal vaeac --paired marginal flow
 """
+
 from __future__ import annotations
 
 import argparse
@@ -87,7 +88,10 @@ def load_per_method(results_root: Path, folds: list[int]) -> dict:
 
 
 def bootstrap_ci_mean(
-    x: np.ndarray, B: int = 10_000, alpha: float = 0.05, seed: int = 0,
+    x: np.ndarray,
+    B: int = 10_000,
+    alpha: float = 0.05,
+    seed: int = 0,
 ) -> tuple[float, float, float]:
     """Percentile bootstrap CI for the mean of ``x`` (NaNs ignored).
 
@@ -106,7 +110,9 @@ def bootstrap_ci_mean(
 
 
 def paired_bootstrap_pvalue(
-    diffs: np.ndarray, B: int = 10_000, seed: int = 0,
+    diffs: np.ndarray,
+    B: int = 10_000,
+    seed: int = 0,
 ) -> dict:
     """Two-sided paired bootstrap p-value testing H0: E[diff] = 0.
 
@@ -117,10 +123,15 @@ def paired_bootstrap_pvalue(
     diffs = np.asarray(diffs, dtype=np.float64)
     diffs = diffs[np.isfinite(diffs)]
     if diffs.size == 0:
-        return {"n": 0, "mean_diff": float("nan"),
-                "ci95_low": float("nan"), "ci95_high": float("nan"),
-                "p_le0": float("nan"), "p_ge0": float("nan"),
-                "p_two_sided": float("nan")}
+        return {
+            "n": 0,
+            "mean_diff": float("nan"),
+            "ci95_low": float("nan"),
+            "ci95_high": float("nan"),
+            "p_le0": float("nan"),
+            "p_ge0": float("nan"),
+            "p_two_sided": float("nan"),
+        }
     rng = np.random.default_rng(seed)
     idx = rng.integers(0, diffs.size, size=(B, diffs.size))
     boot = diffs[idx].mean(axis=1)
@@ -154,12 +165,8 @@ def summarize_method(method_data: dict[int, dict], B: int, seed: int) -> dict:
         faith_arr = fd["faith"]
         aopc_arr = fd["aopc"]
         np.isfinite(faith_arr)
-        fold_faith_means.append(
-            float(np.nanmean(faith_arr)) if faith_arr.size else float("nan")
-        )
-        fold_aopc_means.append(
-            float(np.mean(aopc_arr)) if aopc_arr.size else float("nan")
-        )
+        fold_faith_means.append(float(np.nanmean(faith_arr)) if faith_arr.size else float("nan"))
+        fold_aopc_means.append(float(np.mean(aopc_arr)) if aopc_arr.size else float("nan"))
         pooled_faith.extend(faith_arr.tolist())
         pooled_aopc.extend(aopc_arr.tolist())
         n_per_fold.append(int(faith_arr.size))
@@ -182,7 +189,8 @@ def summarize_method(method_data: dict[int, dict], B: int, seed: int) -> dict:
             "mean_of_fold_means": float(np.nanmean(fold_faith_means)),
             "std_of_fold_means": (
                 float(np.nanstd(fold_faith_means, ddof=1))
-                if len(fold_faith_means) > 1 else float("nan")
+                if len(fold_faith_means) > 1
+                else float("nan")
             ),
             "pooled_mean": f_mean,
             "ci95_low": f_lo,
@@ -195,7 +203,8 @@ def summarize_method(method_data: dict[int, dict], B: int, seed: int) -> dict:
             "mean_of_fold_means": float(np.nanmean(fold_aopc_means)),
             "std_of_fold_means": (
                 float(np.nanstd(fold_aopc_means, ddof=1))
-                if len(fold_aopc_means) > 1 else float("nan")
+                if len(fold_aopc_means) > 1
+                else float("nan")
             ),
             "pooled_mean": a_mean,
             "ci95_low": a_lo,
@@ -230,20 +239,34 @@ def paired_diff_array(
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--results_dir", type=str, default=str(DEFAULT_RESULTS),
-                    help="Root with foldN/<method>/result.json files.")
+    ap.add_argument(
+        "--results_dir",
+        type=str,
+        default=str(DEFAULT_RESULTS),
+        help="Root with foldN/<method>/result.json files.",
+    )
     ap.add_argument("--folds", type=int, nargs="+", default=[1, 2, 3])
-    ap.add_argument("--B", type=int, default=10_000,
-                    help="Bootstrap resamples (default 10000).")
+    ap.add_argument("--B", type=int, default=10_000, help="Bootstrap resamples (default 10000).")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--paired", action="append", nargs=2, metavar=("A", "B"),
-                    default=None,
-                    help=("Paired bootstrap comparisons of the form "
-                          "'kernelshap_marginal kernelshap_vaeac'. "
-                          "Short keys (e.g. 'marginal' 'vaeac') accepted. "
-                          "Defaults to marginal vs vaeac if not specified."))
-    ap.add_argument("--out", type=str, default=None,
-                    help="Output summary path (default <results_dir>/summary_with_ci.json).")
+    ap.add_argument(
+        "--paired",
+        action="append",
+        nargs=2,
+        metavar=("A", "B"),
+        default=None,
+        help=(
+            "Paired bootstrap comparisons of the form "
+            "'kernelshap_marginal kernelshap_vaeac'. "
+            "Short keys (e.g. 'marginal' 'vaeac') accepted. "
+            "Defaults to marginal vs vaeac if not specified."
+        ),
+    )
+    ap.add_argument(
+        "--out",
+        type=str,
+        default=None,
+        help="Output summary path (default <results_dir>/summary_with_ci.json).",
+    )
     args = ap.parse_args()
 
     results_root = Path(args.results_dir)
@@ -254,8 +277,7 @@ def main() -> None:
     def normalise(name: str) -> str:
         return name if name in ALL_METHODS else f"kernelshap_{name}"
 
-    log.info("loading per-method results from %s (folds=%s)",
-             results_root, args.folds)
+    log.info("loading per-method results from %s (folds=%s)", results_root, args.folds)
     data = load_per_method(results_root, args.folds)
 
     summary: dict = {
@@ -289,7 +311,9 @@ def main() -> None:
             "diff_definition": f"{a_key} - {b_key}",
             **paired_bootstrap_pvalue(diffs_faith, B=args.B, seed=args.seed + 7),
             "secondary_metric_player_aopc": paired_bootstrap_pvalue(
-                diffs_aopc, B=args.B, seed=args.seed + 8,
+                diffs_aopc,
+                B=args.B,
+                seed=args.seed + 8,
             ),
         }
         summary["paired_tests"].append(ptest)
@@ -301,25 +325,28 @@ def main() -> None:
     print("\n" + "=" * 78)
     print(f"REAL-WORLD EXTENDED SUMMARY  (results_dir={results_root})")
     print("=" * 78)
-    print(f"{'method':<25} {'n':>4}  {'faith mean [95% CI]':<26}  "
-          f"{'AOPC mean [95% CI]':<26}  {'fold std (faith)':>16}")
+    print(
+        f"{'method':<25} {'n':>4}  {'faith mean [95% CI]':<26}  "
+        f"{'AOPC mean [95% CI]':<26}  {'fold std (faith)':>16}"
+    )
     for m, mdata in summary["methods"].items():
         f = mdata["faithfulness"]
         a = mdata["player_aopc"]
         n = mdata["n_total_sequences"]
         faith_str = f"{f['pooled_mean']:+.3f} [{f['ci95_low']:+.3f},{f['ci95_high']:+.3f}]"
         aopc_str = f"{a['pooled_mean']:+.3f} [{a['ci95_low']:+.3f},{a['ci95_high']:+.3f}]"
-        print(f"{m:<25} {n:>4}  {faith_str:<26}  {aopc_str:<26}  "
-              f"{f['std_of_fold_means']:>16.4f}")
+        print(f"{m:<25} {n:>4}  {faith_str:<26}  {aopc_str:<26}  {f['std_of_fold_means']:>16.4f}")
     print("=" * 78)
     print("PAIRED BOOTSTRAP TESTS (faithfulness correlation):")
     for t in summary["paired_tests"]:
         sign = ">" if t["mean_diff"] > 0 else "<"
         sig = "*" if t["p_two_sided"] < 0.05 else " "
-        print(f"  {t['method_a']:<22} {sign} {t['method_b']:<22} | "
-              f"diff={t['mean_diff']:+.4f} [95% CI {t['ci95_low']:+.4f},{t['ci95_high']:+.4f}] | "
-              f"p_two_sided={t['p_two_sided']:.4f}{sig}  (p_le0={t['p_le0']:.4f}, "
-              f"p_ge0={t['p_ge0']:.4f}, n={t['n']})")
+        print(
+            f"  {t['method_a']:<22} {sign} {t['method_b']:<22} | "
+            f"diff={t['mean_diff']:+.4f} [95% CI {t['ci95_low']:+.4f},{t['ci95_high']:+.4f}] | "
+            f"p_two_sided={t['p_two_sided']:.4f}{sig}  (p_le0={t['p_le0']:.4f}, "
+            f"p_ge0={t['p_ge0']:.4f}, n={t['n']})"
+        )
     print("=" * 78)
 
 

@@ -660,7 +660,7 @@ class PlayerDeletionMetric(BaseMetric):
         suff_vals: list[float] = []
 
         # Incrementally track the current observed mask for deletion/insertion.
-        del_obs = torch.ones(J, F, T, dtype=torch.bool)   # start: all observed
+        del_obs = torch.ones(J, F, T, dtype=torch.bool)  # start: all observed
         suf_obs = torch.zeros(J, F, T, dtype=torch.bool)  # start: all masked
 
         for k_idx in range(M):
@@ -874,7 +874,7 @@ def _build_granularity(
 
     if name.startswith("joint_phase"):
         try:
-            K = int(name[len("joint_phase"):])
+            K = int(name[len("joint_phase") :])
         except ValueError:
             return None
         if T % K != 0 or K < 1:
@@ -883,7 +883,7 @@ def _build_granularity(
 
     if name.startswith("phase"):
         try:
-            K = int(name[len("phase"):])
+            K = int(name[len("phase") :])
         except ValueError:
             return None
         if T % K != 0 or K < 1:
@@ -958,9 +958,7 @@ class CrossGranularityFaithfulnessMetric(BaseMetric):
         **_kwargs: Any,
     ) -> None:
         self._granularities = (
-            list(granularities)
-            if granularities is not None
-            else list(self._DEFAULT_GRANULARITIES)
+            list(granularities) if granularities is not None else list(self._DEFAULT_GRANULARITIES)
         )
         self._n_samples = n_samples
 

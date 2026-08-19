@@ -9,6 +9,7 @@ No heavy dependencies (no captum, shap, quantus, etc.) are used here.
 Run:
     python examples/smoke_test.py
 """
+
 from __future__ import annotations
 
 import sys

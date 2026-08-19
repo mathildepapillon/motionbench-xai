@@ -42,6 +42,7 @@ Notes
   (the metric's ``requires_oracle=True`` guard in ``_evaluate_metrics`` handles this).
 * n_jobs can be set via ``--n-jobs`` (defaults to config value).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -145,8 +146,10 @@ def main(
             if _needs_recompute(result, group, force):
                 work.append((dataset, clf, method, rf, group))
 
-    print(f"{len(work)} (cell, metric_group) pairs to compute "
-          f"(force={force}, dry_run={dry_run}, groups={groups})")
+    print(
+        f"{len(work)} (cell, metric_group) pairs to compute "
+        f"(force={force}, dry_run={dry_run}, groups={groups})"
+    )
 
     if dry_run:
         for dataset, clf, method, _rf, group in work:

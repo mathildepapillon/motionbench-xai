@@ -5,6 +5,7 @@ Verifies:
 2. attribute() returns (M,) float32 tensor.
 3. Introspection properties have correct defaults.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -28,14 +29,14 @@ class _MockPlayers:
         mask = torch.zeros(J, F, T, dtype=torch.bool)
         for k in range(M):
             if z[k]:
-                mask[:, :, k * ws:(k + 1) * ws] = True
+                mask[:, :, k * ws : (k + 1) * ws] = True
         return mask
 
     def aggregate(self, phi_coords):
         ws = T // M
         phi = torch.zeros(M)
         for k in range(M):
-            phi[k] = phi_coords[:, :, k * ws:(k + 1) * ws].sum()
+            phi[k] = phi_coords[:, :, k * ws : (k + 1) * ws].sum()
         return phi
 
 

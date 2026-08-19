@@ -634,9 +634,7 @@ class BurrMotionBenchmark:
             sj = 0.5 * (sj + sj.T)
             eig_min = float(np.linalg.eigvalsh(sj).min())
             if eig_min < -1e-6:
-                raise ValueError(
-                    f"sigma_joints is not PSD (min eigenvalue {eig_min:.3e})."
-                )
+                raise ValueError(f"sigma_joints is not PSD (min eigenvalue {eig_min:.3e}).")
             self.Sigma_joints = sj
             self.sigma_joints_source = sigma_joints_source or "custom"
 
@@ -651,9 +649,7 @@ class BurrMotionBenchmark:
             st = 0.5 * (st + st.T)
             eig_min = float(np.linalg.eigvalsh(st).min())
             if eig_min < -1e-6:
-                raise ValueError(
-                    f"sigma_time is not PSD (min eigenvalue {eig_min:.3e})."
-                )
+                raise ValueError(f"sigma_time is not PSD (min eigenvalue {eig_min:.3e}).")
             self.Sigma_time = st
             self.sigma_time_source = sigma_time_source or "custom"
 

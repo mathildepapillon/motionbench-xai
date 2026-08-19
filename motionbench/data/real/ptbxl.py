@@ -84,9 +84,9 @@ _N_LEADS: int = 12
 # Fold partitions following Strodthoff et al. (2021)
 _FOLD_SPLITS: dict[str, tuple[list[int], ...]] = {
     # (train_folds, eval_folds)
-    "train": (list(range(1, 9)),),    # folds 1–8
-    "val":   ([9],),                  # fold 9 (validation)
-    "test":  ([10],),                 # fold 10 (held-out test)
+    "train": (list(range(1, 9)),),  # folds 1–8
+    "val": ([9],),  # fold 9 (validation)
+    "test": ([10],),  # fold 10 (held-out test)
 }
 
 # Superclass label mapping used in this binary task
@@ -211,9 +211,7 @@ class PTBXLDataset:
         # Load and filter the database CSV
         db = pd.read_csv(db_path)
         db["scp_dict"] = db["scp_codes"].map(_parse_scp_codes)
-        db["superclass"] = db["scp_dict"].map(
-            lambda d: _dominant_superclass(d, code_to_super)
-        )
+        db["superclass"] = db["scp_dict"].map(lambda d: _dominant_superclass(d, code_to_super))
 
         # Keep only NORM and MI records
         db = db[db["superclass"].isin(_LABEL_MAP)].copy()
@@ -238,7 +236,7 @@ class PTBXLDataset:
                 self._mean, self._std = self._compute_train_stats(code_to_super)
         else:
             self._mean = np.zeros(_N_LEADS, dtype=np.float32)
-            self._std  = np.ones(_N_LEADS,  dtype=np.float32)
+            self._std = np.ones(_N_LEADS, dtype=np.float32)
 
         # Load all waveforms into memory
         self._samples: list[tuple[np.ndarray, int]] = self._load_records(db)
@@ -271,9 +269,7 @@ class PTBXLDataset:
         try:
             import wfdb  # type: ignore[import]
         except ImportError as e:
-            raise ImportError(
-                "PTBXLDataset requires the 'wfdb' package: pip install wfdb"
-            ) from e
+            raise ImportError("PTBXLDataset requires the 'wfdb' package: pip install wfdb") from e
 
         record_path = str(self._data_path / filename_lr)
         try:
@@ -298,9 +294,7 @@ class PTBXLDataset:
 
         return signal  # (1000, 12)
 
-    def _load_records(
-        self, db: pd.DataFrame
-    ) -> list[tuple[np.ndarray, int]]:
+    def _load_records(self, db: pd.DataFrame) -> list[tuple[np.ndarray, int]]:
         """Load all waveforms in *db* and return ``(waveform, label)`` pairs.
 
         Args:
@@ -317,16 +311,12 @@ class PTBXLDataset:
                 continue
             # Per-lead z-score: (T, J) → normalise along T (subtract mean, divide std)
             # Mean and std are per-lead scalars computed over the train set.
-            signal = (signal - self._mean[np.newaxis, :]) / (
-                self._std[np.newaxis, :] + 1e-8
-            )
+            signal = (signal - self._mean[np.newaxis, :]) / (self._std[np.newaxis, :] + 1e-8)
             label = _LABEL_MAP[row["superclass"]]
             samples.append((signal.astype(np.float32), label))
         return samples
 
-    def _compute_train_stats(
-        self, code_to_super: dict[str, str]
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def _compute_train_stats(self, code_to_super: dict[str, str]) -> tuple[np.ndarray, np.ndarray]:
         """Compute per-lead mean and std over the train split.
 
         Args:
@@ -335,18 +325,13 @@ class PTBXLDataset:
         Returns:
             ``(mean, std)`` each of shape ``(J=12,)``.
         """
-        logger.info(
-            "PTBXLDataset: computing normalisation statistics from train split …"
-        )
+        logger.info("PTBXLDataset: computing normalisation statistics from train split …")
         try:
             db = pd.read_csv(self._data_path / "ptbxl_database.csv")
             db["scp_dict"] = db["scp_codes"].map(_parse_scp_codes)
-            db["superclass"] = db["scp_dict"].map(
-                lambda d: _dominant_superclass(d, code_to_super)
-            )
+            db["superclass"] = db["scp_dict"].map(lambda d: _dominant_superclass(d, code_to_super))
             db = db[
-                db["superclass"].isin(_LABEL_MAP)
-                & db["strat_fold"].isin(_FOLD_SPLITS["train"][0])
+                db["superclass"].isin(_LABEL_MAP) & db["strat_fold"].isin(_FOLD_SPLITS["train"][0])
             ]
         except Exception:
             return (
@@ -360,7 +345,7 @@ class PTBXLDataset:
             if sig is not None:
                 accum.append(sig)
             if len(accum) >= 2000:
-                break   # cap at 2000 records for speed
+                break  # cap at 2000 records for speed
 
         if not accum:
             return (
@@ -368,14 +353,16 @@ class PTBXLDataset:
                 np.ones(_N_LEADS, dtype=np.float32),
             )
 
-        all_signals = np.stack(accum, axis=0)   # (N, T, J)
+        all_signals = np.stack(accum, axis=0)  # (N, T, J)
         flat = all_signals.reshape(-1, _N_LEADS)  # (N*T, J)
         mean = flat.mean(axis=0).astype(np.float32)
-        std  = flat.std(axis=0).astype(np.float32)
-        std[std < 1e-6] = 1.0   # avoid division by zero for flat leads
+        std = flat.std(axis=0).astype(np.float32)
+        std[std < 1e-6] = 1.0  # avoid division by zero for flat leads
         logger.info(
             "PTBXLDataset: stats from %d train records — mean range [%.3f, %.3f]",
-            len(accum), float(mean.min()), float(mean.max()),
+            len(accum),
+            float(mean.min()),
+            float(mean.max()),
         )
         return mean, std
 

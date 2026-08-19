@@ -31,9 +31,14 @@ CAREPD_ROOT = Path(__file__).parents[1]
 
 def main() -> None:
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--method-override", type=str, default=None,
-                        help="If set, run only this single method (for per-GPU parallelism).")
+    parser.add_argument(
+        "--method-override",
+        type=str,
+        default=None,
+        help="If set, run only this single method (for per-GPU parallelism).",
+    )
     args, _ = parser.parse_known_args()
 
     from motionbench.imputers.off_manifold import ZeroImputer
@@ -76,8 +81,15 @@ def main() -> None:
         J, F, T = dataset.shape
         n_classes = int(str(dataset.metadata.get("n_classes", 3)))
         n_seq_actual = min(n_seq, len(dataset))
-        log.info("  shape (J=%d, F=%d, T=%d), K=%d, n_classes=%d, n_seq=%d",
-                 J, F, T, K, n_classes, n_seq_actual)
+        log.info(
+            "  shape (J=%d, F=%d, T=%d), K=%d, n_classes=%d, n_seq=%d",
+            J,
+            F,
+            T,
+            K,
+            n_classes,
+            n_seq_actual,
+        )
 
         for clf_name in classifiers:
             log.info("  Classifier: %s — loading ...", clf_name)
@@ -116,7 +128,9 @@ def main() -> None:
                         try:
                             _z = np.load(cache_path, allow_pickle=False)
                             if _z["phi"].shape[0] == n_seq_actual:
-                                phi_list = [torch.from_numpy(_z["phi"][i]) for i in range(n_seq_actual)]
+                                phi_list = [
+                                    torch.from_numpy(_z["phi"][i]) for i in range(n_seq_actual)
+                                ]
                                 x_list = [torch.from_numpy(_z["x"][i]) for i in range(n_seq_actual)]
                                 target_list = [int(t) for t in _z["target"].tolist()]
                                 cache_loaded = True
@@ -125,6 +139,7 @@ def main() -> None:
 
                     # Detect flow imputer → can use batched coalition pre-computation
                     from motionbench.imputers.carepd_imputer import CarepdFlowImputer
+
                     is_flow = isinstance(imputer, CarepdFlowImputer)
                     flow_n_samples = int(method_cfg.get("n_completion_samples", 1))
 
@@ -136,7 +151,9 @@ def main() -> None:
                             # Pre-compute all 2^K temporal coalitions in one ODE run (16x speedup)
                             if is_flow and imputer is not None:
                                 imputer.precompute_all_temporal_coalitions(
-                                    x.cpu(), K=K, n_samples=flow_n_samples,
+                                    x.cpu(),
+                                    K=K,
+                                    n_samples=flow_n_samples,
                                 )
 
                             with torch.no_grad():
@@ -164,7 +181,9 @@ def main() -> None:
                             log.warning("Failed to write attribution cache: %s", exc)
 
                     metric_names = _collect_metric_names(cfg)
-                    fidelity_imputer = imputer if imputer is not None else ZeroImputer().fit(dataset)
+                    fidelity_imputer = (
+                        imputer if imputer is not None else ZeroImputer().fit(dataset)
+                    )
                     scores = _evaluate_metrics(
                         phi_list=phi_list,
                         x_list=x_list,
@@ -190,14 +209,20 @@ def main() -> None:
                     result_path.write_text(json.dumps(result, indent=2))
                     log.info(
                         "    Done %s/%s/%s (%.1fs) — %d metrics",
-                        ds_name, clf_name, method_name, time.time() - t_method, len(scores),
+                        ds_name,
+                        clf_name,
+                        method_name,
+                        time.time() - t_method,
+                        len(scores),
                     )
 
                 except Exception as exc:
                     log.warning("    FAILED %s/%s/%s: %s", ds_name, clf_name, method_name, exc)
                     error_path = result_path.parent / "error.json"
                     error_path.parent.mkdir(parents=True, exist_ok=True)
-                    error_path.write_text(json.dumps({"error": str(exc), "type": type(exc).__name__}))
+                    error_path.write_text(
+                        json.dumps({"error": str(exc), "type": type(exc).__name__})
+                    )
                     result = {
                         "dataset": ds_name,
                         "classifier": clf_name,

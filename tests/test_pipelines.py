@@ -72,17 +72,19 @@ class TestInstantiateDataset:
     def test_gaussian_dataset_with_k(self) -> None:
         from motionbench.pipelines.synthetic_eval import _instantiate_dataset
 
-        cfg = OmegaConf.create({
-            "_target_": "motionbench.data.synthetic.gaussian_motion.GaussianMotionDataset",
-            "J": 3,
-            "F": 2,
-            "T": 8,
-            "K": 4,
-            "N": 20,
-            "rho": 0.3,
-            "alpha": 0.5,
-            "seed": 0,
-        })
+        cfg = OmegaConf.create(
+            {
+                "_target_": "motionbench.data.synthetic.gaussian_motion.GaussianMotionDataset",
+                "J": 3,
+                "F": 2,
+                "T": 8,
+                "K": 4,
+                "N": 20,
+                "rho": 0.3,
+                "alpha": 0.5,
+                "seed": 0,
+            }
+        )
         dataset, K = _instantiate_dataset(cfg)
         assert K == 4
         assert dataset.shape == (3, 2, 8)
@@ -91,17 +93,19 @@ class TestInstantiateDataset:
     def test_burr_dataset_k_stripped(self) -> None:
         from motionbench.pipelines.synthetic_eval import _instantiate_dataset
 
-        cfg = OmegaConf.create({
-            "_target_": "motionbench.data.synthetic.burr_motion.BurrMotionBenchmark",
-            "J": 3,
-            "F": 2,
-            "T": 8,
-            "K": 5,  # pipeline-only; must be stripped before passing to constructor
-            "N": 20,
-            "rho": 0.3,
-            "alpha": 0.5,
-            "seed": 0,
-        })
+        cfg = OmegaConf.create(
+            {
+                "_target_": "motionbench.data.synthetic.burr_motion.BurrMotionBenchmark",
+                "J": 3,
+                "F": 2,
+                "T": 8,
+                "K": 5,  # pipeline-only; must be stripped before passing to constructor
+                "N": 20,
+                "rho": 0.3,
+                "alpha": 0.5,
+                "seed": 0,
+            }
+        )
         dataset, K = _instantiate_dataset(cfg)
         assert K == 5
         assert dataset.shape == (3, 2, 8)
@@ -118,12 +122,14 @@ class TestBuildPlayers:
     def test_temporal_windows(self) -> None:
         from motionbench.pipelines.synthetic_eval import _build_players
 
-        method_cfg = OmegaConf.create({
-            "name": "kernelshap_zero",
-            "players": {
-                "_target_": "motionbench.players.temporal_windows.TemporalWindows",
-            },
-        })
+        method_cfg = OmegaConf.create(
+            {
+                "name": "kernelshap_zero",
+                "players": {
+                    "_target_": "motionbench.players.temporal_windows.TemporalWindows",
+                },
+            }
+        )
         players = _build_players(method_cfg, J=3, F=2, T=8, K=4)
         assert players.n_players == 4
         assert players.shape == (3, 2, 8)
@@ -140,11 +146,13 @@ class TestBuildClassifier:
     def test_synthetic_mlp(self) -> None:
         from motionbench.pipelines.synthetic_eval import _build_classifier
 
-        clf_cfg = OmegaConf.create({
-            "_target_": "motionbench.classifiers.synthetic_mlp.SyntheticMLPClassifier",
-            "hidden": 64,
-            "player_mode": "temporal",
-        })
+        clf_cfg = OmegaConf.create(
+            {
+                "_target_": "motionbench.classifiers.synthetic_mlp.SyntheticMLPClassifier",
+                "hidden": 64,
+                "player_mode": "temporal",
+            }
+        )
         clf = _build_classifier(clf_cfg, J=3, F=2, T=8, K=4, n_classes=3)
         assert clf.n_classes == 3
         x = torch.randn(2, 3, 2, 8)
@@ -155,9 +163,11 @@ class TestBuildClassifier:
     def test_synthetic_cnn(self) -> None:
         from motionbench.pipelines.synthetic_eval import _build_classifier
 
-        clf_cfg = OmegaConf.create({
-            "_target_": "motionbench.classifiers.synthetic_cnn.SyntheticCNNClassifier",
-        })
+        clf_cfg = OmegaConf.create(
+            {
+                "_target_": "motionbench.classifiers.synthetic_cnn.SyntheticCNNClassifier",
+            }
+        )
         clf = _build_classifier(clf_cfg, J=3, F=2, T=8, K=4, n_classes=3)
         x = torch.randn(2, 3, 2, 8)
         with torch.no_grad():
@@ -176,17 +186,19 @@ class TestBuildAttributorGradient:
     def test_ig_attributor(self, tiny_mlp: Any, tiny_players: Any) -> None:
         from motionbench.pipelines.synthetic_eval import _build_attributor
 
-        method_cfg = OmegaConf.create({
-            "name": "ig_zero",
-            "attributor": {
-                "_target_": "motionbench.attribution.captum_methods.IntegratedGradientsAttributor",
-                "baseline": "zero",
-                "n_steps": 5,
-            },
-            "players": {
-                "_target_": "motionbench.players.temporal_windows.TemporalWindows",
-            },
-        })
+        method_cfg = OmegaConf.create(
+            {
+                "name": "ig_zero",
+                "attributor": {
+                    "_target_": "motionbench.attribution.captum_methods.IntegratedGradientsAttributor",
+                    "baseline": "zero",
+                    "n_steps": 5,
+                },
+                "players": {
+                    "_target_": "motionbench.players.temporal_windows.TemporalWindows",
+                },
+            }
+        )
         attributor = _build_attributor(method_cfg, tiny_mlp, None, tiny_players)
         assert attributor is not None
 
@@ -209,31 +221,39 @@ class TestRunCell:
         from motionbench.pipelines.synthetic_eval import _run_cell
 
         # Build a minimal config that looks like the experiment config
-        cfg = OmegaConf.create({
-            "results_dir": str(tmp_results),
-            "n_sequences": 2,
-            "n_jobs": 1,
-            "device": "cpu",
-            "wandb": {"mode": "disabled"},
-            "metrics": {
-                "gt": ["ec1", "ec2"],
-                "stability": ["max_sensitivity"],
-            },
-            "datasets": ["gaussian_k4"],
-            "methods": ["kernelshap_zero"],
-            "classifiers": ["synthetic_mlp"],
-        })
+        cfg = OmegaConf.create(
+            {
+                "results_dir": str(tmp_results),
+                "n_sequences": 2,
+                "n_jobs": 1,
+                "device": "cpu",
+                "wandb": {"mode": "disabled"},
+                "metrics": {
+                    "gt": ["ec1", "ec2"],
+                    "stability": ["max_sensitivity"],
+                },
+                "datasets": ["gaussian_k4"],
+                "methods": ["kernelshap_zero"],
+                "classifiers": ["synthetic_mlp"],
+            }
+        )
 
         # Patch _load_sub_config to return inline configs (avoid filesystem dependency)
         def mock_load_sub_config(subdir: str, name: str, _cfg: DictConfig) -> DictConfig:
             configs: dict[str, dict[str, Any]] = {
                 ("data", "gaussian_k4"): {
                     "_target_": "motionbench.data.synthetic.gaussian_motion.GaussianMotionDataset",
-                    "J": 3, "F": 2, "T": 8, "K": 4, "N": 20, "seed": 0,
+                    "J": 3,
+                    "F": 2,
+                    "T": 8,
+                    "K": 4,
+                    "N": 20,
+                    "seed": 0,
                 },
                 ("classifiers", "synthetic_mlp"): {
                     "_target_": "motionbench.classifiers.synthetic_mlp.SyntheticMLPClassifier",
-                    "hidden": 64, "player_mode": "temporal",
+                    "hidden": 64,
+                    "player_mode": "temporal",
                 },
                 ("methods", "kernelshap_zero"): {
                     "name": "kernelshap_zero",
@@ -295,13 +315,17 @@ class TestLeaderboard:
         for method in ("method_a", "method_b"):
             path = tmp_path / "ds1" / "clf1" / method / "result.json"
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps({
-                "dataset": "ds1",
-                "classifier": "clf1",
-                "method": method,
-                "ec1": 0.1 if method == "method_a" else 0.2,
-                "ec2": 0.01 if method == "method_a" else 0.04,
-            }))
+            path.write_text(
+                json.dumps(
+                    {
+                        "dataset": "ds1",
+                        "classifier": "clf1",
+                        "method": method,
+                        "ec1": 0.1 if method == "method_a" else 0.2,
+                        "ec2": 0.01 if method == "method_a" else 0.04,
+                    }
+                )
+            )
 
     def test_load_results(self, tmp_path: Path) -> None:
         from motionbench.pipelines.leaderboard import load_results
@@ -343,28 +367,36 @@ class TestFullPipelineIntegration:
     def test_run_synthetic_eval(self, tmp_path: Path) -> None:
         from motionbench.pipelines.synthetic_eval import run_synthetic_eval
 
-        cfg = OmegaConf.create({
-            "pipeline": "synthetic",
-            "datasets": ["gaussian_k4"],
-            "methods": ["kernelshap_zero"],
-            "classifiers": ["synthetic_mlp"],
-            "metrics": {"gt": ["ec1"], "stability": []},
-            "n_sequences": 2,
-            "n_jobs": 1,
-            "device": "cpu",
-            "results_dir": str(tmp_path / "results"),
-            "wandb": {"mode": "disabled"},
-        })
+        cfg = OmegaConf.create(
+            {
+                "pipeline": "synthetic",
+                "datasets": ["gaussian_k4"],
+                "methods": ["kernelshap_zero"],
+                "classifiers": ["synthetic_mlp"],
+                "metrics": {"gt": ["ec1"], "stability": []},
+                "n_sequences": 2,
+                "n_jobs": 1,
+                "device": "cpu",
+                "results_dir": str(tmp_path / "results"),
+                "wandb": {"mode": "disabled"},
+            }
+        )
 
         def mock_load_sub_config(subdir: str, name: str, _cfg: DictConfig) -> DictConfig:
             configs: dict[str, dict[str, Any]] = {
                 ("data", "gaussian_k4"): {
                     "_target_": "motionbench.data.synthetic.gaussian_motion.GaussianMotionDataset",
-                    "J": 3, "F": 2, "T": 8, "K": 4, "N": 20, "seed": 1,
+                    "J": 3,
+                    "F": 2,
+                    "T": 8,
+                    "K": 4,
+                    "N": 20,
+                    "seed": 1,
                 },
                 ("classifiers", "synthetic_mlp"): {
                     "_target_": "motionbench.classifiers.synthetic_mlp.SyntheticMLPClassifier",
-                    "hidden": 64, "player_mode": "temporal",
+                    "hidden": 64,
+                    "player_mode": "temporal",
                 },
                 ("methods", "kernelshap_zero"): {
                     "name": "kernelshap_zero",

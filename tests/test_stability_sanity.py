@@ -164,7 +164,9 @@ def random_mlp() -> _TinyMLP:
 def test_max_sensitivity_returns_dict(phi_sample, x_sample_jft, players):
     metric = MaxSensitivityMetric(nr_samples=3)
     explain_func = _make_gradient_explain_func(players)
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func)
+    result = metric.evaluate(
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
+    )
     assert isinstance(result, dict), "evaluate() must return dict"
     assert all(isinstance(k, str) for k in result)
     assert all(isinstance(v, float) for v in result.values())
@@ -196,7 +198,9 @@ def test_lipschitz_estimate_returns_dict(phi_sample, x_sample_jft, players):
 def test_mprt_returns_dict(phi_sample, x_sample_jft, players, trained_mlp):
     metric = ModelParameterRandomisationMetric()
     explain_func = _make_gradient_explain_func(players)
-    result = metric.evaluate(phi_sample, x_sample_jft, trained_mlp, players, explain_func=explain_func)
+    result = metric.evaluate(
+        phi_sample, x_sample_jft, trained_mlp, players, explain_func=explain_func
+    )
     assert isinstance(result, dict)
     assert all(isinstance(v, float) for v in result.values())
 
@@ -304,7 +308,9 @@ def test_mprt_lower_correlation_for_random_model(
     explain_func = _make_gradient_explain_func(players)
     metric = ModelParameterRandomisationMetric(seed=SEED)
 
-    result_trained = metric.evaluate(phi_sample, x_sample_jft, trained_mlp, players, explain_func=explain_func)
+    result_trained = metric.evaluate(
+        phi_sample, x_sample_jft, trained_mlp, players, explain_func=explain_func
+    )
     score_trained = result_trained["mprt_avg_correlation"]
 
     # Fully randomise a copy of the trained model
@@ -312,7 +318,9 @@ def test_mprt_lower_correlation_for_random_model(
     for param in fully_random.parameters():
         nn.init.normal_(param, mean=0.0, std=1.0)
 
-    result_random = metric.evaluate(phi_sample, x_sample_jft, fully_random, players, explain_func=explain_func)
+    result_random = metric.evaluate(
+        phi_sample, x_sample_jft, fully_random, players, explain_func=explain_func
+    )
     score_random = result_random["mprt_avg_correlation"]
 
     # Both scores must be finite floats
@@ -337,7 +345,9 @@ def test_max_sensitivity_smoke_default_samples(phi_sample, x_sample_jft, players
     """Full default nr_samples=200 run — slow on CPU."""
     explain_func = _make_gradient_explain_func(players)
     metric = MaxSensitivityMetric()
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func)
+    result = metric.evaluate(
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
+    )
     assert "max_sensitivity" in result
     assert np.isfinite(result["max_sensitivity"])
 
@@ -362,7 +372,9 @@ def test_lipschitz_smoke_default_samples(phi_sample, x_sample_jft, players):
 def test_max_sensitivity_score_is_finite(phi_sample, x_sample_jft, players):
     explain_func = _make_gradient_explain_func(players)
     metric = MaxSensitivityMetric(nr_samples=5)
-    result = metric.evaluate(phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func)
+    result = metric.evaluate(
+        phi_sample, x_sample_jft, _TinyMLP(), players, explain_func=explain_func
+    )
     assert np.isfinite(result["max_sensitivity"]) or np.isnan(result["max_sensitivity"]), (
         "Score must be float (finite or nan, but not inf)"
     )

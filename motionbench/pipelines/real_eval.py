@@ -60,12 +60,7 @@ def run_real_eval(cfg: DictConfig) -> pd.DataFrame:
     methods: list[str] = list(cfg.methods)
     classifiers: list[str] = list(cfg.classifiers)
 
-    cells = [
-        (ds, clf, mth)
-        for ds in datasets
-        for clf in classifiers
-        for mth in methods
-    ]
+    cells = [(ds, clf, mth) for ds in datasets for clf in classifiers for mth in methods]
     log.info(
         "CARE-PD sweep: %d cells (%d datasets × %d classifiers × %d methods)",
         len(cells),

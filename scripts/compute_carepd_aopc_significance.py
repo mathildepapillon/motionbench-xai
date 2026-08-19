@@ -34,6 +34,7 @@ Writes ``results/care_pd_multiclf/aopc_pairwise_significance.json`` with the
 full per-classifier and pooled paired-test grids, and prints a compact
 console table.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -109,9 +110,7 @@ def paired_bootstrap_pvalue(
     }
 
 
-def load_aopc(
-    results_root: Path, clf: str, method: str, folds: list[int]
-) -> np.ndarray:
+def load_aopc(results_root: Path, clf: str, method: str, folds: list[int]) -> np.ndarray:
     """Concatenate per-sequence PlayerAOPC arrays across folds.
 
     Args:
@@ -195,9 +194,7 @@ def pairwise_grid(
             if n == 0:
                 grid[ma][mb] = paired_bootstrap_pvalue(np.array([]), B=B, seed=seed)
                 continue
-            grid[ma][mb] = paired_bootstrap_pvalue(
-                a_arr[:n] - b_arr[:n], B=B, seed=seed
-            )
+            grid[ma][mb] = paired_bootstrap_pvalue(a_arr[:n] - b_arr[:n], B=B, seed=seed)
     return grid
 
 
@@ -229,17 +226,26 @@ def main() -> None:
             arr = load_aopc(results_root, clf, m, args.folds)
             aopc_by_method[m] = arr
             pooled_by_method[m].extend(arr.tolist())
-            log.info("%s/%s: n=%d  mean=%.4f", clf, m, arr.size, float(arr.mean()) if arr.size else float("nan"))
+            log.info(
+                "%s/%s: n=%d  mean=%.4f",
+                clf,
+                m,
+                arr.size,
+                float(arr.mean()) if arr.size else float("nan"),
+            )
         per_clf = pairwise_grid(aopc_by_method, B=args.B, seed=args.seed)
-        means = {m: float(aopc_by_method[m].mean()) if aopc_by_method[m].size else float("nan")
-                 for m in args.methods}
+        means = {
+            m: float(aopc_by_method[m].mean()) if aopc_by_method[m].size else float("nan")
+            for m in args.methods
+        }
         summary["per_classifier"][clf] = {"means": means, "pairwise": per_clf}
 
-    pooled_arrays = {m: np.asarray(pooled_by_method[m], dtype=np.float64)
-                     for m in args.methods}
+    pooled_arrays = {m: np.asarray(pooled_by_method[m], dtype=np.float64) for m in args.methods}
     pooled_grid = pairwise_grid(pooled_arrays, B=args.B, seed=args.seed)
-    pooled_means = {m: float(pooled_arrays[m].mean()) if pooled_arrays[m].size else float("nan")
-                    for m in args.methods}
+    pooled_means = {
+        m: float(pooled_arrays[m].mean()) if pooled_arrays[m].size else float("nan")
+        for m in args.methods
+    }
     summary["pooled_across_classifiers"] = {
         "n_total": int(min(arr.size for arr in pooled_arrays.values()) if pooled_arrays else 0),
         "means": pooled_means,
@@ -261,10 +267,9 @@ def main() -> None:
         "kernelshap_vaeac": "KS-VAEAC",
         "kernelshap_flow": "KS-Flow",
     }
-    for clf_name, payload in (
-        list(summary["per_classifier"].items())
-        + [("POOLED", summary["pooled_across_classifiers"])]
-    ):
+    for clf_name, payload in list(summary["per_classifier"].items()) + [
+        ("POOLED", summary["pooled_across_classifiers"])
+    ]:
         print(f"\n[{clf_name}]")
         n_total = payload.get("n_total", "")
         if n_total:

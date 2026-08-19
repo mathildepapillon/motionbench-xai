@@ -108,9 +108,7 @@ class GaitPhase(PlayerSet):
             ValueError: if ``z.shape != (M,)``.
         """
         if z.shape != (self._M,):
-            raise ValueError(
-                f"Expected z.shape==({self._M},); got {tuple(z.shape)}."
-            )
+            raise ValueError(f"Expected z.shape==({self._M},); got {tuple(z.shape)}.")
         mask = torch.zeros(self._J, self._F, self._T, dtype=torch.bool)
         for p, (t0, t1) in enumerate(self._boundaries):
             if z[p]:

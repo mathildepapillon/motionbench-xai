@@ -168,7 +168,4 @@ class PlayerSet(ABC):
 
     def __repr__(self) -> str:
         J, F, T = self.shape
-        return (
-            f"{self.__class__.__name__}("
-            f"n_players={self.n_players}, J={J}, F={F}, T={T})"
-        )
+        return f"{self.__class__.__name__}(n_players={self.n_players}, J={J}, F={F}, T={T})"

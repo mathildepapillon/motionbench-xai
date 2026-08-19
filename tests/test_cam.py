@@ -46,10 +46,10 @@ class _TinyCNN(nn.Module):
             ``(B, n_classes)`` logits.
         """
         B, Jj, Ff, Tt = x.shape
-        x = x.view(B, Jj * Ff, Tt)          # (B, 15, T)
-        x = torch.relu(self.conv1(x))        # (B, 8, T)
-        x = self.pool(x).squeeze(-1)         # (B, 8)
-        return self.fc(x)                    # (B, n_classes)
+        x = x.view(B, Jj * Ff, Tt)  # (B, 15, T)
+        x = torch.relu(self.conv1(x))  # (B, 8, T)
+        x = self.pool(x).squeeze(-1)  # (B, 8)
+        return self.fc(x)  # (B, n_classes)
 
 
 class _TinyTransformer(nn.Module):
@@ -66,11 +66,9 @@ class _TinyTransformer(nn.Module):
 
     def __init__(self, n_classes: int = 3, n_heads: int = 3) -> None:
         super().__init__()
-        self._embed_dim = J * F          # 15 — must be divisible by n_heads
+        self._embed_dim = J * F  # 15 — must be divisible by n_heads
         self._attn_cache: list[Tensor] = []
-        self.attn = nn.MultiheadAttention(
-            self._embed_dim, n_heads, batch_first=True
-        )
+        self.attn = nn.MultiheadAttention(self._embed_dim, n_heads, batch_first=True)
         self.fc = nn.Linear(self._embed_dim, n_classes)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -85,13 +83,15 @@ class _TinyTransformer(nn.Module):
         B, Jj, Ff, Tt = x.shape
         seq = x.view(B, Jj * Ff, Tt).permute(0, 2, 1)  # (B, T, J*F)
         out, w = self.attn(
-            seq, seq, seq,
+            seq,
+            seq,
+            seq,
             need_weights=True,
             average_attn_weights=False,  # keep per-head weights → (B, H, T, T)
         )
-        self._attn_cache = [w]                           # one layer
-        pooled = out.mean(dim=1)                         # (B, J*F)
-        return self.fc(pooled)                           # (B, n_classes)
+        self._attn_cache = [w]  # one layer
+        pooled = out.mean(dim=1)  # (B, J*F)
+        return self.fc(pooled)  # (B, n_classes)
 
     def get_attention_weights(self) -> list[Tensor]:
         """Return cached per-layer attention weights.
@@ -189,9 +189,7 @@ def test_gradcam_no_nan(x_jft: Tensor, cnn: _TinyCNN, players: _TemporalPlayers)
     assert torch.isfinite(phi).all(), f"GradCAM attribution contains NaN or Inf: {phi}"
 
 
-def test_gradcam_interpolate_modes(
-    x_jft: Tensor, cnn: _TinyCNN, players: _TemporalPlayers
-) -> None:
+def test_gradcam_interpolate_modes(x_jft: Tensor, cnn: _TinyCNN, players: _TemporalPlayers) -> None:
     """Both interpolate_mode values should produce valid (M,) outputs."""
     for mode in ("nearest", "bilinear"):
         attributor = GradCAMAttributor(cnn, layer=cnn.conv1, interpolate_mode=mode)  # type: ignore[arg-type]
@@ -200,9 +198,7 @@ def test_gradcam_interpolate_modes(
         assert torch.isfinite(phi).all(), f"mode={mode}: NaN/Inf in {phi}"
 
 
-def test_gradcam_different_targets(
-    x_jft: Tensor, cnn: _TinyCNN, players: _TemporalPlayers
-) -> None:
+def test_gradcam_different_targets(x_jft: Tensor, cnn: _TinyCNN, players: _TemporalPlayers) -> None:
     """attribute() must accept any target class index without error."""
     attributor = GradCAMAttributor(cnn, layer=cnn.conv1)
     for target in range(3):  # _TinyCNN has n_classes=3
@@ -233,9 +229,7 @@ def test_attention_rollout_no_nan(
     assert torch.isfinite(phi).all(), f"Rollout attribution contains NaN or Inf: {phi}"
 
 
-def test_attention_rollout_no_attention_weights(
-    x_jft: Tensor, players: _TemporalPlayers
-) -> None:
+def test_attention_rollout_no_attention_weights(x_jft: Tensor, players: _TemporalPlayers) -> None:
     """AttributeError must be raised when model has no get_attention_weights."""
     no_attn_model = _NoAttnModel()
     attributor = AttentionRolloutAttributor(no_attn_model)

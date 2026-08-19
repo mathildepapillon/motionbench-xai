@@ -56,9 +56,7 @@ __all__ = ["SkeletonGaitDataset"]
 LabelFunction = Callable[[npt.NDArray[Any], int], npt.NDArray[np.int64]]
 
 
-def _default_label_fn(
-    x_np: npt.NDArray[Any], n_classes: int
-) -> npt.NDArray[np.int64]:
+def _default_label_fn(x_np: npt.NDArray[Any], n_classes: int) -> npt.NDArray[np.int64]:
     """Quantile-split on joint-0 grand mean (matches the other pillar datasets)."""
     score = x_np[:, 0, :, :].mean(axis=(1, 2))
     bounds = np.percentile(score, np.linspace(0.0, 100.0, n_classes + 1)[1:-1])

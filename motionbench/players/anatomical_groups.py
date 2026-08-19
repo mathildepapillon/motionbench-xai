@@ -30,19 +30,19 @@ __all__ = ["AnatomicalGroups", "H36M_GROUPS", "CARE_PD_GROUPS"]
 
 H36M_GROUPS: dict[str, list[int]] = {
     "root": [0],
-    "spine": [7, 8],          # spine-mid, neck/nose
-    "head": [9, 10],          # head, head-top
-    "left_leg": [1, 2, 3],    # left hip, knee, ankle
-    "right_leg": [4, 5, 6],   # right hip, knee, ankle
-    "left_arm": [11, 12, 13], # left shoulder, elbow, wrist
-    "right_arm": [14, 15, 16],# right shoulder, elbow, wrist
+    "spine": [7, 8],  # spine-mid, neck/nose
+    "head": [9, 10],  # head, head-top
+    "left_leg": [1, 2, 3],  # left hip, knee, ankle
+    "right_leg": [4, 5, 6],  # right hip, knee, ankle
+    "left_arm": [11, 12, 13],  # left shoulder, elbow, wrist
+    "right_arm": [14, 15, 16],  # right shoulder, elbow, wrist
 }
 
 CARE_PD_GROUPS: dict[str, list[int]] = {
-    "lower_body": [1, 2, 3, 4, 5, 6],       # hips, knees, ankles
+    "lower_body": [1, 2, 3, 4, 5, 6],  # hips, knees, ankles
     "upper_body": [11, 12, 13, 14, 15, 16],  # shoulders, elbows, wrists
-    "spine": [0, 7, 8],                       # root, spine-mid, neck
-    "head": [9, 10],                          # head, head-top
+    "spine": [0, 7, 8],  # root, spine-mid, neck
+    "head": [9, 10],  # head, head-top
 }
 
 

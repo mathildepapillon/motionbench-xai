@@ -3,6 +3,7 @@
 All tests use small dimensions (J=5, F=3, T=16, n_classes=3) for fast CPU execution.
 Slow tests (checkpoint existence) are marked with @pytest.mark.slow.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

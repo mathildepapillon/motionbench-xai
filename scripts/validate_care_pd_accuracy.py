@@ -41,6 +41,7 @@ from sklearn.metrics import accuracy_score, classification_report
 # Paths — resolved from CLI args or environment variables
 # ---------------------------------------------------------------------------
 
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Validate ported CARE-PD classifiers against reference logits."
@@ -66,14 +67,12 @@ MOTIONBENCH_ROOT = _args.motionbench_root
 
 # 3-D world-to-camera NPZ (MotionBERT / MotionAGFormer / POTR)
 NPZ_3D = CARE_PD_ROOT / (
-    "assets/datasets/h36m/BMCLab/"
-    "h36m_3d_world2cam_backright_floorXZZplus_30f_or_longer.npz"
+    "assets/datasets/h36m/BMCLab/h36m_3d_world2cam_backright_floorXZZplus_30f_or_longer.npz"
 )
 
 # 2-D image-projected NPZ (PoseFormerV2)
 NPZ_2D = CARE_PD_ROOT / (
-    "assets/datasets/h36m/BMCLab/"
-    "h36m_3d_world2cam2img_backright_floorXZZplus_30f_or_longer.npz"
+    "assets/datasets/h36m/BMCLab/h36m_3d_world2cam2img_backright_floorXZZplus_30f_or_longer.npz"
 )
 
 LABELS_PKL = CARE_PD_ROOT / "assets/datasets/BMCLab.pkl"
@@ -109,9 +108,9 @@ POSEFORMERV2_LOGITS_REF = (
 
 # Hyper-params from CARE-PD config
 N_CLASSES = 3
-MOTIONBERT_SEQ_LEN = 90     # source_seq_len for MotionBERT BMCLab training
+MOTIONBERT_SEQ_LEN = 90  # source_seq_len for MotionBERT BMCLab training
 MOTIONAGFORMER_SEQ_LEN = 81  # source_seq_len for MotionAGFormer BMCLab training
-POSEFORMERV2_SEQ_LEN = 81   # source_seq_len for PoseFormerV2 BMCLab training
+POSEFORMERV2_SEQ_LEN = 81  # source_seq_len for PoseFormerV2 BMCLab training
 
 
 # ---------------------------------------------------------------------------
@@ -147,8 +146,7 @@ def build_raw_batch(
         key = vname.replace("_view0", "")
         if key not in data:
             raise KeyError(
-                f"Key {key!r} not found in NPZ. "
-                f"Available sample: {list(data.keys())[:3]}"
+                f"Key {key!r} not found in NPZ. Available sample: {list(data.keys())[:3]}"
             )
         raw = data[key]  # (T, J, F)
         T = raw.shape[0]
@@ -166,7 +164,7 @@ def build_raw_batch(
         clip_mb = clip.transpose(1, 2, 0)  # (J, F, T)
         clips.append(clip_mb)
 
-    batch = np.stack(clips, axis=0)   # (N, J, F, T)
+    batch = np.stack(clips, axis=0)  # (N, J, F, T)
     return torch.from_numpy(batch.astype(np.float32))
 
 
@@ -216,13 +214,8 @@ def print_metrics(
     ref_preds = np.argmax(logits_ref_arr, axis=-1)
     ours = all_logits_t.numpy()
 
-    cos_sim = (
-        (ours * logits_ref_arr).sum(axis=-1)
-        / (
-            np.linalg.norm(ours, axis=-1)
-            * np.linalg.norm(logits_ref_arr, axis=-1)
-            + 1e-9
-        )
+    cos_sim = (ours * logits_ref_arr).sum(axis=-1) / (
+        np.linalg.norm(ours, axis=-1) * np.linalg.norm(logits_ref_arr, axis=-1) + 1e-9
     )
     logit_mae = np.abs(ours - logits_ref_arr).mean()
     our_acc = accuracy_score(true_arr, pred_labels)
@@ -234,8 +227,7 @@ def print_metrics(
     print(f"  Our port accuracy           : {our_acc:.4f}")
     print(f"  Prediction agreement w/ ref : {(pred_labels == ref_preds).mean():.4f}")
     print("\n  Classification report (our port):")
-    print(classification_report(true_arr, pred_labels, target_names=class_names,
-                                labels=[0, 1, 2]))
+    print(classification_report(true_arr, pred_labels, target_names=class_names, labels=[0, 1, 2]))
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +261,8 @@ def validate_motionbert() -> None:
 
     # Raw 3-D data — preprocessing happens inside model.forward()
     batch = build_raw_batch(
-        NPZ_3D, video_names,
+        NPZ_3D,
+        video_names,
         seq_len=MOTIONBERT_SEQ_LEN,
         feature_dim=3,
     )
@@ -302,7 +295,8 @@ def validate_motionagformer() -> None:
     print(f"  Reference: {len(video_names)} clips")
 
     batch = build_raw_batch(
-        NPZ_3D, video_names,
+        NPZ_3D,
+        video_names,
         seq_len=MOTIONAGFORMER_SEQ_LEN,
         feature_dim=3,
     )
@@ -334,7 +328,8 @@ def validate_poseformerv2() -> None:
 
     # Raw 2-D pixel data — screen normalisation happens inside model.forward()
     batch = build_raw_batch(
-        NPZ_2D, video_names,
+        NPZ_2D,
+        video_names,
         seq_len=POSEFORMERV2_SEQ_LEN,
         feature_dim=2,
     )

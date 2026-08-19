@@ -104,7 +104,9 @@ def test_zero_imputer_shape(x_obs: Tensor, mask_half: Tensor, mock_dataset: _Moc
     assert out.shape == (7, J, F, T)
 
 
-def test_zero_imputer_hidden_is_zero(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_zero_imputer_hidden_is_zero(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """All hidden coordinates are exactly 0.0."""
     imp = ZeroImputer().fit(mock_dataset)
     out = imp.impute(x_obs, mask_half, n_samples=4)
@@ -112,7 +114,9 @@ def test_zero_imputer_hidden_is_zero(x_obs: Tensor, mask_half: Tensor, mock_data
     assert torch.all(hidden == 0.0), "hidden entries must be exactly 0.0"
 
 
-def test_zero_imputer_observed_preserved(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_zero_imputer_observed_preserved(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """Observed coordinates exactly match x_obs."""
     imp = ZeroImputer().fit(mock_dataset)
     out = imp.impute(x_obs, mask_half, n_samples=4)
@@ -132,7 +136,9 @@ def test_mean_imputer_shape(x_obs: Tensor, mask_half: Tensor, mock_dataset: _Moc
     assert out.shape == (5, J, F, T)
 
 
-def test_mean_imputer_observed_preserved(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_mean_imputer_observed_preserved(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """Observed coordinates exactly match x_obs."""
     imp = MeanImputer().fit(mock_dataset)
     out = imp.impute(x_obs, mask_half, n_samples=3)
@@ -140,7 +146,9 @@ def test_mean_imputer_observed_preserved(x_obs: Tensor, mask_half: Tensor, mock_
         assert torch.equal(out[i][mask_half], x_obs[mask_half])
 
 
-def test_mean_imputer_hidden_matches_mean(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_mean_imputer_hidden_matches_mean(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """Hidden coordinates equal the per-coordinate training mean."""
     imp = MeanImputer().fit(mock_dataset)
     out = imp.impute(x_obs, mask_half, n_samples=3)
@@ -168,7 +176,9 @@ def test_marginal_donor_shape(x_obs: Tensor, mask_half: Tensor, mock_dataset: _M
     assert out.shape == (6, J, F, T)
 
 
-def test_marginal_donor_observed_preserved(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_marginal_donor_observed_preserved(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """Observed coordinates exactly match x_obs."""
     imp = MarginalDonorImputer().fit(mock_dataset)
     out = imp.impute(x_obs, mask_half, n_samples=4, seed=7)
@@ -176,7 +186,9 @@ def test_marginal_donor_observed_preserved(x_obs: Tensor, mask_half: Tensor, moc
         assert torch.equal(out[i][mask_half], x_obs[mask_half])
 
 
-def test_marginal_donor_hidden_from_pool(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_marginal_donor_hidden_from_pool(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """Hidden coordinates come from actual training sequences in the pool."""
     imp = MarginalDonorImputer().fit(mock_dataset)
     pool: Tensor = imp._pool  # type: ignore[attr-defined]  # (N, J, F, T)
@@ -190,9 +202,7 @@ def test_marginal_donor_hidden_from_pool(x_obs: Tensor, mask_half: Tensor, mock_
             if torch.equal(pool[j][~mask_half], hidden_vals):
                 found = True
                 break
-        assert found, (
-            f"Sample {i}: hidden coords do not match any training sequence in pool"
-        )
+        assert found, f"Sample {i}: hidden coords do not match any training sequence in pool"
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +217,9 @@ def test_gaussian_noise_shape(x_obs: Tensor, mask_half: Tensor, mock_dataset: _M
     assert out.shape == (8, J, F, T)
 
 
-def test_gaussian_noise_observed_preserved(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_gaussian_noise_observed_preserved(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """Observed coordinates exactly match x_obs."""
     imp = GaussianNoiseImputer(scale=1.0).fit(mock_dataset)
     out = imp.impute(x_obs, mask_half, n_samples=4, seed=1)
@@ -216,7 +228,9 @@ def test_gaussian_noise_observed_preserved(x_obs: Tensor, mask_half: Tensor, moc
 
 
 @pytest.mark.slow
-def test_gaussian_noise_mean_convergence(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_gaussian_noise_mean_convergence(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """With scale=0, mean of hidden coords == training mean (to float32 precision)."""
     imp = GaussianNoiseImputer(scale=0.0).fit(mock_dataset)
     out = imp.impute(x_obs, mask_half, n_samples=1000, seed=123)
@@ -233,21 +247,27 @@ def test_gaussian_noise_mean_convergence(x_obs: Tensor, mask_half: Tensor, mock_
 # ---------------------------------------------------------------------------
 
 
-def test_all_imputers_n_samples_1(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_all_imputers_n_samples_1(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """All four imputers work with n_samples=1."""
     for imp in _all_imputers_fitted(mock_dataset):
         out = imp.impute(x_obs, mask_half, n_samples=1)
         assert out.shape == (1, J, F, T), f"{imp.name} failed with n_samples=1"
 
 
-def test_all_imputers_n_samples_100(x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset) -> None:
+def test_all_imputers_n_samples_100(
+    x_obs: Tensor, mask_half: Tensor, mock_dataset: _MockDataset
+) -> None:
     """All four imputers work with n_samples=100."""
     for imp in _all_imputers_fitted(mock_dataset):
         out = imp.impute(x_obs, mask_half, n_samples=100)
         assert out.shape == (100, J, F, T), f"{imp.name} failed with n_samples=100"
 
 
-def test_all_imputers_full_mask(x_obs: Tensor, mask_all: Tensor, mock_dataset: _MockDataset) -> None:
+def test_all_imputers_full_mask(
+    x_obs: Tensor, mask_all: Tensor, mock_dataset: _MockDataset
+) -> None:
     """With all-True mask, every output row equals x_obs."""
     for imp in _all_imputers_fitted(mock_dataset):
         out = imp.impute(x_obs, mask_all, n_samples=4, seed=0)
@@ -257,13 +277,13 @@ def test_all_imputers_full_mask(x_obs: Tensor, mask_all: Tensor, mock_dataset: _
             )
 
 
-def test_all_imputers_empty_mask(x_obs: Tensor, mask_none: Tensor, mock_dataset: _MockDataset) -> None:
+def test_all_imputers_empty_mask(
+    x_obs: Tensor, mask_none: Tensor, mock_dataset: _MockDataset
+) -> None:
     """With all-False mask, returns (n_samples, J, F, T) without error."""
     for imp in _all_imputers_fitted(mock_dataset):
         out = imp.impute(x_obs, mask_none, n_samples=4, seed=0)
-        assert out.shape == (4, J, F, T), (
-            f"{imp.name}: wrong shape with empty mask"
-        )
+        assert out.shape == (4, J, F, T), f"{imp.name}: wrong shape with empty mask"
 
 
 def test_all_imputers_is_on_manifold_false(mock_dataset: _MockDataset) -> None:

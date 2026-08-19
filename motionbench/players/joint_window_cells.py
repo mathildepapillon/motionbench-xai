@@ -44,9 +44,7 @@ class JointWindowCells(PlayerSet):
 
     def __init__(self, J: int, K: int, F: int, T: int) -> None:
         if T % K != 0:
-            raise ValueError(
-                f"T={T} must be divisible by K={K} for equal-width windows."
-            )
+            raise ValueError(f"T={T} must be divisible by K={K} for equal-width windows.")
         self._J = J
         self._K = K
         self._F = F
@@ -81,9 +79,7 @@ class JointWindowCells(PlayerSet):
             ValueError: if ``z.shape != (J*K,)``.
         """
         if z.shape != (self._M,):
-            raise ValueError(
-                f"Expected z.shape==({self._M},); got {tuple(z.shape)}."
-            )
+            raise ValueError(f"Expected z.shape==({self._M},); got {tuple(z.shape)}.")
         mask = torch.zeros(self._J, self._F, self._T, dtype=torch.bool)
         for j in range(self._J):
             for k in range(self._K):

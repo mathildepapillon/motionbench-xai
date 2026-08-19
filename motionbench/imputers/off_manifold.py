@@ -180,8 +180,7 @@ class MeanImputer(BaseImputer):
         """
         if not hasattr(self, "_mean"):
             raise RuntimeError(
-                "MeanImputer.impute() called before fit(). "
-                "Call fit(train_data) first."
+                "MeanImputer.impute() called before fit(). Call fit(train_data) first."
             )
         x_obs = x_obs.to(dtype=torch.float32)
         mask = mask.to(device=x_obs.device)
@@ -262,8 +261,7 @@ class MarginalDonorImputer(BaseImputer):
         """
         if not hasattr(self, "_pool"):
             raise RuntimeError(
-                "MarginalDonorImputer.impute() called before fit(). "
-                "Call fit(train_data) first."
+                "MarginalDonorImputer.impute() called before fit(). Call fit(train_data) first."
             )
         x_obs = x_obs.to(dtype=torch.float32)
         n_train = self._pool.shape[0]
@@ -271,9 +269,7 @@ class MarginalDonorImputer(BaseImputer):
         if seed is not None:
             generator = torch.Generator()
             generator.manual_seed(seed)
-        idxs = torch.randint(
-            0, n_train, (n_samples,), generator=generator
-        )
+        idxs = torch.randint(0, n_train, (n_samples,), generator=generator)
         donors = self._pool[idxs].to(device=x_obs.device)
         out = torch.where(mask.to(device=x_obs.device).unsqueeze(0), x_obs.unsqueeze(0), donors)
         return out.contiguous()
@@ -379,8 +375,7 @@ class GaussianNoiseImputer(BaseImputer):
         """
         if not hasattr(self, "_mean"):
             raise RuntimeError(
-                "GaussianNoiseImputer.impute() called before fit(). "
-                "Call fit(train_data) first."
+                "GaussianNoiseImputer.impute() called before fit(). Call fit(train_data) first."
             )
         x_obs = x_obs.to(dtype=torch.float32)
         mean = self._mean.to(device=x_obs.device, dtype=torch.float32)
@@ -393,11 +388,16 @@ class GaussianNoiseImputer(BaseImputer):
 
         J, F, T = x_obs.shape
         noise = torch.randn(
-            n_samples, J, F, T,
+            n_samples,
+            J,
+            F,
+            T,
             dtype=torch.float32,
             device=x_obs.device,
             generator=generator,
         )
         hidden_fill = mean.unsqueeze(0) + self.scale * std.unsqueeze(0) * noise
-        out = torch.where(mask.to(device=x_obs.device).unsqueeze(0), x_obs.unsqueeze(0), hidden_fill)
+        out = torch.where(
+            mask.to(device=x_obs.device).unsqueeze(0), x_obs.unsqueeze(0), hidden_fill
+        )
         return out.contiguous()

@@ -63,6 +63,7 @@ __credits__ = (
 # Building blocks
 # ---------------------------------------------------------------------------
 
+
 class _ResBlock1d(nn.Module):
     """One residual block: three Conv1d layers + skip connection.
 
@@ -80,12 +81,16 @@ class _ResBlock1d(nn.Module):
 
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
-        self.conv1 = nn.Conv1d(in_channels,  out_channels, kernel_size=8, padding="same", bias=False)
-        self.bn1   = nn.BatchNorm1d(out_channels)
-        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size=5, padding="same", bias=False)
-        self.bn2   = nn.BatchNorm1d(out_channels)
-        self.conv3 = nn.Conv1d(out_channels, out_channels, kernel_size=3, padding="same", bias=False)
-        self.bn3   = nn.BatchNorm1d(out_channels)
+        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size=8, padding="same", bias=False)
+        self.bn1 = nn.BatchNorm1d(out_channels)
+        self.conv2 = nn.Conv1d(
+            out_channels, out_channels, kernel_size=5, padding="same", bias=False
+        )
+        self.bn2 = nn.BatchNorm1d(out_channels)
+        self.conv3 = nn.Conv1d(
+            out_channels, out_channels, kernel_size=3, padding="same", bias=False
+        )
+        self.bn3 = nn.BatchNorm1d(out_channels)
 
         # Shortcut: 1×1 conv + BN when dimensions change, identity otherwise
         if in_channels != out_channels:
@@ -147,6 +152,7 @@ class _ResNet1dWang(nn.Module):
 # Motionbench classifier wrapper
 # ---------------------------------------------------------------------------
 
+
 class ECGResNet1dClassifier(Classifier):
     """12-lead ECG classifier using the ``resnet1d_wang`` architecture.
 
@@ -186,17 +192,14 @@ class ECGResNet1dClassifier(Classifier):
         self.cls_head = nn.Linear(self.backbone.out_dim, n_classes)
 
         if checkpoint_path is not None:
-            matched, discarded = self._load_checkpoint(
-                checkpoint_path, self, strict=False
-            )
+            matched, discarded = self._load_checkpoint(checkpoint_path, self, strict=False)
             logger.info(
                 "ECGResNet1dClassifier: loaded %d tensors, discarded %d",
-                len(matched), len(discarded),
+                len(matched),
+                len(discarded),
             )
         else:
-            logger.info(
-                "ECGResNet1dClassifier: random init (no checkpoint)."
-            )
+            logger.info("ECGResNet1dClassifier: random init (no checkpoint).")
 
     def _preprocess(self, x: Tensor) -> Tensor:
         """Squeeze the F=1 channel to produce ``(B, J=12, T=1000)``.
@@ -219,6 +222,6 @@ class ECGResNet1dClassifier(Classifier):
         Returns:
             ``(B, n_classes)`` float32 raw logits.
         """
-        x = self._preprocess(x)     # (B, 12, 1000)
-        emb = self.backbone(x)       # (B, 128)
-        return self.cls_head(emb)    # (B, n_classes)
+        x = self._preprocess(x)  # (B, 12, 1000)
+        emb = self.backbone(x)  # (B, 128)
+        return self.cls_head(emb)  # (B, n_classes)

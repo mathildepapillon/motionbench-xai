@@ -188,9 +188,7 @@ class GroupSegmentSHAPAttributor(BaseAttributor):
             z = torch.tensor(z_bits, dtype=torch.bool)
             mask = players.coalition_mask(z)
 
-            seed_k: int | None = (
-                None if self._seed is None else int(self._seed + bitmask)
-            )
+            seed_k: int | None = None if self._seed is None else int(self._seed + bitmask)
             # Draw n_coalitions imputed samples for this mask.
             x_imp_batch = self._imputer.impute(
                 x, mask, n_samples=self._n_coalitions, seed=seed_k
@@ -229,9 +227,8 @@ class GroupSegmentSHAPAttributor(BaseAttributor):
 # Module-level math helpers (also useful for testing)
 # ---------------------------------------------------------------------------
 
-def shapley_from_value_table(
-    v: npt.NDArray[np.float64], M: int
-) -> npt.NDArray[np.float64]:
+
+def shapley_from_value_table(v: npt.NDArray[np.float64], M: int) -> npt.NDArray[np.float64]:
     """Public alias for :func:`_shapley_from_v` for external use and testing.
 
     Args:

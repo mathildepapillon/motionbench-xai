@@ -92,12 +92,8 @@ class GaussianOracle(Oracle, BaseImputer):
         self._T: int = self.Sigma_time.shape[0]
 
         # Cholesky for unconditional sampling (used in empty-coalition edge case).
-        self._L_joints: np.ndarray = np.linalg.cholesky(
-            self.Sigma_joints + 1e-8 * np.eye(self._J)
-        )
-        self._L_time: np.ndarray = np.linalg.cholesky(
-            self.Sigma_time + 1e-8 * np.eye(self._T)
-        )
+        self._L_joints: np.ndarray = np.linalg.cholesky(self.Sigma_joints + 1e-8 * np.eye(self._J))
+        self._L_time: np.ndarray = np.linalg.cholesky(self.Sigma_time + 1e-8 * np.eye(self._T))
 
         # Cache for conditional parameters.
         self._cond_cache: dict[tuple, tuple[np.ndarray, np.ndarray]] = {}
@@ -137,9 +133,7 @@ class GaussianOracle(Oracle, BaseImputer):
             ValueError: if ``x_obs.shape != mask.shape``.
         """
         if x_obs.shape != mask.shape:
-            raise ValueError(
-                f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}."
-            )
+            raise ValueError(f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}.")
         rng = np.random.default_rng(seed)
         x_np = x_obs.detach().cpu().numpy().astype(np.float64)
         mask_np = mask.detach().cpu().numpy().astype(bool)
@@ -147,8 +141,7 @@ class GaussianOracle(Oracle, BaseImputer):
 
         if J != self._J or T != self._T:
             raise ValueError(
-                f"Expected (J={self._J}, *, T={self._T}); "
-                f"got x_obs.shape={x_obs.shape}."
+                f"Expected (J={self._J}, *, T={self._T}); got x_obs.shape={x_obs.shape}."
             )
 
         out_np = self._conditional_sample_np(x_np, mask_np, n, rng)
@@ -308,9 +301,7 @@ class GaussianOracle(Oracle, BaseImputer):
             self.Sigma_joints[j_hid[:, None], j_obs[None, :]]
             * self.Sigma_time[t_hid[:, None], t_obs[None, :]]
         )
-        W = Sigma_ho @ np.linalg.solve(
-            Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs)
-        )
+        W = Sigma_ho @ np.linalg.solve(Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs))
         Sigma_cond = Sigma_hh - W @ Sigma_ho.T
         Sigma_cond = 0.5 * (Sigma_cond + Sigma_cond.T)
         Sigma_cond += 1e-8 * np.eye(n_hid)
@@ -402,9 +393,7 @@ class GaussianOracle(Oracle, BaseImputer):
             Soo = self.Sigma_joints[np.ix_(j_obs_a, j_obs_a)]
             Shh = self.Sigma_joints[np.ix_(j_hid_a, j_hid_a)]
             Sho = self.Sigma_joints[np.ix_(j_hid_a, j_obs_a)]
-            W = Sho @ np.linalg.solve(
-                Soo + 1e-10 * np.eye(len(j_obs_a)), np.eye(len(j_obs_a))
-            )
+            W = Sho @ np.linalg.solve(Soo + 1e-10 * np.eye(len(j_obs_a)), np.eye(len(j_obs_a)))
             Sc = Shh - W @ Sho.T
             Sc = 0.5 * (Sc + Sc.T) + 1e-8 * np.eye(len(j_hid_a))
             self._cond_cache[key] = (np.linalg.cholesky(Sc), W)
@@ -459,7 +448,7 @@ class GaussianOracle(Oracle, BaseImputer):
         # when n_coalitions is set large enough to cover all 2^M subsets.
         # For overnight / fast runs, pass a small n_coalitions (e.g. 64) to
         # force KernelSHAP-style paired sampling even for moderate M.
-        n_exact = 2 ** M
+        n_exact = 2**M
         use_exact = n_exact <= n_coalitions
         if use_exact:
             coalitions, weights = enumerate_coalitions(M)
@@ -479,9 +468,7 @@ class GaussianOracle(Oracle, BaseImputer):
 
             if int(z_row.sum()) == M:
                 with torch.no_grad():
-                    val = float(
-                        _eval_classifier(classifier, x.unsqueeze(0)).mean().item()
-                    )
+                    val = float(_eval_classifier(classifier, x.unsqueeze(0)).mean().item())
             elif int(z_row.sum()) == 0:
                 J, F, T = x.shape
                 x_marg_np = self._sample_unconditional(

@@ -223,8 +223,7 @@ class GradCAMAttributor(BaseAttributor):
 
         else:
             raise ValueError(
-                f"Grad-CAM activation map has {n_spatial} spatial dimensions; "
-                "expected 1, 2, or 3."
+                f"Grad-CAM activation map has {n_spatial} spatial dimensions; expected 1, 2, or 3."
             )
 
         return phi_coords.contiguous()

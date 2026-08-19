@@ -111,19 +111,21 @@ def build_cfg(n_mc: int = 200, device: str = "cuda"):
 
     cfg = OmegaConf.load(OVERNIGHT_CFG)
     # Override critical fields
-    overrides = OmegaConf.create({
-        "metric_oracle_n_mc": n_mc,
-        "device": device,
-        # Keep n_sequences at 50 (same as overnight)
-        "n_sequences": 50,
-        # Absolute path so _run_cell can resolve checkpoints
-        "checkpoint_dir": str(
-            REPO / "motionbench" / "classifiers" / "checkpoints" / "synthetic"
-        ),
-        "results_dir": str(RESULTS_DIR),
-        # Disable wandb
-        "wandb": {"mode": "disabled"},
-    })
+    overrides = OmegaConf.create(
+        {
+            "metric_oracle_n_mc": n_mc,
+            "device": device,
+            # Keep n_sequences at 50 (same as overnight)
+            "n_sequences": 50,
+            # Absolute path so _run_cell can resolve checkpoints
+            "checkpoint_dir": str(
+                REPO / "motionbench" / "classifiers" / "checkpoints" / "synthetic"
+            ),
+            "results_dir": str(RESULTS_DIR),
+            # Disable wandb
+            "wandb": {"mode": "disabled"},
+        }
+    )
     cfg = OmegaConf.merge(cfg, overrides)
     return cfg
 
@@ -137,32 +139,40 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     batch_group = p.add_mutually_exclusive_group()
     batch_group.add_argument(
-        "--gpu-batch", choices=["gpu2", "gpu5", "gpu6"],
+        "--gpu-batch",
+        choices=["gpu2", "gpu5", "gpu6"],
         help="Pre-defined GPU batch to run.",
     )
     batch_group.add_argument(
-        "--datasets", nargs="+",
+        "--datasets",
+        nargs="+",
         help="Explicit dataset list (used with --classifiers).",
     )
     p.add_argument(
-        "--classifiers", nargs="+",
+        "--classifiers",
+        nargs="+",
         default=["synthetic_mlp", "synthetic_cnn", "synthetic_transformer"],
         help="Classifiers to run (with --datasets).",
     )
     p.add_argument(
-        "--n-mc", type=int, default=200,
+        "--n-mc",
+        type=int,
+        default=200,
         help="Oracle MC samples (default: 200).",
     )
     p.add_argument(
-        "--device", default="cuda",
+        "--device",
+        default="cuda",
         help="Torch device (default: cuda; falls back to cpu if unavailable).",
     )
     p.add_argument(
-        "--force", action="store_true",
+        "--force",
+        action="store_true",
         help="Re-run even if a valid (>4-key) result.json already exists.",
     )
     p.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="Print the planned cells without running them.",
     )
     return p.parse_args()
@@ -200,10 +210,12 @@ def main() -> None:
 
     # Build OmegaConf cfg (with cwd set to repo root for _load_sub_config)
     import os as _os
+
     _os.chdir(REPO)
 
     try:
         import torch
+
         device_str = args.device
         if device_str.startswith("cuda") and not torch.cuda.is_available():
             log.warning("CUDA not available — falling back to cpu")
@@ -226,13 +238,21 @@ def main() -> None:
             data = json.loads(rp.read_text())
             log.info(
                 "[SKIP] %s/%s/%s — already valid (%d keys, ec1=%.4f)",
-                ds, clf, METHOD, len(data), data.get("ec1", float("nan")),
+                ds,
+                clf,
+                METHOD,
+                len(data),
+                data.get("ec1", float("nan")),
             )
-            summary.append({
-                "dataset": ds, "classifier": clf,
-                "ec1": data.get("ec1"), "spearman": data.get("spearman"),
-                "status": "cached",
-            })
+            summary.append(
+                {
+                    "dataset": ds,
+                    "classifier": clf,
+                    "ec1": data.get("ec1"),
+                    "spearman": data.get("spearman"),
+                    "status": "cached",
+                }
+            )
             continue
 
         # Delete stub/invalid result.json so _run_cell doesn't skip
@@ -249,25 +269,40 @@ def main() -> None:
             sp = result.get("spearman", float("nan"))
             log.info(
                 "    DONE %s/%s/%s in %.1fs  ec1=%.4f  spearman=%.3f  keys=%d",
-                ds, clf, METHOD, wall, ec1, sp, len(result),
+                ds,
+                clf,
+                METHOD,
+                wall,
+                ec1,
+                sp,
+                len(result),
             )
-            summary.append({
-                "dataset": ds, "classifier": clf,
-                "ec1": ec1, "spearman": sp,
-                "status": "ok" if "error" not in result else "error",
-                "wall": wall,
-            })
+            summary.append(
+                {
+                    "dataset": ds,
+                    "classifier": clf,
+                    "ec1": ec1,
+                    "spearman": sp,
+                    "status": "ok" if "error" not in result else "error",
+                    "wall": wall,
+                }
+            )
         except Exception as exc:
             wall = time.time() - t0
             log.error("[FAIL] %s/%s/%s in %.1fs: %s", ds, clf, METHOD, wall, exc)
             import traceback
+
             traceback.print_exc()
-            summary.append({
-                "dataset": ds, "classifier": clf,
-                "ec1": None, "spearman": None,
-                "status": f"error:{type(exc).__name__}",
-                "wall": wall,
-            })
+            summary.append(
+                {
+                    "dataset": ds,
+                    "classifier": clf,
+                    "ec1": None,
+                    "spearman": None,
+                    "status": f"error:{type(exc).__name__}",
+                    "wall": wall,
+                }
+            )
 
     log.info("Total wall-clock: %.1fs", time.time() - t_total)
     log.info("=== Summary ===")
@@ -276,7 +311,11 @@ def main() -> None:
         sp_str = f"{row['spearman']:.3f}" if row.get("spearman") is not None else "  N/A"
         log.info(
             "  %-35s  %-22s  ec1=%-8s  spearman=%-6s  %s",
-            row["dataset"], row["classifier"], ec1_str, sp_str, row["status"],
+            row["dataset"],
+            row["classifier"],
+            ec1_str,
+            sp_str,
+            row["status"],
         )
 
     n_ok = sum(1 for r in summary if r["status"] in ("ok", "cached"))

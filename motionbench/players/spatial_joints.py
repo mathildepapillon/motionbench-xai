@@ -61,9 +61,7 @@ class SpatialJoints(PlayerSet):
             ValueError: if ``z.shape != (J,)``.
         """
         if z.shape != (self._J,):
-            raise ValueError(
-                f"Expected z.shape==({self._J},); got {tuple(z.shape)}."
-            )
+            raise ValueError(f"Expected z.shape==({self._J},); got {tuple(z.shape)}.")
         mask = torch.zeros(self._J, self._F, self._T, dtype=torch.bool)
         for j in range(self._J):
             if z[j]:

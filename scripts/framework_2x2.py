@@ -103,75 +103,75 @@ import numpy as np
 # ---------------------------------------------------------------------------
 
 PLAYER_ABSTRACTION: dict[str, str] = {
-    "kernelshap_zero":           "temporal",
-    "kernelshap_mean":           "temporal",
-    "kernelshap_marginal":       "temporal",
-    "kernelshap_empirical":      "temporal",
-    "kernelshap_oracle":         "temporal",
-    "kernelshap_vaeac":          "temporal",
-    "kernelshap_flow":           "temporal",
-    "kernelshap_temporal":       "temporal",
-    "timeshap":                  "temporal",   # legacy alias
-    "windowshap":                "temporal",
-    "kernelshap_zero_spatial":   "spatial",
+    "kernelshap_zero": "temporal",
+    "kernelshap_mean": "temporal",
+    "kernelshap_marginal": "temporal",
+    "kernelshap_empirical": "temporal",
+    "kernelshap_oracle": "temporal",
+    "kernelshap_vaeac": "temporal",
+    "kernelshap_flow": "temporal",
+    "kernelshap_temporal": "temporal",
+    "timeshap": "temporal",  # legacy alias
+    "windowshap": "temporal",
+    "kernelshap_zero_spatial": "spatial",
     "kernelshap_oracle_spatial": "spatial",
-    "kernelshap_vaeac_spatial":  "spatial",
+    "kernelshap_vaeac_spatial": "spatial",
 }
 
 IMPUTER_QUALITY: dict[str, str] = {
-    "kernelshap_zero":           "off-manifold",
-    "kernelshap_mean":           "off-manifold",
-    "kernelshap_marginal":       "weak-on-manifold",
-    "kernelshap_empirical":      "weak-on-manifold",
-    "kernelshap_oracle":         "strong-on-manifold",
-    "kernelshap_vaeac":          "strong-on-manifold",
-    "kernelshap_flow":           "strong-on-manifold",
-    "kernelshap_temporal":       "off-manifold",
-    "timeshap":                  "off-manifold",
-    "windowshap":                "off-manifold",
-    "kernelshap_zero_spatial":   "off-manifold",
+    "kernelshap_zero": "off-manifold",
+    "kernelshap_mean": "off-manifold",
+    "kernelshap_marginal": "weak-on-manifold",
+    "kernelshap_empirical": "weak-on-manifold",
+    "kernelshap_oracle": "strong-on-manifold",
+    "kernelshap_vaeac": "strong-on-manifold",
+    "kernelshap_flow": "strong-on-manifold",
+    "kernelshap_temporal": "off-manifold",
+    "timeshap": "off-manifold",
+    "windowshap": "off-manifold",
+    "kernelshap_zero_spatial": "off-manifold",
     "kernelshap_oracle_spatial": "strong-on-manifold",
-    "kernelshap_vaeac_spatial":  "strong-on-manifold",
+    "kernelshap_vaeac_spatial": "strong-on-manifold",
 }
 
 METHOD_LABELS: dict[str, str] = {
-    "kernelshap_zero":           "KS-Zero",
-    "kernelshap_mean":           "KS-Mean",
-    "kernelshap_marginal":       "KS-Marginal",
-    "kernelshap_empirical":      "KS-Empirical",
-    "kernelshap_oracle":         "KS-Oracle",
-    "kernelshap_vaeac":          "KS-VAEAC",
-    "kernelshap_flow":           "KS-Flow",
-    "kernelshap_temporal":       "KS-Temporal",
-    "timeshap":                  "KS-Temporal",   # legacy
-    "windowshap":                "WindowSHAP",
-    "kernelshap_zero_spatial":   "KS-Zero-Spat",
+    "kernelshap_zero": "KS-Zero",
+    "kernelshap_mean": "KS-Mean",
+    "kernelshap_marginal": "KS-Marginal",
+    "kernelshap_empirical": "KS-Empirical",
+    "kernelshap_oracle": "KS-Oracle",
+    "kernelshap_vaeac": "KS-VAEAC",
+    "kernelshap_flow": "KS-Flow",
+    "kernelshap_temporal": "KS-Temporal",
+    "timeshap": "KS-Temporal",  # legacy
+    "windowshap": "WindowSHAP",
+    "kernelshap_zero_spatial": "KS-Zero-Spat",
     "kernelshap_oracle_spatial": "KS-Oracle-Spat",
-    "kernelshap_vaeac_spatial":  "KS-VAEAC-Spat",
+    "kernelshap_vaeac_spatial": "KS-VAEAC-Spat",
 }
 
 # For each dataset, which player abstraction is *correct* for the label function
 DATASET_CORRECT_PLAYER: dict[str, str] = {
-    "gaussian_k4":           "temporal",
-    "gaussian_k8":           "temporal",
-    "burr_m5":               "temporal",
-    "burr_m10":              "temporal",
-    "skeleton_structured":   "temporal",
-    "gait_periodic":         "temporal",
-    "low_rank_manifold":     "temporal",
+    "gaussian_k4": "temporal",
+    "gaussian_k8": "temporal",
+    "burr_m5": "temporal",
+    "burr_m10": "temporal",
+    "skeleton_structured": "temporal",
+    "gait_periodic": "temporal",
+    "low_rank_manifold": "temporal",
     "window_label_gaussian": "temporal",
     "joint_subset_skeleton": "spatial",
 }
 
 # For each dataset, whether manifold structure matters (non-Gaussian)
 DATASET_MANIFOLD_MATTERS: dict[str, bool] = {
-    "gaussian_k4":           False,
-    "gaussian_k8":           False,
-    "burr_m5":               True,
-    "burr_m10":              True,
-    "skeleton_structured":   True,
-    "gait_periodic":         True,
-    "low_rank_manifold":     True,
+    "gaussian_k4": False,
+    "gaussian_k8": False,
+    "burr_m5": True,
+    "burr_m10": True,
+    "skeleton_structured": True,
+    "gait_periodic": True,
+    "low_rank_manifold": True,
     "window_label_gaussian": False,
     "joint_subset_skeleton": True,
 }
@@ -303,7 +303,6 @@ def _axis_b_imputer_analysis(
 
     temporal_methods = [m for m in METHOD_ORDER if PLAYER_ABSTRACTION.get(m) == "temporal"]
 
-
     for ds, manifold_matters in DATASET_MANIFOLD_MATTERS.items():
         rows: list[tuple[str, str, str]] = []
         for method in temporal_methods:
@@ -379,11 +378,15 @@ def _compact_evidence_table(
 ) -> str:
     """A compact dataset × method table of Spearman rank correlations."""
     datasets = [
-        "gaussian_k4", "gaussian_k8",
-        "burr_m5", "burr_m10",
-        "skeleton_structured", "gait_periodic",
+        "gaussian_k4",
+        "gaussian_k8",
+        "burr_m5",
+        "burr_m10",
+        "skeleton_structured",
+        "gait_periodic",
         "low_rank_manifold",
-        "window_label_gaussian", "joint_subset_skeleton",
+        "window_label_gaussian",
+        "joint_subset_skeleton",
     ]
     methods = [m for m in METHOD_ORDER if any((ds, m) in agg for ds in datasets)]
 
@@ -457,12 +460,14 @@ datasets where temporal periodicity carries the label signal (GaitPeriodic).
 ---
 
 """
-    body = "\n---\n\n".join([
-        _compact_evidence_table(agg),
-        _axis_a_player_analysis(agg),
-        _axis_b_imputer_analysis(agg),
-        _axis_c_temporal_coherence(agg),
-    ])
+    body = "\n---\n\n".join(
+        [
+            _compact_evidence_table(agg),
+            _axis_a_player_analysis(agg),
+            _axis_b_imputer_analysis(agg),
+            _axis_c_temporal_coherence(agg),
+        ]
+    )
 
     return header + body
 
@@ -506,13 +511,20 @@ def main() -> None:
     print("=" * 70)
 
     datasets_to_show = [
-        "window_label_gaussian", "joint_subset_skeleton",
-        "gait_periodic", "burr_m5", "skeleton_structured", "low_rank_manifold",
+        "window_label_gaussian",
+        "joint_subset_skeleton",
+        "gait_periodic",
+        "burr_m5",
+        "skeleton_structured",
+        "low_rank_manifold",
     ]
     key_methods = [
-        "kernelshap_zero", "kernelshap_oracle",
-        "kernelshap_temporal", "windowshap",
-        "kernelshap_zero_spatial", "kernelshap_oracle_spatial",
+        "kernelshap_zero",
+        "kernelshap_oracle",
+        "kernelshap_temporal",
+        "windowshap",
+        "kernelshap_zero_spatial",
+        "kernelshap_oracle_spatial",
         "kernelshap_vaeac",
     ]
 

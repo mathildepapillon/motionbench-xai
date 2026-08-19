@@ -137,9 +137,7 @@ class _QuantusWrapper(nn.Module):
         B, _D, T = x.shape
         x_4d = x.reshape(B, self._J, self._F, T)
         clf: Callable[..., Tensor] = (
-            self._module_clf
-            if self._module_clf is not None
-            else self._fn_clf  # type: ignore[assignment]
+            self._module_clf if self._module_clf is not None else self._fn_clf  # type: ignore[assignment]
         )
         raw_out = clf(x_4d)  # (B,) or (B, n_classes)
         # Multi-class modules return (B, n_classes); extract target class.
@@ -147,12 +145,9 @@ class _QuantusWrapper(nn.Module):
             scalar_out = torch.softmax(raw_out, dim=-1)[:, self._target]
         else:
             scalar_out = raw_out
-        out = torch.zeros(
-            B, self._n_classes, dtype=scalar_out.dtype, device=scalar_out.device
-        )
+        out = torch.zeros(B, self._n_classes, dtype=scalar_out.dtype, device=scalar_out.device)
         out[:, 0] = scalar_out
         return out
-
 
 
 def _expand_phi(phi: Tensor, players: PlayerSet) -> Tensor:

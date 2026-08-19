@@ -31,6 +31,7 @@ Usage::
 
 Skip any combination whose result.json already exists (override with --force).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -122,6 +123,7 @@ def topk_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
     top_t = set(np.argsort(-abs_t)[:K_top].tolist())
     out["topk_overlap"] = float(len(top_h & top_t) / K_top)
     from scipy.stats import kendalltau, spearmanr
+
     sp, _ = spearmanr(phi_hat, phi_true)
     kt, _ = kendalltau(phi_hat, phi_true)
     out["spearman"] = float(sp) if not np.isnan(sp) else 0.0
@@ -137,6 +139,7 @@ def topk_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
 def build_imputer(method_base: str, dataset, device_str: str):
     if method_base == "marginal":
         from motionbench.imputers.off_manifold import MarginalDonorImputer
+
         imp = MarginalDonorImputer()
         imp.fit(dataset)
         return imp
@@ -147,6 +150,7 @@ def build_imputer(method_base: str, dataset, device_str: str):
             _VAEAC_REGISTRY,
             _load_vaeac,
         )
+
         cls_key = type(dataset).__name__
         if cls_key not in _VAEAC_REGISTRY:
             raise RuntimeError(f"No VAEAC registry entry for dataset class {cls_key!r}")
@@ -157,7 +161,9 @@ def build_imputer(method_base: str, dataset, device_str: str):
             raise FileNotFoundError(f"VAEAC checkpoint dir not found: {ckpt_dir}")
         return _load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
 
-    raise ValueError(f"Unknown method_base for this script: {method_base!r}. Use 'marginal' or 'vaeac'.")
+    raise ValueError(
+        f"Unknown method_base for this script: {method_base!r}. Use 'marginal' or 'vaeac'."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -190,9 +196,7 @@ def _build_spatiotemporal_cond_params(oracle, mask_np, J, F, T):
         oracle.Sigma_joints[j_hid[:, None], j_obs[None, :]]
         * oracle.Sigma_time[t_hid[:, None], t_obs[None, :]]
     )
-    W = Sigma_ho @ np.linalg.solve(
-        Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs)
-    )
+    W = Sigma_ho @ np.linalg.solve(Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs))
     Sigma_cond = Sigma_hh - W @ Sigma_ho.T
     Sigma_cond = 0.5 * (Sigma_cond + Sigma_cond.T) + 1e-8 * np.eye(n_hid)
     L_cond = np.linalg.cholesky(Sigma_cond)
@@ -215,10 +219,18 @@ def _sample_with_cached_params(x_np, params, n_mc, J, F, T, rng):
 
 
 def batched_oracle_shapley(
-    oracle, x, clf_fn, players, n_mc, coalitions, weights,
-    clf_chunk=1024, cholesky_cache=None,
+    oracle,
+    x,
+    clf_fn,
+    players,
+    n_mc,
+    coalitions,
+    weights,
+    clf_chunk=1024,
+    cholesky_cache=None,
 ):
     from motionbench.utils.coalitions import solve_shapley_wls
+
     M = players.n_players
     N_coal = coalitions.shape[0]
     x_np = x.detach().cpu().numpy().astype(np.float64)
@@ -232,7 +244,11 @@ def batched_oracle_shapley(
             s = np.tile(x_np[None].astype(np.float32), (n_mc, 1, 1, 1))
         elif n_obs_players == 0:
             s = oracle._sample_unconditional(
-                n_mc, J, F, T, np.random.default_rng(int(rng.integers(1 << 31))),
+                n_mc,
+                J,
+                F,
+                T,
+                np.random.default_rng(int(rng.integers(1 << 31))),
             )
         else:
             if cholesky_cache is not None and ci in cholesky_cache:
@@ -245,6 +261,7 @@ def batched_oracle_shapley(
                     _mask_is_spatial,
                     _mask_is_temporal,
                 )
+
                 if _mask_is_temporal(mask_np) or _mask_is_spatial(mask_np):
                     params = ("oracle", mask_np)
                 else:
@@ -255,12 +272,19 @@ def batched_oracle_shapley(
             if isinstance(params, tuple) and params[0] == "oracle":
                 _, mask_np_cached = params
                 s = oracle._conditional_sample_np(
-                    x_np, mask_np_cached, n_mc,
+                    x_np,
+                    mask_np_cached,
+                    n_mc,
                     np.random.default_rng(int(rng.integers(1 << 31))),
                 )
             else:
                 s = _sample_with_cached_params(
-                    x_np, params, n_mc, J, F, T,
+                    x_np,
+                    params,
+                    n_mc,
+                    J,
+                    F,
+                    T,
                     np.random.default_rng(int(rng.integers(1 << 31))),
                 )
         all_samples.append(s.astype(np.float32))
@@ -268,7 +292,7 @@ def batched_oracle_shapley(
     stacked = torch.from_numpy(np.concatenate(all_samples, axis=0))
     vals_flat_list: list[Tensor] = []
     for s in range(0, len(stacked), clf_chunk):
-        vals_flat_list.append(clf_fn(stacked[s: s + clf_chunk]))
+        vals_flat_list.append(clf_fn(stacked[s : s + clf_chunk]))
     vals_flat = torch.cat(vals_flat_list).float()
     vals_mat = vals_flat.view(N_coal, n_mc)
     values = vals_mat.mean(dim=1).numpy().astype(np.float64)
@@ -291,6 +315,7 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
             comp = comp[0]
     elif hasattr(imp, "sample_completions"):
         from motionbench.imputers.carepd_imputer import _mask_to_coalition
+
         J, F, T = x_obs.shape
         device = imp._device
         x_in = x_obs.unsqueeze(0).to(device)
@@ -298,8 +323,12 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
         coalition_mask, _ = _mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
         completions = imp.sample_completions(
-            x=x_in, y=None, mask=pad, lengths=None,
-            coalition_mask=coalition_mask, n_samples=1,
+            x=x_in,
+            y=None,
+            mask=pad,
+            lengths=None,
+            coalition_mask=coalition_mask,
+            n_samples=1,
         )
         comp = torch.cat(completions, dim=0)[0].cpu()
     else:
@@ -337,12 +366,14 @@ def make_players(player_set: str, J: int, F: int, T: int):
     """
     if player_set == "temporal":
         from motionbench.players.temporal_windows import TemporalWindows
+
         K = 4
         if T % K != 0:
             raise ValueError(f"T={T} must be divisible by K={K}")
         return TemporalWindows(K=K, T=T, J=J, F=F)
     if player_set == "spatial_joint":
         from motionbench.players.spatial_joints import SpatialJoints
+
         return SpatialJoints(J=J, F=F, T=T)
     raise ValueError(f"Unknown player_set: {player_set!r}. Use 'temporal' or 'spatial_joint'.")
 
@@ -356,10 +387,10 @@ def run_one_cell(
     ds_name: str,
     dataset,
     players,
-    player_set_tag: str,   # "temporal" | "spatial_joint"
+    player_set_tag: str,  # "temporal" | "spatial_joint"
     clf_name: str,
-    method_base: str,      # "marginal" | "vaeac"
-    budget: int,           # n_coalitions
+    method_base: str,  # "marginal" | "vaeac"
+    budget: int,  # n_coalitions
     device: torch.device,
     n_seq: int,
     cell_timeout_s: int,
@@ -378,12 +409,18 @@ def run_one_cell(
     clf_yaml = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
     from motionbench.pipelines.synthetic_eval import _build_classifier
+
     clf = _build_classifier(clf_cfg, J, F, T, K_ds, n_classes).to(device)
     clf.eval()
 
     ckpt_path = (
-        REPO / "motionbench" / "classifiers" / "checkpoints" / "synthetic"
-        / ds_name / f"{clf_name}.pt"
+        REPO
+        / "motionbench"
+        / "classifiers"
+        / "checkpoints"
+        / "synthetic"
+        / ds_name
+        / f"{clf_name}.pt"
     )
     if ckpt_path.exists():
         ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
@@ -411,16 +448,18 @@ def run_one_cell(
 
     # Sample KernelSHAP coalitions at the requested budget
     from motionbench.utils.coalitions import sample_kernelshap_coalitions, solve_shapley_wls
+
     rng_coal = np.random.default_rng(42)
     n_pairs = max(1, budget // 2)
     inner_coalitions, inner_weights = sample_kernelshap_coalitions(M, n_pairs, rng_coal)
     boundary_z = np.array([[0] * M, [1] * M], dtype=np.intp)
     boundary_w = np.zeros(2, dtype=np.float64)
-    coalitions = np.vstack([boundary_z, inner_coalitions])   # (2 + 2*n_pairs, M)
+    coalitions = np.vstack([boundary_z, inner_coalitions])  # (2 + 2*n_pairs, M)
     weights = np.concatenate([boundary_w, inner_weights])
     n_coal_total = coalitions.shape[0]
-    log.info("    player_set=%s M=%d budget=%d → %d coalitions",
-             player_set_tag, M, budget, n_coal_total)
+    log.info(
+        "    player_set=%s M=%d budget=%d → %d coalitions", player_set_tag, M, budget, n_coal_total
+    )
 
     # Pre-compute coalition masks
     coal_masks: list[Tensor] = []
@@ -507,6 +546,7 @@ def run_one_cell(
             if i == 0:
                 log.warning("    batched_oracle_shapley failed: %s", exc)
                 import traceback
+
                 traceback.print_exc()
 
         if (i + 1) % 10 == 0:
@@ -529,13 +569,15 @@ def run_one_cell(
     for k in ("ec1", "ec1_norm", "ec2", "ec3"):
         vals = [e[k] for e in ecs if not np.isnan(e[k])]
         out_dict[k] = float(np.mean(vals)) if vals else float("nan")
-        out_dict[f"{k}_mean"] = out_dict[k]   # alias expected by caller
+        out_dict[f"{k}_mean"] = out_dict[k]  # alias expected by caller
     for k in ("top1", "topk_overlap", "spearman", "kendall"):
         out_dict[k] = float(np.mean([t[k] for t in topks]))
 
     np.savez_compressed(
         out_dir / "attributions.npz",
-        phi=phis, phi_true=phi_true_all, v=v_all,
+        phi=phis,
+        phi_true=phi_true_all,
+        v=v_all,
     )
     (out_dir / "result.json").write_text(json.dumps(out_dict, indent=2))
 
@@ -543,7 +585,10 @@ def run_one_cell(
     out_dict["_wall_seconds"] = wall
     log.info(
         "    DONE  dataset=%s  pset=%s  budget=%d  method=%s  EC1=%.4f  spearman=%.3f  (%.1fs)",
-        ds_name, player_set_tag, budget, method_name,
+        ds_name,
+        player_set_tag,
+        budget,
+        method_name,
         out_dict.get("ec1", float("nan")),
         out_dict.get("spearman", float("nan")),
         wall,
@@ -565,18 +610,30 @@ CLASSIFIER_DEFAULT = "synthetic_mlp"
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--datasets", nargs="+", default=DATASETS_DEFAULT)
-    p.add_argument("--player-sets", nargs="+", default=PLAYER_SETS_DEFAULT,
-                   choices=["temporal", "spatial_joint"])
+    p.add_argument(
+        "--player-sets",
+        nargs="+",
+        default=PLAYER_SETS_DEFAULT,
+        choices=["temporal", "spatial_joint"],
+    )
     p.add_argument("--budgets", nargs="+", type=int, default=BUDGETS_DEFAULT)
-    p.add_argument("--methods", nargs="+", default=METHODS_DEFAULT,
-                   choices=["kernelshap_vaeac", "kernelshap_marginal"])
-    p.add_argument("--classifier", default=CLASSIFIER_DEFAULT,
-                   help="Synthetic classifier name (default: synthetic_mlp).")
+    p.add_argument(
+        "--methods",
+        nargs="+",
+        default=METHODS_DEFAULT,
+        choices=["kernelshap_vaeac", "kernelshap_marginal"],
+    )
+    p.add_argument(
+        "--classifier",
+        default=CLASSIFIER_DEFAULT,
+        help="Synthetic classifier name (default: synthetic_mlp).",
+    )
     p.add_argument("--n-seq", type=int, default=50)
     p.add_argument("--cell-timeout", type=int, default=3600)
     p.add_argument("--device", default="cuda:0")
-    p.add_argument("--force", action="store_true",
-                   help="Recompute even if result.json already exists.")
+    p.add_argument(
+        "--force", action="store_true", help="Recompute even if result.json already exists."
+    )
     return p.parse_args()
 
 
@@ -586,10 +643,19 @@ def main() -> None:
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
     log.info("Repo root: %s", REPO)
-    log.info("Device: %s  (CUDA_VISIBLE_DEVICES=%s)",
-             device, os.environ.get("CUDA_VISIBLE_DEVICES", "<unset>"))
-    log.info("datasets=%s  player_sets=%s  budgets=%s  methods=%s  classifier=%s",
-             args.datasets, args.player_sets, args.budgets, args.methods, args.classifier)
+    log.info(
+        "Device: %s  (CUDA_VISIBLE_DEVICES=%s)",
+        device,
+        os.environ.get("CUDA_VISIBLE_DEVICES", "<unset>"),
+    )
+    log.info(
+        "datasets=%s  player_sets=%s  budgets=%s  methods=%s  classifier=%s",
+        args.datasets,
+        args.player_sets,
+        args.budgets,
+        args.methods,
+        args.classifier,
+    )
 
     methods_base = [m.removeprefix("kernelshap_") for m in args.methods]
 
@@ -611,22 +677,31 @@ def main() -> None:
                 for method_base in methods_base:
                     method_name = f"kernelshap_{method_base}"
                     result_path = (
-                        RESULTS_DIR / ds_name / player_set / str(budget)
-                        / method_name / "result.json"
+                        RESULTS_DIR
+                        / ds_name
+                        / player_set
+                        / str(budget)
+                        / method_name
+                        / "result.json"
                     )
 
                     if result_path.exists() and not args.force:
                         log.info("  [SKIP] %s/%s/%d/%s", ds_name, player_set, budget, method_name)
                         try:
                             cached = json.loads(result_path.read_text())
-                            summary.append({
-                                "dataset": ds_name, "player_set": player_set,
-                                "budget": budget, "method": method_name,
-                                "n_players": M,
-                                "ec1": cached.get("ec1"),
-                                "spearman": cached.get("spearman"),
-                                "wall_seconds": None, "status": "cached",
-                            })
+                            summary.append(
+                                {
+                                    "dataset": ds_name,
+                                    "player_set": player_set,
+                                    "budget": budget,
+                                    "method": method_name,
+                                    "n_players": M,
+                                    "ec1": cached.get("ec1"),
+                                    "spearman": cached.get("spearman"),
+                                    "wall_seconds": None,
+                                    "status": "cached",
+                                }
+                            )
                         except Exception:
                             pass
                         continue
@@ -647,47 +722,75 @@ def main() -> None:
                                 n_seq=args.n_seq,
                                 cell_timeout_s=args.cell_timeout,
                             )
-                        summary.append({
-                            "dataset": ds_name, "player_set": player_set,
-                            "budget": budget, "method": method_name,
-                            "n_players": M,
-                            "ec1": out.get("ec1"),
-                            "spearman": out.get("spearman"),
-                            "wall_seconds": out.get("_wall_seconds"),
-                            "status": "ok",
-                        })
+                        summary.append(
+                            {
+                                "dataset": ds_name,
+                                "player_set": player_set,
+                                "budget": budget,
+                                "method": method_name,
+                                "n_players": M,
+                                "ec1": out.get("ec1"),
+                                "spearman": out.get("spearman"),
+                                "wall_seconds": out.get("_wall_seconds"),
+                                "status": "ok",
+                            }
+                        )
                     except CellTimeout as exc:
                         log.warning("[TIMEOUT] %s: %s", label, exc)
-                        summary.append({
-                            "dataset": ds_name, "player_set": player_set,
-                            "budget": budget, "method": method_name,
-                            "n_players": M,
-                            "ec1": None, "spearman": None,
-                            "wall_seconds": args.cell_timeout, "status": "timeout",
-                        })
+                        summary.append(
+                            {
+                                "dataset": ds_name,
+                                "player_set": player_set,
+                                "budget": budget,
+                                "method": method_name,
+                                "n_players": M,
+                                "ec1": None,
+                                "spearman": None,
+                                "wall_seconds": args.cell_timeout,
+                                "status": "timeout",
+                            }
+                        )
                     except Exception as exc:
                         log.warning("[FAIL] %s: %s", label, exc)
                         import traceback
+
                         traceback.print_exc()
-                        summary.append({
-                            "dataset": ds_name, "player_set": player_set,
-                            "budget": budget, "method": method_name,
-                            "n_players": M,
-                            "ec1": None, "spearman": None,
-                            "wall_seconds": None,
-                            "status": f"error:{type(exc).__name__}",
-                        })
+                        summary.append(
+                            {
+                                "dataset": ds_name,
+                                "player_set": player_set,
+                                "budget": budget,
+                                "method": method_name,
+                                "n_players": M,
+                                "ec1": None,
+                                "spearman": None,
+                                "wall_seconds": None,
+                                "status": f"error:{type(exc).__name__}",
+                            }
+                        )
 
     # Final summary
     log.info("=" * 70)
     log.info("Total wall-clock: %.1fs", time.time() - t_total)
     log.info("=== Summary ===")
-    log.info("%-25s %-15s %6s %-24s %7s %8s %8s  %s",
-             "dataset", "player_set", "budget", "method", "M", "EC1", "spearman", "status")
+    log.info(
+        "%-25s %-15s %6s %-24s %7s %8s %8s  %s",
+        "dataset",
+        "player_set",
+        "budget",
+        "method",
+        "M",
+        "EC1",
+        "spearman",
+        "status",
+    )
     for r in summary:
         log.info(
             "%-25s %-15s %6d %-24s %7d %8s %8s  %s",
-            r["dataset"], r["player_set"], r["budget"], r["method"],
+            r["dataset"],
+            r["player_set"],
+            r["budget"],
+            r["method"],
             r.get("n_players", 0),
             f"{r['ec1']:.4f}" if r["ec1"] is not None else "  N/A",
             f"{r['spearman']:.3f}" if r["spearman"] is not None else "  N/A",

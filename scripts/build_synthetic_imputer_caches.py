@@ -16,6 +16,7 @@ Usage::
 Each cache contains a different generative seed than the eval-time seeds so the
 imputer never sees evaluation data.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -77,14 +78,16 @@ DATASET_SPECS: list[tuple[str, str, str, dict]] = [
 
 def _instantiate(module: str, cls: str, kwargs: dict):
     import importlib
+
     mod = importlib.import_module(module)
     klass = getattr(mod, cls)
     sig_kwargs = {k: v for k, v in kwargs.items() if k != "K"}  # K is pipeline-only
     return klass(**sig_kwargs)
 
 
-def build_cache(name: str, module: str, cls: str, kwargs: dict, care_pd_root: Path,
-                force: bool = False) -> Path:
+def build_cache(
+    name: str, module: str, cls: str, kwargs: dict, care_pd_root: Path, force: bool = False
+) -> Path:
     out_dir = care_pd_root / "cache" / "vaeac_synthetic" / name
     out_path = out_dir / "cache.npz"
     if out_path.exists() and not force:
@@ -97,7 +100,7 @@ def build_cache(name: str, module: str, cls: str, kwargs: dict, care_pd_root: Pa
     for i in range(len(ds)):
         x_i, _ = ds[i]
         Xs.append(x_i.numpy() if hasattr(x_i, "numpy") else np.asarray(x_i))
-    X = np.stack(Xs, axis=0)                     # (N, J, F, T)
+    X = np.stack(Xs, axis=0)  # (N, J, F, T)
     if X.ndim != 4:
         raise ValueError(f"unexpected X ndim={X.ndim} for {name}")
     X = np.transpose(X, (0, 3, 1, 2)).astype(np.float32)  # (N, T, J, F)
@@ -144,14 +147,19 @@ def build_cache(name: str, module: str, cls: str, kwargs: dict, care_pd_root: Pa
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--datasets", nargs="*", default=None,
-                        help="Subset of cache names to build; default is all.")
+    parser.add_argument(
+        "--datasets",
+        nargs="*",
+        default=None,
+        help="Subset of cache names to build; default is all.",
+    )
     _default_care_pd = Path(__file__).resolve().parent.parent.parent / "CARE-PD"
-    parser.add_argument("--care_pd_root", type=Path,
-                        default=Path(os.environ.get("CARE_PD_ROOT",
-                                                    str(_default_care_pd))))
-    parser.add_argument("--force", action="store_true",
-                        help="Rebuild even if cache exists.")
+    parser.add_argument(
+        "--care_pd_root",
+        type=Path,
+        default=Path(os.environ.get("CARE_PD_ROOT", str(_default_care_pd))),
+    )
+    parser.add_argument("--force", action="store_true", help="Rebuild even if cache exists.")
     args = parser.parse_args()
 
     print(f"CARE_PD_ROOT = {args.care_pd_root}")

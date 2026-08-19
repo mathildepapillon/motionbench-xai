@@ -63,7 +63,7 @@ def _load_data(args: argparse.Namespace) -> torch.Tensor:
         elif "x1_train" in d:
             # CARE-PD cache: (N, T, J, C) → permute to (N, J, C, T) motionbench layout
             x_np = d["x1_train"].astype(np.float32)  # (N, T, J, C)
-            x_np = x_np.transpose(0, 2, 3, 1)        # (N, J, C, T)
+            x_np = x_np.transpose(0, 2, 3, 1)  # (N, J, C, T)
         else:
             raise KeyError(
                 f"data_path '{args.data_path}' must contain 'x_train' or 'x1_train'. "
@@ -81,9 +81,7 @@ def _load_data(args: argparse.Namespace) -> torch.Tensor:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(
-        description="Train a VAEACImputer on skeletal motion data."
-    )
+    p = argparse.ArgumentParser(description="Train a VAEACImputer on skeletal motion data.")
     # Architecture
     p.add_argument("--J", type=int, default=17, help="Number of skeletal joints")
     p.add_argument("--F", type=int, default=3, help="Coordinates per joint")

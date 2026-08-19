@@ -265,9 +265,7 @@ def solve_shapley_wls(
     w_all: npt.NDArray[np.float64] = np.concatenate([weights, boundary_w])
 
     keep = w_all > 0
-    Z = np.column_stack(
-        [np.ones(keep.sum(), dtype=np.float64), c_all[keep].astype(np.float64)]
-    )
+    Z = np.column_stack([np.ones(keep.sum(), dtype=np.float64), c_all[keep].astype(np.float64)])
     sq = np.sqrt(w_all[keep])[:, None]
     A = (Z * sq).T @ (Z * sq) + 1e-8 * np.eye(M + 1)
     b = (Z * sq).T @ (v_all[keep] * sq[:, 0])
