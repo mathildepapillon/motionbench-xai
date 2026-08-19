@@ -3,8 +3,14 @@
 Architecture:
     Input (B, J, F, T) → reshape to (B, T, J*F) → project to (B, T, d_model)
     → positional encoding (sinusoidal, fixed)
-    → 4-layer TransformerEncoder (d_model=64, nhead=4, dim_feedforward=128, dropout=0.1)
+    → num_layers-layer TransformerEncoder (nhead=4, dim_feedforward=128, dropout=0.1)
     → mean pool over T → Linear(d_model, n_classes)
+
+The benchmark's executed configuration is **d_model=32, num_layers=2**
+(``configs/classifiers/synthetic_transformer.yaml``) — the configuration the
+released tables and checkpoints were produced with.  The constructor defaults
+(64/4) match the paper text's description; pass the config values to
+reproduce the benchmark classifiers (see RESOLUTIONS.md §9).
 """
 
 from __future__ import annotations
@@ -59,16 +65,19 @@ class SyntheticTransformerClassifier(Classifier):
 
         (B, J, F, T) → reshape (B, T, J*F) → Linear → (B, T, d_model)
         → sinusoidal positional encoding
-        → 4-layer TransformerEncoder (d_model, nhead, dim_ff=128, dropout=0.1)
+        → num_layers-layer TransformerEncoder (d_model, nhead, dim_ff=128, dropout=0.1)
         → mean pool over T → Linear(d_model, n_classes)
 
     Args:
         J: Number of joints.
         F: Features per joint.
         n_classes: Number of output classes.
-        d_model: Transformer hidden dimension.
+        d_model: Transformer hidden dimension.  The benchmark's executed
+            configuration is 32 (``configs/classifiers/synthetic_transformer.yaml``);
+            the constructor default 64 matches the paper text.
         nhead: Number of attention heads.
-        num_layers: Number of transformer encoder layers.
+        num_layers: Number of transformer encoder layers.  Executed
+            configuration: 2; constructor default 4 matches the paper text.
     """
 
     def __init__(
