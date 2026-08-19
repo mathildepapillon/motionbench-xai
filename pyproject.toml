@@ -77,8 +77,6 @@ exclude = [
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "TCH", "ANN"]
 ignore = [
-    "ANN101",  # missing type annotation for self
-    "ANN102",  # missing type annotation for cls
     "ANN401",  # dynamically typed expressions (Any) are disallowed
     "B008",    # function call in default argument
     "N803",    # argument name should be lowercase (physics notation)
