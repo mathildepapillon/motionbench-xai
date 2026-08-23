@@ -25,6 +25,10 @@ dependencies:
     # windowshap is not on PyPI; install from the official repo
     - git+https://github.com/vsubbian/WindowSHAP
     - pyvinecopulib>=0.6.3
+    - transformers>=5.0,<6.0
+    - soundfile>=0.12
+    - wfdb>=4.1
+    - typing-extensions>=4.9
     - torch-dct>=0.1.6
     - timm>=0.9
     - hydra-core>=1.3

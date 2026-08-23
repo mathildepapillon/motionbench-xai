@@ -51,6 +51,12 @@ One optional dependency is not on PyPI: the WindowSHAP baselines need
 `pip install git+https://github.com/vsubbian/WindowSHAP`.  Everything else —
 including the quickstart below — works without it.
 
+Conda users: `conda env create -f conda-environment.yml` builds the same
+environment (CUDA 12.1 pins included).  The second file,
+`conda-environment-imputer.yml`, is needed **only** for retraining the
+CARE-PD imputers through the external CARE-PD repository
+(REPRODUCIBILITY.md §4); all benchmark runs use the main environment.
+
 ## Quickstart — one complete cell, CPU, minutes
 
 The fastest tour is the self-contained example (generate data → train a

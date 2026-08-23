@@ -28,6 +28,10 @@ dependencies = [
     "timm>=0.9",
     # Empirical / copula imputers
     "pyvinecopulib>=0.6.3",
+    # ESC-50 track: AST classifiers + audio decoding; PTB-XL raw ECG loading
+    "transformers>=5.0,<6.0",
+    "soundfile>=0.12",
+    "wfdb>=4.1",
     # Scientific computing
     "numpy>=1.26,<2.1",
     "scipy>=1.11",
@@ -43,6 +47,7 @@ dependencies = [
     "aeon>=0.9",
     # Utilities
     "tqdm>=4.66",
+    "typing-extensions>=4.9",
     "joblib>=1.3",
     "rich>=13.0",
     "matplotlib>=3.8",
