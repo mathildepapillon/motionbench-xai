@@ -3,8 +3,11 @@
 Golden values were computed from the implementations that produced the
 canonical result files (previously embedded in scripts/run_care_pd_multiclf.py
 and scripts/_player_shap_common.py) immediately before their verbatim move
-into the package.  Any change to these numbers breaks the bit-exact
-reproduction gates in RESOLUTIONS.md — treat a failure here as a regression,
+into the package; the move itself was verified bit-exact in that environment.
+Tolerances here are ULP-scale (rel 1e-12 float64 / 1e-6 float32) — loose
+enough to survive BLAS differences across numpy builds, tight enough that any
+convention change (dtype quantisation, row order, boundary handling, tie
+break) fails by many orders of magnitude.  Treat a failure as a regression,
 never as a fixture to update.
 """
 
@@ -55,7 +58,7 @@ class TestEnumeratedConventions:
         v = torch.from_numpy(np.random.default_rng(11).standard_normal(16)).float()
         phi = kernel_shap_exact(z_bin, v, 4)
         assert phi.dtype == torch.float32
-        np.testing.assert_array_equal(
+        np.testing.assert_allclose(
             phi.numpy(),
             np.array(
                 [
@@ -66,6 +69,8 @@ class TestEnumeratedConventions:
                 ],
                 dtype=np.float32,
             ),
+            rtol=1e-6,
+            atol=0,
         )
 
     def test_metrics_golden(self) -> None:
@@ -73,10 +78,10 @@ class TestEnumeratedConventions:
         v = torch.from_numpy(np.random.default_rng(11).standard_normal(16)).float()
         phi = kernel_shap_exact(z_bin, v, 4)
         assert faithfulness_enumerated(z_bin, v, phi) == pytest.approx(
-            0.28725923812476006, abs=0, rel=0
+            0.28725923812476006, rel=1e-6
         )
         assert player_aopc_enumerated(v, z_bin, phi, 4) == pytest.approx(
-            0.6105978721752763, abs=0, rel=0
+            0.6105978721752763, rel=1e-6
         )
 
 
@@ -89,9 +94,7 @@ class TestSampledConventions:
         Z[1] = 1
         v = rng.standard_normal(40)
         phi = rng.standard_normal(7)
-        assert faithfulness_sampled(Z, v, phi, 1) == pytest.approx(
-            0.047036553702306624, abs=0, rel=0
-        )
+        assert faithfulness_sampled(Z, v, phi, 1) == pytest.approx(0.047036553702306624, rel=1e-12)
 
     def test_stable_tie_break_by_player_index(self) -> None:
         phi = np.array([0.5, -0.5, 0.25, 0.5, 0.0, -0.25, 0.25])
