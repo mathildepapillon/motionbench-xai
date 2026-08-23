@@ -14,7 +14,7 @@ RESOLUTIONS.md §11 for the full protocol.
 
 Value function, data selection, mean and donor conventions are identical to
 the temporal sweep ``run_esc50_shap.py``: fills happen in raw mel space; the
-AST classifier ``bioamla/ast-esc50`` returns softmax probabilities;
+fold's AST classifier (fold-disciplined fine-tune) returns softmax probabilities;
 ``v(S) = probs[target]`` with target = argmax of the full-clip prediction;
 the eval subset is ``sort(default_rng(42 + fold).choice(400, 200))`` and the
 marginal donors continue the same stream.
@@ -97,10 +97,10 @@ def load_esc50_data(fold: int, n_seq: int, data_dir: Path):
 class ESC50ValueFn:
     """v(S) evaluator: raw mel completions (n, 128, 1, 1024) -> (n, 50) probs."""
 
-    def __init__(self, device: torch.device) -> None:
+    def __init__(self, fold: int, device: torch.device) -> None:
         from motionbench.classifiers.esc50_classifier import load_esc50_classifier
 
-        self.clf = load_esc50_classifier(device=device)
+        self.clf = load_esc50_classifier(fold=fold, device=device)
         self.device = device
 
     @torch.no_grad()
@@ -151,7 +151,7 @@ def main() -> None:
     log.info("[fold%d] N=%d J=%d F=%d T=%d", fold, N, J, F, T)
 
     players = BandWindowCells(J=J, n_bands=N_BANDS, K=K, F=F, T=T)
-    value_fn = ESC50ValueFn(device)
+    value_fn = ESC50ValueFn(fold, device)
 
     probs_full = value_fn(x_eval)
     targets = probs_full.argmax(-1)

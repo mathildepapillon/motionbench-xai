@@ -226,7 +226,7 @@ def main() -> None:
     sys.path.insert(0, str(REPO_ROOT))
     from motionbench.classifiers.esc50_classifier import load_esc50_classifier
 
-    clf = load_esc50_classifier(device=device)
+    clf = load_esc50_classifier(fold=fold, device=device)
     clf.eval()
     log.info("[fold%d] ESC-50 AST classifier loaded", fold)
 

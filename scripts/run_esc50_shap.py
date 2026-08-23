@@ -3,7 +3,7 @@
 Mirrors run_ptbxl_shap.py for the ESC-50 environmental sound dataset.
 Runs KernelSHAP with five imputation strategies (Zero / Mean / Marginal /
 VAEAC / Flow) on ESC-50 mel-spectrogram test sequences using the fine-tuned
-AST classifier (bioamla/ast-esc50).
+per-fold AST classifiers (fold-disciplined fine-tunes; checkpoints/README.md).
 
 Player set
 ----------
@@ -161,7 +161,7 @@ def main() -> None:
     sys.path.insert(0, str(REPO_ROOT))
     from motionbench.classifiers.esc50_classifier import load_esc50_classifier
 
-    clf = load_esc50_classifier(device=device)
+    clf = load_esc50_classifier(fold=fold, device=device)
     clf.eval()
     log.info("[fold%d] ESC-50 AST classifier loaded", fold)
 
