@@ -35,7 +35,10 @@ file against this manifest.
 
 ```
 motionbench/classifiers/checkpoints/
-  synthetic/{dataset}/{classifier}.pt   # 21 synthetic classifiers (incl. mlp seed replicas)
+  synthetic/{dataset_config}/{classifier_config}.pt
+                                        # e.g. gaussian_k4/synthetic_mlp.pt — exactly the
+                                        # <configs/data name>/<configs/classifiers name>.pt
+                                        # path the pipelines load; 21 files incl. seed replicas
   real/ptbxl_fold{n}.pt                   # PTB-XL per-fold ResNets
   real/esc50_ast_fold{n}.pt               # ESC-50 per-fold AST fine-tunes (esc50 archive)
 results/synthetic_imputers/               # VAEAC / Flow synthetic imputers
@@ -56,33 +59,35 @@ dict; VAEAC `dec_trunk`/`dec_out` keys remapped on load).
 ## Reference digests
 
 These are the exact files behind the paper's tables (per-classifier
-accuracies: paper appendix, classifier-gate table).
+accuracies: paper appendix, classifier-gate table).  The `*_seed43/44` MLP
+files are seed replicas of the reference training run, shipped for variance
+checks; the pipelines load the unsuffixed file.
 
 ### Core archive — synthetic classifiers (`motionbench/classifiers/checkpoints/synthetic/`)
 
 | file | sha256 |
 |---|---|
-| `burr_m5/cnn.pt` | `752b2fb5dca8ea63c1b3bb2177750edac1059172b93c16d3bc1cb6f919db6a53` |
-| `burr_m5/mlp.pt` | `f93ff19c36e01ae8da1a435544efa0d2c83fca2149aa16623eafaa8273f3e1f0` |
-| `burr_m5/mlp_seed43.pt` | `a270efa7014dc221ccbd56027d336b4cd3dbb7952c046d347ba57e61cf2dfea8` |
-| `burr_m5/mlp_seed44.pt` | `10e0cdcaa1c9779bdea899537225d3693e27ee8198681cbb0c6a45bfb62533cb` |
-| `burr_m5/transformer.pt` | `f4f1e89a3c02de06bf9c738670bfcac86b8c7ec2bbd553116037e502a359bcb8` |
-| `gait/cnn.pt` | `6ae28a8b39afbb5e3aef69d096a32140208e6c37d515fc7274d631fe1e5318ad` |
-| `gait/mlp.pt` | `4cd6d1bbff67f577efb055f5766eb4cb8524f08bbce2eb46e730020621d203e7` |
-| `gait/transformer.pt` | `43c7be80fc18410ed40bb32eb6c89facaec7e2fb8986d386de896e234fe824f3` |
-| `gauss_k4/cnn.pt` | `211a751421a7b8b0d919c48934707fcef953ac6a973d5fe55bf67155ad017583` |
-| `gauss_k4/mlp.pt` | `ebd9f6f2333752c87ae438f986cd619528f5f8d062c0520279d6ba3965d3eeac` |
-| `gauss_k4/mlp_seed43.pt` | `8dc6378fda6e22a78abda776ba08f9b16ae6437010915cb38025a52dcebf7f6a` |
-| `gauss_k4/mlp_seed44.pt` | `f03a5e05daa7082fb13f0df57ccb2693d8b70ed42698dec66b4a5b13956c7277` |
-| `gauss_k4/transformer.pt` | `a4c085874497be07d0c84808ca6ca2896a1c5638fc6e503a6af884ae366297f0` |
-| `skel+gait/cnn.pt` | `9fbe3af0849d645aca04338de1e44fe71e7551470658d10009a090771908e7fd` |
-| `skel+gait/mlp.pt` | `29021b87cf29ecc6e55ecf702fe8d3f6c0359b9ded21f161528892d3237c43e4` |
-| `skel+gait/transformer.pt` | `0f79de43d56fd7265b8c4865224e636715aa04c163246f9a02946fe8a98e522e` |
-| `skeleton/cnn.pt` | `2041c40cb5f006a401d573b559fae2f081d98b17f6651597c7f5fb6b3855c8fb` |
-| `skeleton/mlp.pt` | `0dea1107d8b544f35713daed0614eb03b5e0cd102b754ca2458d57b8f5a4ee07` |
-| `skeleton/mlp_seed43.pt` | `2eb55d71b7b1c5928dee8a3b3cbf1ff8724d663669224131e2111b1185fff409` |
-| `skeleton/mlp_seed44.pt` | `1c875b1ddea4b9464952f669f277502b3e6a64f74dd22b1b800dd7dc93d805a0` |
-| `skeleton/transformer.pt` | `795b28aa7a1a1f234c59eacf90332ac7ea02963f66758a886b5bf4b09da71521` |
+| `burr_m5/synthetic_cnn.pt` | `752b2fb5dca8ea63c1b3bb2177750edac1059172b93c16d3bc1cb6f919db6a53` |
+| `burr_m5/synthetic_mlp.pt` | `f93ff19c36e01ae8da1a435544efa0d2c83fca2149aa16623eafaa8273f3e1f0` |
+| `burr_m5/synthetic_mlp_seed43.pt` | `a270efa7014dc221ccbd56027d336b4cd3dbb7952c046d347ba57e61cf2dfea8` |
+| `burr_m5/synthetic_mlp_seed44.pt` | `10e0cdcaa1c9779bdea899537225d3693e27ee8198681cbb0c6a45bfb62533cb` |
+| `burr_m5/synthetic_transformer.pt` | `f4f1e89a3c02de06bf9c738670bfcac86b8c7ec2bbd553116037e502a359bcb8` |
+| `gait_periodic/synthetic_cnn.pt` | `6ae28a8b39afbb5e3aef69d096a32140208e6c37d515fc7274d631fe1e5318ad` |
+| `gait_periodic/synthetic_mlp.pt` | `4cd6d1bbff67f577efb055f5766eb4cb8524f08bbce2eb46e730020621d203e7` |
+| `gait_periodic/synthetic_transformer.pt` | `43c7be80fc18410ed40bb32eb6c89facaec7e2fb8986d386de896e234fe824f3` |
+| `gaussian_k4/synthetic_cnn.pt` | `211a751421a7b8b0d919c48934707fcef953ac6a973d5fe55bf67155ad017583` |
+| `gaussian_k4/synthetic_mlp.pt` | `ebd9f6f2333752c87ae438f986cd619528f5f8d062c0520279d6ba3965d3eeac` |
+| `gaussian_k4/synthetic_mlp_seed43.pt` | `8dc6378fda6e22a78abda776ba08f9b16ae6437010915cb38025a52dcebf7f6a` |
+| `gaussian_k4/synthetic_mlp_seed44.pt` | `f03a5e05daa7082fb13f0df57ccb2693d8b70ed42698dec66b4a5b13956c7277` |
+| `gaussian_k4/synthetic_transformer.pt` | `a4c085874497be07d0c84808ca6ca2896a1c5638fc6e503a6af884ae366297f0` |
+| `skeleton_gait_combined/synthetic_cnn.pt` | `9fbe3af0849d645aca04338de1e44fe71e7551470658d10009a090771908e7fd` |
+| `skeleton_gait_combined/synthetic_mlp.pt` | `29021b87cf29ecc6e55ecf702fe8d3f6c0359b9ded21f161528892d3237c43e4` |
+| `skeleton_gait_combined/synthetic_transformer.pt` | `0f79de43d56fd7265b8c4865224e636715aa04c163246f9a02946fe8a98e522e` |
+| `skeleton_structured/synthetic_cnn.pt` | `2041c40cb5f006a401d573b559fae2f081d98b17f6651597c7f5fb6b3855c8fb` |
+| `skeleton_structured/synthetic_mlp.pt` | `0dea1107d8b544f35713daed0614eb03b5e0cd102b754ca2458d57b8f5a4ee07` |
+| `skeleton_structured/synthetic_mlp_seed43.pt` | `2eb55d71b7b1c5928dee8a3b3cbf1ff8724d663669224131e2111b1185fff409` |
+| `skeleton_structured/synthetic_mlp_seed44.pt` | `1c875b1ddea4b9464952f669f277502b3e6a64f74dd22b1b800dd7dc93d805a0` |
+| `skeleton_structured/synthetic_transformer.pt` | `795b28aa7a1a1f234c59eacf90332ac7ea02963f66758a886b5bf4b09da71521` |
 
 ### Core archive — synthetic imputers (`results/synthetic_imputers/`)
 
