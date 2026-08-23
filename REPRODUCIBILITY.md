@@ -374,6 +374,49 @@ done
 ./scripts/reproduce_ptbxl.sh
 ```
 
+<!-- BEGIN player-set sweeps subsection (added with the real-data player-set entry points) -->
+### 4.7 Real-data player-set sweeps (spatial + cell granularity)
+
+Sampled-coalition KernelSHAP (fixed design ``sampled_coalition_set(M,
+B=2048, seed=7919)``, shared across methods and folds) on the finer
+player sets; protocol details in RESOLUTIONS.md §11.  Default methods are
+the deterministic imputers (Zero/Mean/Marginal); pass
+``--methods ... kernelshap_vaeac kernelshap_flow`` to add the on-manifold
+imputers (checkpoints under ``checkpoints/imputers/``, see
+``checkpoints/README.md``).
+
+```bash
+# CARE-PD, per-joint players (M=17) and joint×window cells (M=68),
+# MotionBERT + MotionAGFormer (POTR is excluded: fails the accuracy gate).
+for PS in joint cell; do
+  for CLF in motionbert motionagformer; do
+    for FOLD in 1 2 3; do
+      PYTHONPATH=. python scripts/run_carepd_players_shap.py \
+          --playerset "$PS" --classifier "$CLF" --fold "$FOLD" --n_seq 200
+    done
+  done
+done
+
+# ESC-50, mel-band × window cells (M=16 = 4 bin-quartiles × 4 windows).
+for FOLD in 1 2 3; do
+  PYTHONPATH=. python scripts/run_esc50_cells_shap.py --fold "$FOLD" --n_seq 200
+done
+
+# PTB-XL, lead × window cells (M=48 = 12 leads × 4 windows).
+for FOLD in 1 2 3; do
+  PYTHONPATH=. python scripts/run_ptbxl_cells_shap.py --fold "$FOLD" --n_seq 200 \
+      --data_path "$PTBXL_DATA_ROOT"
+done
+```
+
+Data resolution: CARE-PD uses ``$CARE_PD_ROOT`` (or a prepared cache dir via
+``--cache_dir`` / ``$CAREPD_CACHE_DIR``); ESC-50 uses ``data/esc50`` (or
+``--data_dir`` / ``$ESC50_DATA_DIR``); PTB-XL uses the raw download plus the
+training stats from ``train_ptbxl_classifier.py`` (or ``--cache_dir`` /
+``$PTBXL_CACHE_DIR``).  Results land in
+``results/{carepd_players,esc50_cells,ptbxl_cells}/``.
+<!-- END player-set sweeps subsection -->
+
 ---
 
 ## 5. Determinism notes

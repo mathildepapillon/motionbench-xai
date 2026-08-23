@@ -7,6 +7,8 @@ from motionbench.imputers.empirical import (
     VineCopulaImputer,
 )
 from motionbench.imputers.flow_matching import FlowMatchingImputer
+from motionbench.imputers.frame_flow import FrameFlowImputer
+from motionbench.imputers.frame_vaeac import FrameVAEACImputer
 from motionbench.imputers.off_manifold import (
     GaussianNoiseImputer,
     MarginalDonorImputer,
@@ -28,4 +30,6 @@ __all__ = [
     "ShaprGaussianImputer",
     "VAEACImputer",
     "FlowMatchingImputer",
+    "FrameVAEACImputer",
+    "FrameFlowImputer",
 ]

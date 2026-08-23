@@ -205,3 +205,91 @@ scratch (its experiment-1 `RESOLUTIONS.md`); the study's findings C1–C3 and
 resolutions A1–A7 / B1–B10 are the source of record for what the released
 pipeline executed.  The oracle unit tests in `tests/test_oracle_gate.py`
 port that study's validation gate (properties G1–G6).*
+
+<!-- BEGIN §11 (appended with the real-data player-set entry points) -->
+
+## 11. Real-data player-set tracks (spatial joints and cross-cutting cells)
+
+Added with the entry points `scripts/run_carepd_players_shap.py`,
+`scripts/run_esc50_cells_shap.py` and `scripts/run_ptbxl_cells_shap.py`
+(shared machinery in `scripts/_player_shap_common.py`).  These expose the
+finer-granularity player sets of the validation study's real-data
+player-set runs ([study] experiment 11):
+
+| track | player set | M | coalitions |
+|---|---|---|---|
+| CARE-PD joint | `SpatialJoints` (one player per H36M joint) | 17 | sampled, B=2048 |
+| CARE-PD cell | `JointWindowCells` (joint × K=4 windows of 20 frames) | 68 | sampled, B=2048 |
+| ESC-50 cell | `BandWindowCells` (4 mel-bin quartiles × K=4 windows of 256 frames) | 16 | sampled, B=2048 |
+| PTB-XL cell | `JointWindowCells` (lead × K=4 windows of 250 samples) | 48 | sampled, B=2048 |
+
+**Executed conventions** (all [study]-pinned; the value functions, eval
+subsets, mean/donor pools and classifier semantics are identical to the
+temporal real-data sweeps of §RESOLUTIONS-scope — `run_care_pd_multiclf.py`,
+`run_esc50_shap.py`, `run_ptbxl_leads_shap.py`):
+
+- **Coalition design**: every M exceeds the exact-enumeration bound
+  (M ≤ 12), so all four tracks use the fixed shared design
+  `sampled_coalition_set(M, budget=2048, seed=7919)` (§8 seed table) —
+  boundary rows pinned at rows 0/1 with weight 1e6, complete size pairs
+  enumerated in kernel-mass order, importance-corrected sampled remainder.
+  One design per M, reused across methods and folds.
+- **phi**: constrained WLS with intercept, boundary constraints at 1e6,
+  ridge 1e-8 (`phi_from_values`; §10 semantics), interior rows carrying the
+  design's importance weights.
+- **Faithfulness on sampled designs**: Pearson over ALL B+2 rows including
+  the two boundary rows — mirrors the temporal protocol, which uses all
+  2^K enumerated rows.  [study] decision; the paper says "across sampled
+  coalitions" without pinning boundary-row inclusion.
+- **PlayerAOPC on sampled designs**: the M cumulative-deletion coalitions
+  (players removed in decreasing |phi|, ties by player index) are evaluated
+  **explicitly** — they are generally not in the sampled design.
+  Deterministic fills are exact; VAEAC/Flow path fills are fresh draws from
+  the same per-sequence stream.  [study] decision; the temporal protocol
+  reads the path from the enumerated table, which has no sampled analogue.
+- **Stochastic imputers**: one completion per coalition (n=1, the real-data
+  release convention), per-sequence stream
+  `np.random.default_rng([1104, fold, seq_idx])`, consumed as one
+  `torch.manual_seed` per `impute_multi` call (coalition fills first, then
+  the deletion-path fills continue the stream).  The imputers are the
+  study-format checkpoints `checkpoints/imputers/{track}_{vaeac,flow}.pt`
+  loaded by `motionbench.imputers.FrameVAEACImputer` / `FrameFlowImputer`
+  (inference ports of the study's frame-token models, kept numerically
+  identical; PTB-XL's smaller architecture is read from the checkpoint's
+  `arch` dict).
+- **POTR is excluded** from the CARE-PD player-set tracks: pooled accuracy
+  0.374 fails the accuracy gate.
+- **MotionBERT LayerNorm eps**: CARE-PD builds the DSTformer with
+  `LayerNorm(eps=1e-6)` (`CARE-PD/model/backbone_loader.py`); the ported
+  `_DSTformerBackbone` previously used the `nn.LayerNorm` default 1e-5,
+  which shifted softmax probabilities by ~1e-4.  Fixed to default to
+  eps=1e-6 so CARE-PD fine-tuned checkpoints reproduce exactly.
+
+**Validation gate** (deterministic methods kernelshap_{zero,mean,marginal},
+fold 1, N=200, H100): the release entry points were run against the study's
+data caches and checkpoints and compared to the study's canonical fold-level
+numbers (its `analysis.json` / `analysis_ptbxl.json`).  Component
+fingerprints on CPU (coalition designs, WLS solves, all four player-set
+mask expansions, all three value functions, both frame imputers, and an
+end-to-end 2-sequence PTB-XL cell run) were bit-exact before the GPU gate.
+Gate results (fold-level |Δfaithfulness| and |ΔPlayerAOPC| vs canonical):
+
+| track | classifier | zero |Δfaith|/|Δaopc| | mean | marginal |
+|---|---|---|---|---|
+| CARE-PD joint (M=17) | motionbert | 0.0 / 0.0 | 0.0 / 0.0 | 0.0 / 0.0 |
+| CARE-PD joint (M=17) | motionagformer | 0.0 / 0.0 | 0.0 / 0.0 | 0.0 / 0.0 |
+| CARE-PD cell (M=68) | motionbert | 0.0 / 0.0 | 0.0 / 0.0 | 0.0 / 0.0 |
+| CARE-PD cell (M=68) | motionagformer | 0.0 / 0.0 | 0.0 / 0.0 | 0.0 / 0.0 |
+| ESC-50 cell (M=16) | ast | 0.0 / 0.0 | 0.0 / 0.0 | 0.0 / 0.0 |
+| PTB-XL cell (M=48) | ecg_resnet1d | 0.0 / 0.0 | 0.0 / 0.0 | 0.0 / 0.0 |
+
+**PASS — bit-exact**: every fold-level faithfulness and PlayerAOPC value
+reproduces the canonical number with zero deviation (18/18 gate cells;
+same GPU class and op order as the study's runs; the study's own gate
+standard was 1e-3 with observed ≤3.1e-9).
+
+VAEAC/Flow are covered by the shared machinery + the protocol pins above
+(bit-exact imputer fingerprints; the study's own gate standard — its
+stochastic cells were likewise covered by pins, not reruns, because exp-3's
+seeds are unknowable).
+<!-- END §11 -->
