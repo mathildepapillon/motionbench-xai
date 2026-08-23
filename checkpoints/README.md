@@ -19,12 +19,10 @@ Two archives (split by license — see **Licensing** below):
 | `motionbench-xai-checkpoints.tar.gz` | synthetic classifiers + imputers, PTB-XL classifiers + imputers | ~140 MB |
 | `motionbench-xai-checkpoints-esc50.tar.gz` | per-fold ESC-50 AST classifiers + ESC-50 imputers (**CC BY-NC**) | ~1.0 GB |
 
-> **MAINTAINER TODO:** set the hosting base URL below before release and
-> delete this note (decision pending: Hugging Face Hub vs GitHub Releases).
-
 ```bash
-MOTIONBENCH_CKPT_URL=<base-url> bash scripts/download_checkpoints.sh          # core
-MOTIONBENCH_CKPT_URL=<base-url> bash scripts/download_checkpoints.sh esc50   # + ESC-50 (CC BY-NC)
+export MOTIONBENCH_CKPT_URL=https://github.com/mathildepapillon/motionbench-xai/releases/download/checkpoints-v2
+bash scripts/download_checkpoints.sh          # core
+bash scripts/download_checkpoints.sh esc50    # + ESC-50 (CC BY-NC)
 ```
 
 Each archive unpacks into the repo root at the paths below and carries its
