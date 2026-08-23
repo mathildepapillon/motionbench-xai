@@ -11,13 +11,13 @@ convenience, not a requirement.
 
 ## Download
 
-> **MAINTAINER TODO:** fill in the hosting URL(s) below before release and
-> delete this note.  The archive should unpack into the repo root so files
-> land at the paths in the tables.
+> **MAINTAINER TODO:** set the hosting base URL below before release and
+> delete this note (decision pending: Hugging Face Hub vs GitHub Releases).
 >
 > ```bash
-> # placeholder — replace <URL> with the final hosting location
-> curl -L <URL>/motionbench-xai-checkpoints.tar.gz | tar xz -C .
+> MOTIONBENCH_CKPT_URL=<base-url> bash scripts/download_checkpoints.sh
+> # downloads motionbench-xai-checkpoints.tar.gz, unpacks into the repo root,
+> # and verifies every file against the SHA-256 manifest below
 > sha256sum -c checkpoints/SHA256SUMS   # optional integrity check
 > ```
 

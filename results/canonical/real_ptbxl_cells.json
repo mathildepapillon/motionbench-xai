@@ -1,0 +1,246 @@
+{
+ "tracks": {
+  "ptbxl_cell": {
+   "kernelshap_zero": {
+    "faith": 0.7377632678164264,
+    "aopc": 0.3856172239767151,
+    "n": 600,
+    "n_finite_faith": 600,
+    "per_fold": {
+     "1": {
+      "faith": 0.7756518491725015,
+      "aopc": 0.4421414451753799,
+      "n": 200
+     },
+     "2": {
+      "faith": 0.7203675854279358,
+      "aopc": 0.37661656536706956,
+      "n": 200
+     },
+     "3": {
+      "faith": 0.7172703688488423,
+      "aopc": 0.338093661387696,
+      "n": 200
+     }
+    }
+   },
+   "kernelshap_mean": {
+    "faith": 0.7374449987087994,
+    "aopc": 0.3853990448929412,
+    "n": 600,
+    "n_finite_faith": 600,
+    "per_fold": {
+     "1": {
+      "faith": 0.7745767118257038,
+      "aopc": 0.4414552436456241,
+      "n": 200
+     },
+     "2": {
+      "faith": 0.7204033279017614,
+      "aopc": 0.37661835479894124,
+      "n": 200
+     },
+     "3": {
+      "faith": 0.7173549563989332,
+      "aopc": 0.33812353623425834,
+      "n": 200
+     }
+    }
+   },
+   "kernelshap_marginal": {
+    "faith": 0.5711964911304651,
+    "aopc": 0.31989690510312435,
+    "n": 600,
+    "n_finite_faith": 600,
+    "per_fold": {
+     "1": {
+      "faith": 0.5545928789161314,
+      "aopc": 0.3370845414170155,
+      "n": 200
+     },
+     "2": {
+      "faith": 0.5598105898305604,
+      "aopc": 0.33186978506527814,
+      "n": 200
+     },
+     "3": {
+      "faith": 0.5991860046447037,
+      "aopc": 0.29073638882707925,
+      "n": 200
+     }
+    }
+   },
+   "kernelshap_vaeac": {
+    "faith": 0.7841318581124411,
+    "aopc": 0.3043140691523511,
+    "n": 600,
+    "n_finite_faith": 600,
+    "per_fold": {
+     "1": {
+      "faith": 0.8104951809999668,
+      "aopc": 0.34452391430620466,
+      "n": 200
+     },
+     "2": {
+      "faith": 0.7925131271399006,
+      "aopc": 0.33120435516941116,
+      "n": 200
+     },
+     "3": {
+      "faith": 0.7493872661974558,
+      "aopc": 0.23721393798143764,
+      "n": 200
+     }
+    }
+   },
+   "kernelshap_flow": {
+    "faith": 0.6112435590653924,
+    "aopc": 0.26093091630187587,
+    "n": 600,
+    "n_finite_faith": 600,
+    "per_fold": {
+     "1": {
+      "faith": 0.6611237307305461,
+      "aopc": 0.28113675398985805,
+      "n": 200
+     },
+     "2": {
+      "faith": 0.6366798236853799,
+      "aopc": 0.2798066563232181,
+      "n": 200
+     },
+     "3": {
+      "faith": 0.5359271227802513,
+      "aopc": 0.22184933859255146,
+      "n": 200
+     }
+    }
+   }
+  }
+ },
+ "gate": {
+  "description": "new-runner ptbxl_leads (M=12, exact 4096 coalitions, deterministic methods) vs exp-3 stored per-fold values",
+  "tolerance": 0.001,
+  "n_cells": 9,
+  "pass": true,
+  "cells": [
+   {
+    "fold": 1,
+    "method": "kernelshap_zero",
+    "faith_mine": 0.6992624006883941,
+    "faith_exp3": 0.6992624008033306,
+    "faith_diff": -1.149365047581341e-10,
+    "aopc_mine": 0.4944593957090728,
+    "aopc_exp3": 0.4944593957090728,
+    "aopc_diff": 0.0,
+    "max_per_seq_faith_diff": 7.811318813999435e-09,
+    "max_per_seq_aopc_diff": 0.0,
+    "within_tol": true
+   },
+   {
+    "fold": 1,
+    "method": "kernelshap_mean",
+    "faith_mine": 0.6986456877941916,
+    "faith_exp3": 0.6986456908082475,
+    "faith_diff": -3.0140558937574724e-09,
+    "aopc_mine": 0.49313935672920933,
+    "aopc_exp3": 0.4931393631970566,
+    "aopc_diff": -6.46784725777394e-09,
+    "max_per_seq_faith_diff": 1.458402234533196e-07,
+    "max_per_seq_aopc_diff": 6.395081678656211e-07,
+    "within_tol": true
+   },
+   {
+    "fold": 1,
+    "method": "kernelshap_marginal",
+    "faith_mine": 0.5160476421987781,
+    "faith_exp3": 0.5160476422938562,
+    "faith_diff": -9.507816756126886e-11,
+    "aopc_mine": 0.38271847964231986,
+    "aopc_exp3": 0.38271847964231986,
+    "aopc_diff": 0.0,
+    "max_per_seq_faith_diff": 8.046606270184498e-09,
+    "max_per_seq_aopc_diff": 0.0,
+    "within_tol": true
+   },
+   {
+    "fold": 2,
+    "method": "kernelshap_zero",
+    "faith_mine": 0.6182018939380484,
+    "faith_exp3": 0.6182018935748514,
+    "faith_diff": 3.631969169859417e-10,
+    "aopc_mine": 0.5043908766050572,
+    "aopc_exp3": 0.5043908766050572,
+    "aopc_diff": 0.0,
+    "max_per_seq_faith_diff": 9.197757888657065e-09,
+    "max_per_seq_aopc_diff": 0.0,
+    "within_tol": true
+   },
+   {
+    "fold": 2,
+    "method": "kernelshap_mean",
+    "faith_mine": 0.6182200993152945,
+    "faith_exp3": 0.6182200971208015,
+    "faith_diff": 2.1944930317374656e-09,
+    "aopc_mine": 0.5043938422429737,
+    "aopc_exp3": 0.5043938405968409,
+    "aopc_diff": 1.6461327856376329e-09,
+    "max_per_seq_faith_diff": 3.924002272004401e-07,
+    "max_per_seq_aopc_diff": 1.096632331609726e-06,
+    "within_tol": true
+   },
+   {
+    "fold": 2,
+    "method": "kernelshap_marginal",
+    "faith_mine": 0.49727651976250437,
+    "faith_exp3": 0.4972765196247946,
+    "faith_diff": 1.3770978801730394e-10,
+    "aopc_mine": 0.3865092511774557,
+    "aopc_exp3": 0.3865092511774557,
+    "aopc_diff": 0.0,
+    "max_per_seq_faith_diff": 9.956046098658078e-09,
+    "max_per_seq_aopc_diff": 0.0,
+    "within_tol": true
+   },
+   {
+    "fold": 3,
+    "method": "kernelshap_zero",
+    "faith_mine": 0.6484492807155413,
+    "faith_exp3": 0.6484492808406425,
+    "faith_diff": -1.2510115166008973e-10,
+    "aopc_mine": 0.424986239735446,
+    "aopc_exp3": 0.424986239735446,
+    "aopc_diff": 0.0,
+    "max_per_seq_faith_diff": 8.624964520365097e-09,
+    "max_per_seq_aopc_diff": 0.0,
+    "within_tol": true
+   },
+   {
+    "fold": 3,
+    "method": "kernelshap_mean",
+    "faith_mine": 0.6484920992617702,
+    "faith_exp3": 0.6484921002543322,
+    "faith_diff": -9.925620325645923e-10,
+    "aopc_mine": 0.42485101350231763,
+    "aopc_exp3": 0.42485101706363215,
+    "aopc_diff": -3.5613145210611208e-09,
+    "max_per_seq_faith_diff": 1.447167525814308e-07,
+    "max_per_seq_aopc_diff": 2.461796005936989e-07,
+    "within_tol": true
+   },
+   {
+    "fold": 3,
+    "method": "kernelshap_marginal",
+    "faith_mine": 0.5326155488990391,
+    "faith_exp3": 0.532615548717634,
+    "faith_diff": 1.8140511315323238e-10,
+    "aopc_mine": 0.3262648535224683,
+    "aopc_exp3": 0.3262648535224683,
+    "aopc_diff": 0.0,
+    "max_per_seq_faith_diff": 9.030648118191209e-09,
+    "max_per_seq_aopc_diff": 0.0,
+    "within_tol": true
+   }
+  ]
+ }
+}

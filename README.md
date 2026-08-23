@@ -18,8 +18,8 @@ is the product of four axes:
 - **Datasets.** A parametric family of synthetic motion datasets with exact
   oracles — Gaussian Kronecker fields `x ~ N(0, Σ_J ⊗ I_F ⊗ Σ_T)` spanning
   spatial coupling (equicorrelated / skeleton-graph) × temporal structure
-  (AR(1) / periodic), plus heavy-tailed Burr XII copula variants — and two
-  real tracks (CARE-PD skeletal gait, PTB-XL 12-lead ECG).
+  (AR(1) / periodic), plus heavy-tailed Burr XII copula variants — and three
+  real tracks (CARE-PD skeletal gait, PTB-XL 12-lead ECG, ESC-50 audio).
 - **Player sets.** The unit of explanation is configurable and every method
   runs under the same coalition structure: temporal windows, joints,
   joint×window cells, anatomical groups, gait phases.
@@ -146,6 +146,13 @@ Key documents:
   data acquisition for the real tracks.
 
 ## Reproducing the paper
+
+Two tiers — see [`REPRODUCING_PAPER.md`](REPRODUCING_PAPER.md) for the
+table-by-table map:
+
+- **From shipped results (no GPU):** every paper table regenerates from the
+  canonical result files in [`results/canonical/`](results/canonical/).
+- **From scratch:**
 
 ```bash
 ./scripts/reproduce_synthetic.sh   # synthetic half: self-contained
