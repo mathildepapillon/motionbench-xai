@@ -193,7 +193,7 @@ def _load_sub_config(subdir: str, name: str, cfg: DictConfig) -> DictConfig:
 # ---------------------------------------------------------------------------
 
 
-def _instantiate_dataset(
+def instantiate_dataset(
     dataset_cfg: DictConfig,
 ) -> tuple[BaseDataset, int]:
     """Instantiate a dataset and extract the number of temporal windows K.
@@ -233,7 +233,7 @@ def _instantiate_dataset(
 # ---------------------------------------------------------------------------
 
 
-def _build_players(
+def build_players(
     method_cfg: DictConfig,
     J: int,
     F: int,
@@ -468,7 +468,7 @@ def _build_attributor(
 # ---------------------------------------------------------------------------
 
 
-def _build_classifier(
+def build_classifier(
     clf_cfg: DictConfig,
     J: int,
     F: int,
@@ -767,7 +767,7 @@ def _evaluate_metrics(
 # ---------------------------------------------------------------------------
 
 
-def _run_cell(
+def run_cell(
     dataset_name: str,
     clf_name: str,
     method_name: str,
@@ -799,13 +799,13 @@ def _run_cell(
     try:
         # ---- Dataset ----
         dataset_cfg = _load_sub_config("data", dataset_name, cfg)
-        dataset, K = _instantiate_dataset(dataset_cfg)
+        dataset, K = instantiate_dataset(dataset_cfg)
         J, F, T = dataset.shape
 
         # ---- Classifier ----
         clf_cfg = _load_sub_config("classifiers", clf_name, cfg)
         n_classes = int(str(dataset.metadata.get("n_classes", 3)))
-        classifier = _build_classifier(clf_cfg, J, F, T, K, n_classes)
+        classifier = build_classifier(clf_cfg, J, F, T, K, n_classes)
         device: str = str(cfg.get("device", "cpu"))
         classifier = classifier.to(torch.device(device))
         classifier.eval()  # required: BatchNorm uses running stats in eval mode
@@ -828,7 +828,7 @@ def _run_cell(
 
         # ---- Method ----
         method_cfg = _load_sub_config("methods", method_name, cfg)
-        players = _build_players(method_cfg, J, F, T, K)
+        players = build_players(method_cfg, J, F, T, K)
 
         # Build imputer if the method config specifies one
         has_imputer = OmegaConf.select(method_cfg, "imputer") is not None
@@ -1024,7 +1024,7 @@ def run_synthetic_eval(cfg: DictConfig) -> pd.DataFrame:
     )
 
     def _run(ds: str, clf: str, mth: str) -> dict[str, Any]:
-        result = _run_cell(ds, clf, mth, cfg)
+        result = run_cell(ds, clf, mth, cfg)
         _log_to_wandb(result)
         return result
 
@@ -1042,3 +1042,12 @@ def run_synthetic_eval(cfg: DictConfig) -> pd.DataFrame:
         pass
 
     return pd.DataFrame(results) if results else pd.DataFrame()
+
+
+_instantiate_dataset = instantiate_dataset  # backwards-compat alias (pre-2.0 private name)
+
+_build_players = build_players  # backwards-compat alias (pre-2.0 private name)
+
+_build_classifier = build_classifier  # backwards-compat alias (pre-2.0 private name)
+
+_run_cell = run_cell  # backwards-compat alias (pre-2.0 private name)

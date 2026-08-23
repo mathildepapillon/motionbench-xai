@@ -206,9 +206,9 @@ resolutions A1–A7 / B1–B10 are the source of record for what the released
 pipeline executed.  The oracle unit tests in `tests/test_oracle_gate.py`
 port that study's validation gate (properties G1–G6).*
 
-<!-- BEGIN §11 (appended with the real-data player-set entry points) -->
+<!-- BEGIN §12 (appended with the real-data player-set entry points) -->
 
-## 11. Real-data player-set tracks (spatial joints and cross-cutting cells)
+## 12. Real-data player-set tracks (spatial joints and cross-cutting cells)
 
 Added with the entry points `scripts/run_carepd_players_shap.py`,
 `scripts/run_esc50_cells_shap.py` and `scripts/run_ptbxl_cells_shap.py`
@@ -292,4 +292,4 @@ VAEAC/Flow are covered by the shared machinery + the protocol pins above
 (bit-exact imputer fingerprints; the study's own gate standard — its
 stochastic cells were likewise covered by pins, not reruns, because exp-3's
 seeds are unknowable).
-<!-- END §11 -->
+<!-- END §12 -->

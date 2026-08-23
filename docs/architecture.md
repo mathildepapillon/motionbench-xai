@@ -1,6 +1,6 @@
-# Architecture — The Four Base Abstractions
+# Architecture — The Five Base Abstractions
 
-> This document describes the four base abstractions in motionbench-xai
+> This document describes the five base abstractions in motionbench-xai
 > (`PlayerSet`, `BaseDataset`, `Oracle`/`BaseImputer`, `BaseAttributor`,
 > `BaseMetric`). The interfaces are stable; new methods, datasets and
 > metrics are added by subclassing them.
@@ -10,7 +10,7 @@
 ## Overview
 
 MotionBench-XAI evaluates XAI attribution methods on time-series motion data.
-Every evaluation pipeline is built from four composable abstractions:
+Every evaluation pipeline is built from five composable abstractions:
 
 ```
 Dataset ──► PlayerSet ──► Attributor ──► Metric
@@ -55,6 +55,7 @@ class PlayerSet(ABC):
 | `AnatomicalGroups(groups)` | predefined joint groups | (J, F, T) arbitrary |
 | `GaitPhase(n_phases)` | stride-aligned phases | (J, F, T) temporal phases |
 | `JointWindowCells(J, K)` | J × K spatiotemporal cells | (J, F, T) grid |
+| `BandWindowCells(J, n_bands, K)` | n_bands × K spectro-temporal cells (frequency bands × time windows) | (J, F, T) grid |
 
 ---
 
@@ -153,7 +154,6 @@ class BaseMetric(ABC):
 | Fidelity | False | True | PixelFlipping, FaithfulnessCorr |
 | Stability | False | False | MaxSensitivity, Continuity |
 | Sanity | False | False | ModelParamRand, RandomLogit |
-| Meta | False | False | RankingAgreement |
 
 ---
 

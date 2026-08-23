@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "motionbench-xai"
-version = "0.0.0"
+version = "2.0.0"
 description = "MotionBench-XAI: A benchmark for time-series XAI methods on motion data"
 readme = "README.md"
 requires-python = ">=3.10"

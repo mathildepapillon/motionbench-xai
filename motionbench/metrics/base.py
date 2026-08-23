@@ -23,9 +23,6 @@ Metric taxonomy in this benchmark
 **Sanity-check metrics** (no oracle required):
     ModelParameterRandomisation, RandomLogit (Adebayo et al. 2018).
 
-**Meta-metrics:**
-    RankingAgreement — cross-protocol Spearman correlation matrix.
-
 Class variables
 ---------------
 Subclasses must declare:

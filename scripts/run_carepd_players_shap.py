@@ -14,7 +14,7 @@ the fixed sampled design ``sampled_coalition_set(M, B=2048, seed=7919)``
 shared across methods and folds; faithfulness is computed over all B+2
 design rows (boundary rows included) and PlayerAOPC over the M explicit
 deletion-path coalitions.  See ``scripts/_player_shap_common.py`` and
-RESOLUTIONS.md §11 for the full protocol.
+RESOLUTIONS.md §12 for the full protocol.
 
 Value function (identical to the temporal sweep): coalition fills happen in
 RAW cache coordinates; the filled clip goes through crop_scale + confidence

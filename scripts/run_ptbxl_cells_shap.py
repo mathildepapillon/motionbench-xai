@@ -10,7 +10,7 @@ M=48 exceeds the exact-enumeration bound, so coalitions come from the fixed
 sampled design ``sampled_coalition_set(48, B=2048, seed=7919)`` shared
 across methods and folds; faithfulness is computed over all B+2 design rows
 (boundary rows included) and PlayerAOPC over the M explicit deletion-path
-coalitions.  See ``scripts/_player_shap_common.py`` and RESOLUTIONS.md §11
+coalitions.  See ``scripts/_player_shap_common.py`` and RESOLUTIONS.md §12
 for the full protocol.
 
 Value function and pool conventions match the leads sweep: fills happen in

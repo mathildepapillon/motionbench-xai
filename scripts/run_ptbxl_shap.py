@@ -63,11 +63,13 @@ SCRIPTS_DIR = Path(__file__).parent
 # ------------------------------------------------------------------- helpers
 # Import shared KernelSHAP utilities from run_care_pd_multiclf — no duplication.
 sys.path.insert(0, str(SCRIPTS_DIR))
-from run_care_pd_multiclf import (  # noqa: E402 (import after sys.path manipulation)
+from motionbench.attribution.enumerated_kernel_shap import (  # noqa: E402
     build_coalition_masks,
-    faithfulness_correlation,
     kernel_shap_exact,
-    player_aopc,
+)
+from motionbench.metrics.coalition_table import (  # noqa: E402
+    faithfulness_enumerated,
+    player_aopc_enumerated,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -379,8 +381,8 @@ def main() -> None:
         for i in range(N):
             v_i = torch.from_numpy(v_all[i])
             phi_i = torch.from_numpy(phis[i])
-            faiths.append(faithfulness_correlation(z_bin, v_i, phi_i))
-            aopcs.append(player_aopc(v_i, z_bin, phi_i, K))
+            faiths.append(faithfulness_enumerated(z_bin, v_i, phi_i))
+            aopcs.append(player_aopc_enumerated(v_i, z_bin, phi_i, K))
 
         faiths_arr = np.asarray(faiths, dtype=np.float64)
         aopcs_arr = np.asarray(aopcs, dtype=np.float64)

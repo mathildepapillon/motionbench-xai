@@ -158,6 +158,7 @@ table-by-table map:
 ./scripts/reproduce_synthetic.sh   # synthetic half: self-contained
 ./scripts/reproduce_real.sh        # CARE-PD (needs the CARE-PD checkout + data)
 ./scripts/reproduce_ptbxl.sh       # PTB-XL (needs the PhysioNet records)
+./scripts/reproduce_esc50.sh       # ESC-50 (needs the ESC-50 download; CC BY-NC)
 ```
 
 The synthetic half needs nothing outside this repo (data is generated on the
@@ -187,6 +188,10 @@ GitHub Actions runs the fast tests, ruff, and mypy on every push
   benchmark whose findings are folded into `RESOLUTIONS.md`, the
   deterministic oracles, and the oracle gate tests.
   <!-- MAINTAINER TODO: add link when the study is public -->
+- **Checkpoints:** reference classifier / imputer checkpoints are published
+  at the [`checkpoints-v2` release](https://github.com/mathildepapillon/motionbench-xai/releases/tag/checkpoints-v2)
+  (`bash scripts/download_checkpoints.sh`; manifest and digests in
+  [`checkpoints/README.md`](checkpoints/README.md)).
 - **Upstream data:** [CARE-PD](https://github.com/TaatiTeam/CARE-PD),
   [PTB-XL](https://physionet.org/content/ptb-xl/).
 

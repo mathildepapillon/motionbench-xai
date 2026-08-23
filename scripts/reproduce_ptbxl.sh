@@ -106,26 +106,20 @@ else
     echo "--- Step 1: Skipping classifier training (--skip_train_clf) ---"
 fi
 
-# ---- Step 2: (Optional) Train VAEAC imputer
+# ---- Step 2/3: PTB-XL imputer checkpoints (download or retrain)
 if [[ "$SKIP_TRAIN_IMP" == "false" && "$SKIP_VAEAC" == "false" ]]; then
     echo ""
-    echo "--- Step 2: Training PTB-XL VAEAC imputer ---"
-    echo "  (requires configs/data/ptbxl.yaml)"
-    if [[ -f "configs/data/ptbxl.yaml" ]]; then
-        python scripts/train_vaeac.py data=ptbxl
+    echo "--- Steps 2-3: PTB-XL VAEAC / Flow imputer checkpoints ---"
+    if [[ -f "checkpoints/imputers/ptbxl_vaeac.pt" && -f "checkpoints/imputers/ptbxl_flow.pt" ]]; then
+        echo "  Reference imputers present (checkpoints/imputers/ptbxl_{vaeac,flow}.pt)."
     else
-        echo "  WARNING: configs/data/ptbxl.yaml not found."
-        echo "  Skipping VAEAC imputer training."
-        echo "  The SHAP sweep will skip kernelshap_vaeac unless a checkpoint exists."
-    fi
-
-    echo ""
-    echo "--- Step 3: Training PTB-XL Flow Matching imputer ---"
-    if [[ -f "configs/data/ptbxl.yaml" ]]; then
-        python scripts/train_flow.py data=ptbxl
-    else
-        echo "  WARNING: configs/data/ptbxl.yaml not found."
-        echo "  Skipping Flow imputer training."
+        echo "  Reference imputers not found.  Either download them:"
+        echo "      bash scripts/download_checkpoints.sh"
+        echo "  or retrain from a prepared (N, J, F, T) tensor:"
+        echo "      python scripts/train_vaeac.py --data_path <ptbxl_train.pt> --J 12 --F 1 --T 1000"
+        echo "      python scripts/train_flow.py  --data_path <ptbxl_train.pt> --J 12 --F 1 --T 1000"
+        echo "  (see each trainer's --help for the full flag set)."
+        echo "  The SHAP sweep will skip kernelshap_vaeac/flow unless checkpoints exist."
     fi
 else
     echo ""

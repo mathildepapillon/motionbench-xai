@@ -40,10 +40,14 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from compute_real_cis_multiclf import paired_bootstrap_pvalue  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -65,49 +69,6 @@ DEFAULT_FOLDS = [1, 2, 3]
 # ----------------------------------------------------------------------- #
 # Bootstrap helpers
 # ----------------------------------------------------------------------- #
-
-
-def paired_bootstrap_pvalue(
-    diffs: np.ndarray, B: int = 10_000, seed: int = 0
-) -> dict[str, float | int]:
-    """Bootstrap CI and two-sided p-value for the mean of paired differences.
-
-    Args:
-        diffs: ``(n,)`` paired differences ``a_i − b_i``.
-        B: Number of bootstrap resamples.
-        seed: Random seed for reproducibility.
-
-    Returns:
-        Dict with ``n``, ``mean_diff``, ``ci95_low``, ``ci95_high``,
-        ``p_le0``, ``p_ge0`` and ``p_two_sided``.
-    """
-    diffs = np.asarray(diffs, dtype=np.float64)
-    diffs = diffs[np.isfinite(diffs)]
-    if diffs.size == 0:
-        return {
-            "n": 0,
-            "mean_diff": float("nan"),
-            "ci95_low": float("nan"),
-            "ci95_high": float("nan"),
-            "p_le0": float("nan"),
-            "p_ge0": float("nan"),
-            "p_two_sided": float("nan"),
-        }
-    rng = np.random.default_rng(seed)
-    idx = rng.integers(0, diffs.size, size=(B, diffs.size))
-    boot = diffs[idx].mean(axis=1)
-    lo, hi = float(np.quantile(boot, 0.025)), float(np.quantile(boot, 0.975))
-    p_le0 = float((boot <= 0.0).mean())
-    p_ge0 = float((boot >= 0.0).mean())
-    return {
-        "n": int(diffs.size),
-        "mean_diff": float(diffs.mean()),
-        "ci95_low": lo,
-        "ci95_high": hi,
-        "p_le0": p_le0,
-        "p_ge0": p_ge0,
-        "p_two_sided": float(min(1.0, 2 * min(p_le0, p_ge0))),
-    }
 
 
 def load_aopc(results_root: Path, clf: str, method: str, folds: list[int]) -> np.ndarray:

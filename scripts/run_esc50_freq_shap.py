@@ -43,6 +43,14 @@ Usage::
             --fold $fold --device cuda:0 &
     done
     wait
+
+Imputer checkpoints: the learned-imputer rows (``kernelshap_vaeac`` /
+``kernelshap_flow``) load release-format checkpoints produced by
+``scripts/train_vaeac.py`` / ``scripts/train_flow.py`` (default paths
+below, override with ``--vaeac_ckpt`` / ``--flow_ckpt``).  The reference
+archive's ``checkpoints/imputers/esc50_*.pt`` are in the validation-study
+format consumed by the cells entry point
+(``run_esc50_cells_shap.py``, Frame* loaders) — see checkpoints/README.md.
 """
 
 from __future__ import annotations
@@ -65,10 +73,12 @@ REPO_ROOT = Path(__file__).parents[1]
 SCRIPTS_DIR = Path(__file__).parent
 
 sys.path.insert(0, str(SCRIPTS_DIR))
-from run_care_pd_multiclf import (  # noqa: E402
-    faithfulness_correlation,
+from motionbench.attribution.enumerated_kernel_shap import (  # noqa: E402
     kernel_shap_exact,
-    player_aopc,
+)
+from motionbench.metrics.coalition_table import (  # noqa: E402
+    faithfulness_enumerated,
+    player_aopc_enumerated,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -185,6 +195,8 @@ def parse_args() -> argparse.Namespace:
     )
     ap.add_argument("--n_seq", type=int, default=200)
     ap.add_argument("--results_dir", type=str, default=str(RESULTS_ROOT))
+    ap.add_argument("--vaeac_ckpt", type=str, default=str(VAEAC_CKPT))
+    ap.add_argument("--flow_ckpt", type=str, default=str(FLOW_CKPT))
     ap.add_argument("--device", type=str, default="cuda:0")
     return ap.parse_args()
 
@@ -249,7 +261,7 @@ def main() -> None:
         if vaeac_imputer is None:
             from motionbench.imputers.vaeac import VAEACImputer
 
-            vaeac_imputer = VAEACImputer.load(VAEAC_CKPT).to(device)
+            vaeac_imputer = VAEACImputer.load(args.vaeac_ckpt).to(device)
         return vaeac_imputer
 
     def get_flow():
@@ -257,7 +269,7 @@ def main() -> None:
         if flow_imputer is None:
             from motionbench.imputers.flow_matching import FlowMatchingImputer
 
-            flow_imputer = FlowMatchingImputer.load(FLOW_CKPT)
+            flow_imputer = FlowMatchingImputer.load(args.flow_ckpt)
             # FlowMatchingImputer has no .to(); set device manually
             flow_imputer._device = device
             flow_imputer._net = flow_imputer._net.to(device)
@@ -378,8 +390,8 @@ def main() -> None:
         for i in range(N):
             v_i = torch.from_numpy(v_all[i])
             phi_i = torch.from_numpy(phis[i])
-            faiths.append(faithfulness_correlation(z_bin, v_i, phi_i))
-            aopcs.append(player_aopc(v_i, z_bin, phi_i, J_BANDS))
+            faiths.append(faithfulness_enumerated(z_bin, v_i, phi_i))
+            aopcs.append(player_aopc_enumerated(v_i, z_bin, phi_i, J_BANDS))
 
         faiths_arr = np.asarray(faiths, dtype=np.float64)
         aopcs_arr = np.asarray(aopcs, dtype=np.float64)

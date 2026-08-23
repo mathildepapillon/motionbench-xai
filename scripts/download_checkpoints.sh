@@ -2,10 +2,11 @@
 # Download and verify the reference checkpoints for MotionBench-XAI.
 #
 # Usage:
-#   MOTIONBENCH_CKPT_URL=<base-url> bash scripts/download_checkpoints.sh          # core archive
-#   MOTIONBENCH_CKPT_URL=<base-url> bash scripts/download_checkpoints.sh esc50   # ESC-50 archive (CC BY-NC)
+#   bash scripts/download_checkpoints.sh          # core archive
+#   bash scripts/download_checkpoints.sh esc50    # ESC-50 archive (CC BY-NC)
 #
-# The base URL is set at release time (see checkpoints/README.md for the
+# The base URL defaults to the checkpoints-v2 GitHub release; override with
+# MOTIONBENCH_CKPT_URL=<base-url> (see checkpoints/README.md for the
 # hosting location and the license split).  Each archive unpacks into the
 # repo root and ships its own SHA256SUMS + LICENSE_NOTES.md; every file is
 # verified against the archive manifest AND cross-checked against the digest
@@ -17,19 +18,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-URL="${MOTIONBENCH_CKPT_URL:-}"
+URL="${MOTIONBENCH_CKPT_URL:-https://github.com/mathildepapillon/motionbench-xai/releases/download/checkpoints-v2}"
 VARIANT="${1:-core}"
 case "$VARIANT" in
   core)  ARCHIVE="motionbench-xai-checkpoints.tar.gz" ;;
   esc50) ARCHIVE="motionbench-xai-checkpoints-esc50.tar.gz" ;;
   *) echo "Unknown archive '$VARIANT' (use: core | esc50)"; exit 1 ;;
 esac
-if [[ -z "$URL" ]]; then
-  echo "MOTIONBENCH_CKPT_URL is not set."
-  echo "Set it to the checkpoint hosting base URL from checkpoints/README.md, e.g."
-  echo "  MOTIONBENCH_CKPT_URL=https://... bash scripts/download_checkpoints.sh $VARIANT"
-  exit 1
-fi
 
 echo "Downloading ${URL%/}/${ARCHIVE} ..."
 curl -fL "${URL%/}/${ARCHIVE}" -o "${ROOT}/${ARCHIVE}"

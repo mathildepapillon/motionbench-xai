@@ -22,7 +22,7 @@ oracle targets, game-matched.
 | Table 2 — synthetic, temporal players | `results/canonical/synthetic_temporal.json` (`tables.game_matched`, + `cells` for KS-Gauss) | `scripts/reproduce_synthetic.sh` (attribution) + deterministic regrade |
 | Table 3 — synthetic, spatial joints | `results/canonical/synthetic_players.json` (`tables.joint`) | `experiments=player_set_eval` pipeline (`motionbench/pipelines/player_eval.py`), players=joints |
 | Table 4 — synthetic, joint×window cells | `results/canonical/synthetic_players.json` (`tables.cell`) | same pipeline, players=cells; hi-budget targets B=8192 / B=32768 (M=68) |
-| Table 5 — real, faithfulness | `results/canonical/real_tracks.json` + `real_players.json` (CARE-PD joints) | `scripts/reproduce_real.sh`, `scripts/reproduce_ptbxl.sh`, + real player-set entry points |
+| Table 5 — real, faithfulness | `results/canonical/real_tracks.json` + `real_players.json` (CARE-PD joints) | `scripts/reproduce_real.sh`, `scripts/reproduce_ptbxl.sh`, `scripts/reproduce_esc50.sh`, + real player-set entry points |
 | Table 6 — real, PlayerAOPC | same as Table 5 | same as Table 5 |
 | Appendix — real joint×window cells | `real_players.json` (CARE-PD M=68, ESC-50 M=16) + `real_ptbxl_cells.json` (PTB-XL M=48) | real player-set entry points |
 | Appendix — EC1 tables | same files as Tables 2–4 (`ec1` fields of every cell) | same as Tables 2–4 |

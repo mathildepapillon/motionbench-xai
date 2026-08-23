@@ -10,6 +10,11 @@ from motionbench.attribution.captum_methods import (
     SaliencyAttributor,
     SmoothGradAttributor,
 )
+from motionbench.attribution.enumerated_kernel_shap import (
+    build_coalition_masks,
+    kernel_shap_exact,
+    shapley_kernel,
+)
 from motionbench.attribution.grad_cam import GradCAMAttributor
 from motionbench.attribution.group_segment_shap import GroupSegmentSHAPAttributor
 from motionbench.attribution.kernel_shap import KernelShapAttributor
@@ -18,6 +23,12 @@ from motionbench.attribution.kernelshap_temporal import (  # TimeSHAPAttributor 
     TimeSHAPAttributor,
 )
 from motionbench.attribution.lrp import LRPAttributor
+from motionbench.attribution.sampled_coalitions import (
+    DEFAULT_COALITION_SEED,
+    EXACT_MAX_M,
+    phi_from_values,
+    sampled_coalition_set,
+)
 from motionbench.attribution.shats import ShaTSAttributor
 from motionbench.attribution.timeshap_real import RealTimeSHAPAttributor
 from motionbench.attribution.windowshap import (
@@ -27,6 +38,14 @@ from motionbench.attribution.windowshap import (
 )
 
 __all__ = [
+    # Coalition designs and WLS solvers
+    "DEFAULT_COALITION_SEED",
+    "EXACT_MAX_M",
+    "build_coalition_masks",
+    "kernel_shap_exact",
+    "phi_from_values",
+    "sampled_coalition_set",
+    "shapley_kernel",
     "BaseAttributor",
     "IntegratedGradientsAttributor",
     "DeepLiftAttributor",

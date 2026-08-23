@@ -7,7 +7,7 @@ Common code for the sampled-coalition KernelSHAP entry points
 
 Protocol (identical across the three tracks; validated against the
 independent validation study's real-data player-set runs — see
-RESOLUTIONS.md §11):
+RESOLUTIONS.md §12):
 
 * **Coalitions**: one fixed design per player count — the shap-style
   enumerate-then-importance-sample scheme of
@@ -47,6 +47,11 @@ from motionbench.attribution.sampled_coalitions import (
     DEFAULT_COALITION_SEED,
     phi_from_values,
     sampled_coalition_set,
+)
+from motionbench.metrics.coalition_table import (
+    aopc_order,
+    deletion_path,
+    faithfulness_sampled,
 )
 
 SEED_BASE = 1104  # per-sequence stochastic-imputer stream: rng([1104, fold, i])
@@ -124,30 +129,6 @@ def fills_stochastic(
     return np.ascontiguousarray(out[:, 0], dtype=np.float32)
 
 
-def faithfulness_correlation(Z: np.ndarray, v: np.ndarray, phi: np.ndarray, i_full: int) -> float:
-    """Pearson corr of sum_{i not in S} phi_i with v(full) - v(S), all rows."""
-    sum_absent = (1.0 - Z.astype(np.float64)) @ phi
-    delta = v[i_full] - v
-    if np.std(sum_absent) < 1e-10 or np.std(delta) < 1e-10:
-        return float("nan")
-    return float(np.corrcoef(sum_absent, delta)[0, 1])
-
-
-def aopc_order(phi: np.ndarray) -> list[int]:
-    """Deletion order: decreasing |phi|, ties broken by player index."""
-    return np.argsort(-np.abs(phi), kind="stable").tolist()
-
-
-def deletion_path(order: list[int], M: int) -> np.ndarray:
-    """(M, M) int8 coalition rows of the cumulative-deletion path."""
-    path_Z = np.ones((M, M), np.int8)
-    cur = np.ones(M, np.int8)
-    for step, p_idx in enumerate(order):
-        cur[p_idx] = 0
-        path_Z[step] = cur
-    return path_Z
-
-
 def run_player_cell(
     *,
     x_eval: np.ndarray,
@@ -215,7 +196,7 @@ def run_player_cell(
 
         phi = phi_from_values(Z, w, v)
         phis[i] = phi
-        faiths[i] = faithfulness_correlation(Z, v, phi, i_full)
+        faiths[i] = faithfulness_sampled(Z, v, phi, i_full)
 
         # Explicit deletion-path AOPC (path coalitions are generally not in Z).
         path_Z = deletion_path(aopc_order(phi), M)

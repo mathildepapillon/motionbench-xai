@@ -32,6 +32,11 @@ import torch
 from omegaconf import OmegaConf
 from torch import Tensor
 
+from motionbench.attribution.enumerated_kernel_shap import (
+    build_coalition_masks,
+    kernel_shap_exact,
+)
+
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -46,43 +51,6 @@ DATASET = "gaussian_k4"
 CLASSIFIERS = ["synthetic_mlp", "synthetic_cnn", "synthetic_transformer"]
 M_VALUES = [1, 5, 20, 50]
 N_SEQ = 50
-
-
-def build_coalition_masks(K: int, T: int) -> tuple[Tensor, Tensor]:
-    n_coal = 1 << K
-    win_size = T // K
-    z_bin = np.zeros((n_coal, K), dtype=bool)
-    frame_mask = np.zeros((n_coal, T), dtype=bool)
-    for ci in range(n_coal):
-        for k in range(K):
-            if (ci >> k) & 1:
-                z_bin[ci, k] = True
-                t0 = k * win_size
-                t1 = t0 + win_size if k < K - 1 else T
-                frame_mask[ci, t0:t1] = True
-    return torch.from_numpy(z_bin), torch.from_numpy(frame_mask)
-
-
-def shapley_kernel(K: int, s: int) -> float:
-    if s == 0 or s == K:
-        return 1e6
-    from math import comb
-
-    return (K - 1) / (comb(K, s) * s * (K - s))
-
-
-def kernel_shap_exact(z_bin: Tensor, v_vals: Tensor, K: int) -> Tensor:
-    Z = z_bin.float().numpy()
-    v = v_vals.float().numpy()
-    n = Z.shape[0]
-    sizes = Z.sum(axis=1).astype(int)
-    w = np.array([shapley_kernel(K, int(s)) for s in sizes])
-    Z_ext = np.concatenate([np.ones((n, 1)), Z], axis=1)
-    W = np.diag(w)
-    A = Z_ext.T @ W @ Z_ext + 1e-8 * np.eye(Z_ext.shape[1])
-    b = Z_ext.T @ W @ v
-    sol = np.linalg.solve(A, b)
-    return torch.from_numpy(sol[1:]).float()
 
 
 def ec1(phi_hat: np.ndarray, phi_true: np.ndarray) -> float:

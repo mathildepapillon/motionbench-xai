@@ -166,7 +166,7 @@ def _ensure_carepd_on_path() -> None:
         sys.path.insert(0, carepd)
 
 
-def _mask_to_coalition(mask: Tensor) -> tuple[Tensor, str]:
+def mask_to_coalition(mask: Tensor) -> tuple[Tensor, str]:
     """Convert element-wise ``(J, F, T)`` mask → CARE-PD coalition format.
 
     Returns:
@@ -198,7 +198,7 @@ def _mask_to_coalition(mask: Tensor) -> tuple[Tensor, str]:
     return temporal_any.unsqueeze(0).contiguous(), "temporal"
 
 
-def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
+def load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
     """Load a CARE-PD VAEAC checkpoint and return a VAEACImputer."""
     _ensure_carepd_on_path()
     from model.vaeac import VAEAC  # type: ignore[import]
@@ -279,7 +279,7 @@ def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
     return VAEACImputer(model, device, stats_mean=None, stats_std=None, temperature=1.0)
 
 
-def _load_flow(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
+def load_flow(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
     """Load a CARE-PD flow-matching checkpoint and return a FlowImputer."""
     _ensure_carepd_on_path()
     from model.flow_matching import VelocityNet  # type: ignore[import]
@@ -409,7 +409,7 @@ class CarepdVAEACImputer(BaseImputer):
 
         device = torch.device(self._device_str)
         try:
-            self._imputer = _load_vaeac(ckpt_dir, cfg_path, device)
+            self._imputer = load_vaeac(ckpt_dir, cfg_path, device)
             # Validate J/T compatibility with dataset
             J_data, _, T_data = train_data.shape
             cfg = json.loads(cfg_path.read_text())
@@ -454,7 +454,7 @@ class CarepdVAEACImputer(BaseImputer):
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
 
-        coalition_mask, kind = _mask_to_coalition(mask)
+        coalition_mask, kind = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
 
         completions = self._imputer.sample_completions(
@@ -548,7 +548,7 @@ class CarepdFlowImputer(BaseImputer):
                 json.dump(cfg, f)
                 tmp_cfg = Path(f.name)
             try:
-                self._imputer = _load_flow(ckpt_dir, tmp_cfg, device)
+                self._imputer = load_flow(ckpt_dir, tmp_cfg, device)
             finally:
                 os.unlink(tmp_cfg)
 
@@ -664,7 +664,7 @@ class CarepdFlowImputer(BaseImputer):
         cache = getattr(self, "_completion_cache", {})
         if cache:
             J, F, T = x_obs.shape
-            coalition_mask_1d, kind = _mask_to_coalition(mask)
+            coalition_mask_1d, kind = mask_to_coalition(mask)
             # coalition_mask_1d shape: (1, T) or (1, J)
             if kind == "temporal" and coalition_mask_1d.shape[-1] == T:
                 key = tuple(coalition_mask_1d[0].tolist())
@@ -681,7 +681,7 @@ class CarepdFlowImputer(BaseImputer):
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
 
-        coalition_mask, kind = _mask_to_coalition(mask)
+        coalition_mask, kind = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
 
         completions = self._imputer.sample_completions(
@@ -710,3 +710,10 @@ class CarepdFlowImputer(BaseImputer):
     def name(self) -> str:
         """Short identifier for logging and leaderboard tables."""
         return "flow_matching"
+
+
+_load_vaeac = load_vaeac  # backwards-compat alias (pre-2.0 private name)
+
+_load_flow = load_flow  # backwards-compat alias (pre-2.0 private name)
+
+_mask_to_coalition = mask_to_coalition  # backwards-compat alias (pre-2.0 private name)

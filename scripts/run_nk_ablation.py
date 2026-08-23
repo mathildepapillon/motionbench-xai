@@ -35,6 +35,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
+from _ablation_common import (  # noqa: E402
+    ec_metrics,
+)
 from omegaconf import OmegaConf
 from torch import Tensor
 
@@ -93,6 +96,12 @@ def _shap_kernel(K: int, s: int) -> float:
 
 def kernel_shap_exact(z_bin: np.ndarray, v_vals: np.ndarray, n_players: int) -> np.ndarray:
     """Exact KernelSHAP WLS solve for the given coalition values.
+
+    Pinned local variant: unlike
+    ``motionbench.attribution.enumerated_kernel_shap.kernel_shap_exact``
+    (which quantises values to float32 before the solve — the real-data
+    track convention), this ablation solves in float64 as its stored
+    results were produced.  Do not swap in the package solver.
 
     Args:
         z_bin: ``(2^K, K)`` bool/int coalition indicators.
@@ -389,20 +398,6 @@ def compute_coalition_values_marginal(
 # ---------------------------------------------------------------------------
 # EC metrics
 # ---------------------------------------------------------------------------
-
-
-def ec_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
-    diff = phi_hat - phi_true
-    ec1 = float(np.mean(np.abs(diff)))
-    denom = float(np.mean(np.abs(phi_true)) + 1e-8)
-    ec1_norm = ec1 / denom
-    ec2 = float(np.mean(diff**2))
-    if np.std(phi_hat) < 1e-10 or np.std(phi_true) < 1e-10:
-        ec3 = float("nan")
-    else:
-        corr = float(np.corrcoef(phi_hat, phi_true)[0, 1])
-        ec3 = 1.0 - corr
-    return {"ec1": ec1, "ec1_norm": ec1_norm, "ec2": ec2, "ec3": ec3}
 
 
 # ---------------------------------------------------------------------------

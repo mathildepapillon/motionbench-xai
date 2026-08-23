@@ -48,6 +48,10 @@ DEFAULT_CLASSIFIERS = ["motionbert", "potr", "motionagformer"]
 def bootstrap_ci_mean(
     x: np.ndarray, B: int = 10_000, alpha: float = 0.05, seed: int = 0
 ) -> tuple[float, float, float]:
+    """Percentile bootstrap CI for the mean of ``x`` (NaNs ignored).
+
+    Returns ``(mean, ci_low, ci_high)``.
+    """
     x = np.asarray(x, dtype=np.float64)
     x = x[np.isfinite(x)]
     if x.size == 0:
@@ -63,6 +67,12 @@ def bootstrap_ci_mean(
 
 
 def paired_bootstrap_pvalue(diffs: np.ndarray, B: int = 10_000, seed: int = 0) -> dict:
+    """Two-sided paired bootstrap p-value testing H0: E[diff] = 0.
+
+    Returns dict with mean diff, CI95, and p-values (one-sided & two-sided).
+    The one-sided ``p_le0`` is the bootstrap probability that the resampled
+    mean diff is <= 0 — i.e. evidence that diff > 0 in the population.
+    """
     diffs = np.asarray(diffs, dtype=np.float64)
     diffs = diffs[np.isfinite(diffs)]
     if diffs.size == 0:
@@ -110,6 +120,7 @@ def load_method_data(clf_dir: Path, folds: list[int]) -> dict:
 
 
 def summarize_method(method_data: dict, B: int, seed: int) -> dict:
+    """Build per-method summary across folds."""
     folds_present = sorted(method_data.keys())
     f_fold, a_fold, f_pool, a_pool, n_per = [], [], [], [], []
     for f in folds_present:

@@ -167,8 +167,8 @@ class GaussianOracle(Oracle, BaseImputer):
         """
         J, F, T = x.shape
 
-        is_temporal = _mask_is_temporal(mask)
-        is_spatial = _mask_is_spatial(mask)
+        is_temporal = mask_is_temporal(mask)
+        is_spatial = mask_is_spatial(mask)
 
         if is_temporal:
             return self._sample_temporal(x, mask, n_samples, rng)
@@ -554,7 +554,7 @@ class GaussianOracle(Oracle, BaseImputer):
 # ---------------------------------------------------------------------------
 
 
-def _mask_is_temporal(mask: np.ndarray) -> bool:
+def mask_is_temporal(mask: np.ndarray) -> bool:
     """Return True if the mask is uniform across all joints and features.
 
     A temporal mask has the same True/False pattern at every (j, f)
@@ -569,7 +569,7 @@ def _mask_is_temporal(mask: np.ndarray) -> bool:
     return bool((mask == mask[0:1, 0:1, :]).all())
 
 
-def _mask_is_spatial(mask: np.ndarray) -> bool:
+def mask_is_spatial(mask: np.ndarray) -> bool:
     """Return True if the mask is uniform across all features and times.
 
     A spatial mask has the same True/False pattern at every (f, t)
@@ -612,3 +612,8 @@ def _eval_classifier(
             )
         results.append(out.float())
     return torch.cat(results)
+
+
+_mask_is_spatial = mask_is_spatial  # backwards-compat alias (pre-2.0 private name)
+
+_mask_is_temporal = mask_is_temporal  # backwards-compat alias (pre-2.0 private name)

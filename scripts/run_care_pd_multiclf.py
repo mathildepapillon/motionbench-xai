@@ -1,6 +1,9 @@
 """scripts/run_care_pd_multiclf.py — multi-classifier CARE-PD SHAP sweep.
 
-Extends ``run_care_pd_extended.py`` to support multiple classifiers:
+Temporal-window KernelSHAP over the CARE-PD classifiers (the coalition
+design, WLS solve, and metrics live in
+``motionbench.attribution.enumerated_kernel_shap`` /
+``motionbench.metrics.coalition_table``):
 - ``motionbert``  : MotionBERT (DSTformer), T=80, 3-D H36M + crop_scale
 - ``potr``        : POTR (GCN + Transformer), T=80, 3-D H36M + root-center + zscore
 - ``motionagformer`` : MotionAGFormer (Attention + Graph), T=81 (zero-pad from 80),
@@ -41,6 +44,15 @@ import numpy as np
 import torch
 from torch import Tensor
 
+from motionbench.attribution.enumerated_kernel_shap import (
+    build_coalition_masks,
+    kernel_shap_exact,
+)
+from motionbench.metrics.coalition_table import (
+    faithfulness_enumerated,
+    player_aopc_enumerated,
+)
+
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -71,26 +83,6 @@ DEVICE = "cuda:0"
 
 
 # ---------------------------------------------------------------------- #
-# Coalition masks                                                         #
-# ---------------------------------------------------------------------- #
-
-
-def build_coalition_masks(K: int, T: int) -> tuple[Tensor, Tensor]:
-    n_coal = 1 << K
-    win_size = T // K
-    z_bin = np.zeros((n_coal, K), dtype=bool)
-    frame_mask = np.zeros((n_coal, T), dtype=bool)
-    for ci in range(n_coal):
-        for k in range(K):
-            if (ci >> k) & 1:
-                z_bin[ci, k] = True
-                t0 = k * win_size
-                t1 = t0 + win_size if k < K - 1 else T
-                frame_mask[ci, t0:t1] = True
-    return torch.from_numpy(z_bin), torch.from_numpy(frame_mask)
-
-
-# ---------------------------------------------------------------------- #
 # Off-manifold completions                                               #
 # ---------------------------------------------------------------------- #
 
@@ -115,62 +107,6 @@ def build_completions_offmanifold(
     x_b = x.view(1, J, F, T).expand(n_coal, J, F, T)
     fill_b = fill.view(1, J, F, T).expand(n_coal, J, F, T)
     return torch.where(obs, x_b, fill_b).contiguous()
-
-
-# ---------------------------------------------------------------------- #
-# KernelSHAP (exact, K small)                                             #
-# ---------------------------------------------------------------------- #
-
-
-def shapley_kernel(K: int, s: int) -> float:
-    if s == 0 or s == K:
-        return 1e6
-    from math import comb
-
-    return (K - 1) / (comb(K, s) * s * (K - s))
-
-
-def kernel_shap_exact(z_bin: Tensor, v_vals: Tensor, K: int) -> Tensor:
-    Z = z_bin.float().numpy()
-    v = v_vals.float().numpy()
-    n = Z.shape[0]
-    sizes = Z.sum(axis=1).astype(int)
-    w = np.array([shapley_kernel(K, int(s)) for s in sizes])
-    Z_ext = np.concatenate([np.ones((n, 1)), Z], axis=1)
-    W = np.diag(w)
-    A = Z_ext.T @ W @ Z_ext
-    b = Z_ext.T @ W @ v
-    A += 1e-8 * np.eye(A.shape[0])
-    sol = np.linalg.solve(A, b)
-    return torch.from_numpy(sol[1:]).float()
-
-
-# ---------------------------------------------------------------------- #
-# Metrics                                                                 #
-# ---------------------------------------------------------------------- #
-
-
-def faithfulness_correlation(z_bin: Tensor, v_vals: Tensor, phi: Tensor) -> float:
-    z = z_bin.float()
-    not_z = 1.0 - z
-    sum_phi_absent = not_z @ phi
-    delta = v_vals[-1] - v_vals
-    a, b = sum_phi_absent.numpy(), delta.float().numpy()
-    if np.std(a) < 1e-10 or np.std(b) < 1e-10:
-        return float("nan")
-    return float(np.corrcoef(a, b)[0, 1])
-
-
-def player_aopc(v_vals: Tensor, z_bin: Tensor, phi: Tensor, K: int) -> float:
-    order = torch.argsort(phi.abs(), descending=True).tolist()
-    v_full = v_vals[-1].item()
-    drops: list[float] = []
-    cur_z = z_bin[-1].clone()
-    for k in order:
-        cur_z[k] = False
-        idx = int((cur_z.int() * (1 << torch.arange(K))).sum().item())
-        drops.append(v_full - v_vals[idx].item())
-    return float(np.mean(drops)) if drops else 0.0
 
 
 # ---------------------------------------------------------------------- #
@@ -444,8 +380,8 @@ def main() -> None:
         for i in range(N):
             v_i = torch.from_numpy(v_all[i])
             phi_i = torch.from_numpy(phis[i])
-            faiths.append(faithfulness_correlation(z_bin, v_i, phi_i))
-            aopcs.append(player_aopc(v_i, z_bin, phi_i, K))
+            faiths.append(faithfulness_enumerated(z_bin, v_i, phi_i))
+            aopcs.append(player_aopc_enumerated(v_i, z_bin, phi_i, K))
 
         faiths_arr = np.asarray(faiths, dtype=np.float64)
         aopcs_arr = np.asarray(aopcs, dtype=np.float64)

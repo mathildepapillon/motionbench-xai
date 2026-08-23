@@ -55,6 +55,10 @@ log = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+from _ablation_common import (  # noqa: E402
+    batched_oracle_shapley,
+    ec_metrics,
+)
 
 RESULTS_DIR = REPO / "results" / "scalability"
 
@@ -83,20 +87,6 @@ N_ORACLE_MC = 50  # Gaussian conditional MC samples per coalition
 # ---------------------------------------------------------------------------
 # Metric helpers
 # ---------------------------------------------------------------------------
-
-
-def ec_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
-    diff = phi_hat - phi_true
-    ec1 = float(np.mean(np.abs(diff)))
-    denom = float(np.mean(np.abs(phi_true)) + 1e-8)
-    ec1_norm = ec1 / denom
-    ec2 = float(np.mean(diff**2))
-    if np.std(phi_hat) < 1e-10 or np.std(phi_true) < 1e-10:
-        ec3 = float("nan")
-    else:
-        corr = float(np.corrcoef(phi_hat, phi_true)[0, 1])
-        ec3 = 1.0 - corr
-    return {"ec1": ec1, "ec1_norm": ec1_norm, "ec2": ec2, "ec3": ec3}
 
 
 # ---------------------------------------------------------------------------
@@ -220,131 +210,6 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
 # ---------------------------------------------------------------------------
 # Oracle Shapley — reuse batched path from run_player_set_ablation.py
 # ---------------------------------------------------------------------------
-
-
-def _build_spatiotemporal_cond_params(oracle, mask_np, rng=None):
-    """Pre-compute conditional covariance Cholesky for a given mask."""
-    jt_mask = mask_np.all(axis=1)  # (J, T)
-    flat = jt_mask.reshape(-1)
-    obs_lin = np.flatnonzero(flat)
-    hid_lin = np.flatnonzero(~flat)
-    n_obs = int(obs_lin.size)
-    n_hid = int(hid_lin.size)
-    if n_hid == 0 or n_obs == 0:
-        return None
-    j_obs = (obs_lin // T).astype(int)
-    t_obs = (obs_lin % T).astype(int)
-    j_hid = (hid_lin // T).astype(int)
-    t_hid = (hid_lin % T).astype(int)
-    Sigma_oo = (
-        oracle.Sigma_joints[j_obs[:, None], j_obs[None, :]]
-        * oracle.Sigma_time[t_obs[:, None], t_obs[None, :]]
-    )
-    Sigma_hh = (
-        oracle.Sigma_joints[j_hid[:, None], j_hid[None, :]]
-        * oracle.Sigma_time[t_hid[:, None], t_hid[None, :]]
-    )
-    Sigma_ho = (
-        oracle.Sigma_joints[j_hid[:, None], j_obs[None, :]]
-        * oracle.Sigma_time[t_hid[:, None], t_obs[None, :]]
-    )
-    W = Sigma_ho @ np.linalg.solve(Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs))
-    Sigma_cond = Sigma_hh - W @ Sigma_ho.T
-    Sigma_cond = 0.5 * (Sigma_cond + Sigma_cond.T) + 1e-8 * np.eye(n_hid)
-    L_cond = np.linalg.cholesky(Sigma_cond)
-    return (j_obs, j_hid, t_obs, t_hid, W, L_cond)
-
-
-def batched_oracle_shapley(
-    oracle,
-    x: Tensor,
-    clf_fn,
-    players,
-    n_mc: int,
-    coalitions: np.ndarray,
-    weights: np.ndarray,
-    clf_chunk: int = 512,
-    cholesky_cache: dict | None = None,
-) -> Tensor:
-    """Batched oracle Shapley with Cholesky caching.
-
-    Uses exact Gaussian conditionals; caches Cholesky factors across
-    sequences for significant speedup.
-    """
-    from motionbench.oracles.gaussian_oracle import _mask_is_spatial, _mask_is_temporal
-    from motionbench.utils.coalitions import solve_shapley_wls
-
-    M = players.n_players
-    N_coal = coalitions.shape[0]
-    x_np = x.detach().cpu().numpy().astype(np.float64)
-    rng = np.random.default_rng(None)
-
-    # Phase 1: generate all conditional samples (CPU numpy)
-    all_samples: list[np.ndarray] = []
-    for ci, z_row in enumerate(coalitions):
-        n_obs_players = int(z_row.sum())
-        if n_obs_players == M:
-            s = np.tile(x_np[None].astype(np.float32), (n_mc, 1, 1, 1))
-        elif n_obs_players == 0:
-            s = oracle._sample_unconditional(
-                n_mc,
-                J,
-                F,
-                T,
-                np.random.default_rng(int(rng.integers(1 << 31))),
-            )
-        else:
-            if cholesky_cache is not None and ci in cholesky_cache:
-                params = cholesky_cache[ci]
-            else:
-                z_t = torch.tensor(z_row, dtype=torch.int32)
-                mask = players.coalition_mask(z_t)
-                mask_np = mask.numpy().astype(bool)
-                if _mask_is_temporal(mask_np) or _mask_is_spatial(mask_np):
-                    params = ("oracle", mask_np)
-                else:
-                    params = _build_spatiotemporal_cond_params(oracle, mask_np)
-                if cholesky_cache is not None:
-                    cholesky_cache[ci] = params
-
-            if isinstance(params, tuple) and params[0] == "oracle":
-                _, mask_np_cached = params
-                s = oracle._conditional_sample_np(
-                    x_np,
-                    mask_np_cached,
-                    n_mc,
-                    np.random.default_rng(int(rng.integers(1 << 31))),
-                )
-            elif params is None:
-                s = np.tile(x_np[None].astype(np.float32), (n_mc, 1, 1, 1))
-            else:
-                j_obs, j_hid, t_obs, t_hid, W, L_cond = params
-                n_hid = len(j_hid)
-                out_np = np.tile(x_np[None], (n_mc, 1, 1, 1)).astype(np.float64)
-                sample_rng = np.random.default_rng(int(rng.integers(1 << 31)))
-                for f in range(F):
-                    x_obs_vals = x_np[j_obs, f, t_obs]
-                    mu = W @ x_obs_vals
-                    z_noise = sample_rng.standard_normal((n_mc, n_hid))
-                    z_corr = z_noise @ L_cond.T
-                    out_np[:, j_hid, f, t_hid] = mu[None, :] + z_corr
-                s = out_np.astype(np.float32)
-        all_samples.append(s)
-
-    # Phase 2: batch classifier
-    stacked = torch.from_numpy(np.concatenate(all_samples, axis=0))
-    vals_list: list[Tensor] = []
-    for start in range(0, len(stacked), clf_chunk):
-        vals_list.append(clf_fn(stacked[start : start + clf_chunk]))
-    vals_flat = torch.cat(vals_list).float()
-
-    vals_mat = vals_flat.view(N_coal, n_mc)
-    values = vals_mat.mean(dim=1).numpy().astype(np.float64)
-    v_empty = float(values[0])
-    v_full = float(values[1])
-
-    phi = solve_shapley_wls(coalitions, values, weights, v_empty, v_full)
-    return torch.tensor(phi, dtype=torch.float32)
 
 
 # ---------------------------------------------------------------------------
@@ -612,6 +477,7 @@ def main() -> None:
                     n_mc=N_ORACLE_MC,
                     coalitions=oracle_coalitions,
                     weights=oracle_weights,
+                    clf_chunk=512,
                     cholesky_cache=cholesky_cache,
                 )
                 oracle_phis[i] = phi_oracle.numpy()

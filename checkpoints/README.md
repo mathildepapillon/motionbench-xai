@@ -114,6 +114,10 @@ checks; the pipelines load the unsuffixed file.
 
 ### ESC-50 archive (CC BY-NC)
 
+Retrainable from the public dataset: `scripts/reproduce_esc50.sh`
+(preprocess via `scripts/preprocess_esc50.py`, per-fold AST fine-tunes via
+`scripts/train_esc50_ast.py`).
+
 | file | sha256 |
 |---|---|
 | `esc50_ast_fold1.pt` | `82763657ac83ff2eefda303baa2546f863e451f80e99f6c292d0bfaba0427ec8` |

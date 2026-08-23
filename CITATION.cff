@@ -8,6 +8,7 @@ type: software
 authors:
   - name: "The MotionBench-XAI Authors"
 repository-code: "https://github.com/mathildepapillon/motionbench-xai"
+version: 2.0.0
 license: MIT
 preferred-citation:
   type: conference-paper
