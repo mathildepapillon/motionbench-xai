@@ -2,57 +2,65 @@
 # Download and verify the reference checkpoints for MotionBench-XAI.
 #
 # Usage:
-#   MOTIONBENCH_CKPT_URL=<base-url> bash scripts/download_checkpoints.sh
+#   MOTIONBENCH_CKPT_URL=<base-url> bash scripts/download_checkpoints.sh          # core archive
+#   MOTIONBENCH_CKPT_URL=<base-url> bash scripts/download_checkpoints.sh esc50   # ESC-50 archive (CC BY-NC)
 #
 # The base URL is set at release time (see checkpoints/README.md for the
-# hosting location).  The archive unpacks into the repo root so files land at
-# the paths listed in checkpoints/README.md; every file is verified against
-# the SHA-256 manifest before the script reports success.
+# hosting location and the license split).  Each archive unpacks into the
+# repo root and ships its own SHA256SUMS + LICENSE_NOTES.md; every file is
+# verified against the archive manifest AND cross-checked against the digest
+# tables in checkpoints/README.md before the script reports success.
 #
-# Checkpoints are a convenience: everything synthetic retrains from scratch
-# with the scripts in scripts/ (see REPRODUCIBILITY.md).
+# Checkpoints are a convenience: everything retrains from scratch with the
+# scripts in scripts/ (see REPRODUCIBILITY.md).  CARE-PD-derived weights are
+# not distributed (dataset license); see checkpoints/README.md §Licensing.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 URL="${MOTIONBENCH_CKPT_URL:-}"
+VARIANT="${1:-core}"
+case "$VARIANT" in
+  core)  ARCHIVE="motionbench-xai-checkpoints.tar.gz" ;;
+  esc50) ARCHIVE="motionbench-xai-checkpoints-esc50.tar.gz" ;;
+  *) echo "Unknown archive '$VARIANT' (use: core | esc50)"; exit 1 ;;
+esac
 if [[ -z "$URL" ]]; then
   echo "MOTIONBENCH_CKPT_URL is not set."
   echo "Set it to the checkpoint hosting base URL from checkpoints/README.md, e.g."
-  echo "  MOTIONBENCH_CKPT_URL=https://... bash scripts/download_checkpoints.sh"
+  echo "  MOTIONBENCH_CKPT_URL=https://... bash scripts/download_checkpoints.sh $VARIANT"
   exit 1
 fi
 
-ARCHIVE="motionbench-xai-checkpoints.tar.gz"
 echo "Downloading ${URL%/}/${ARCHIVE} ..."
 curl -fL "${URL%/}/${ARCHIVE}" -o "${ROOT}/${ARCHIVE}"
+MANIFEST_TMP="$(mktemp)"
 tar xzf "${ROOT}/${ARCHIVE}" -C "${ROOT}"
+# the archive's own manifest was just unpacked over any previous one
+mv "${ROOT}/SHA256SUMS" "$MANIFEST_TMP"
 rm -f "${ROOT}/${ARCHIVE}"
 
-echo "Verifying against checkpoints/README.md manifest ..."
-python3 - "$ROOT" << 'PY'
-import hashlib
+echo "Verifying archive files ..."
+(cd "$ROOT" && sha256sum -c --quiet "$MANIFEST_TMP")
+
+echo "Cross-checking against checkpoints/README.md ..."
+python3 - "$ROOT" "$MANIFEST_TMP" << 'PY'
 import re
 import sys
 from pathlib import Path
 
-root = Path(sys.argv[1])
-manifest = (root / "checkpoints" / "README.md").read_text()
-rows = re.findall(r"`([^`]+\.(?:pt|ckpt|npz))`\s*\|\s*`?([0-9a-f]{64})`?", manifest)
-if not rows:
-    print("No manifest rows found in checkpoints/README.md — nothing verified.")
-    sys.exit(1)
-bad = missing = 0
-for rel, digest in rows:
-    p = root / rel
-    if not p.exists():
-        print(f"MISSING  {rel}")
-        missing += 1
-        continue
-    h = hashlib.sha256(p.read_bytes()).hexdigest()
-    if h != digest:
-        print(f"BAD HASH {rel}")
+root, manifest = Path(sys.argv[1]), Path(sys.argv[2])
+readme = (root / "checkpoints" / "README.md").read_text()
+listed = dict(re.findall(r"`([^`]+\.pt)`\s*\|\s*`([0-9a-f]{64})`", readme))
+bad = 0
+for line in manifest.read_text().splitlines():
+    digest, rel = line.split(None, 1)
+    name = rel.split("/")[-1]
+    if listed.get(name) not in (None, digest):
+        print(f"DIGEST MISMATCH vs README: {rel}")
         bad += 1
-print(f"{len(rows)} manifest entries: {len(rows)-bad-missing} ok, {missing} missing, {bad} bad")
-sys.exit(1 if (bad or missing) else 0)
+print(f"{len(manifest.read_text().splitlines())} files verified; "
+      f"{bad} README mismatches")
+sys.exit(1 if bad else 0)
 PY
-echo "Checkpoints downloaded and verified."
+rm -f "$MANIFEST_TMP"
+echo "Checkpoints downloaded and verified.  See LICENSE_NOTES.md next to the files."
