@@ -170,6 +170,12 @@ class BurrXII(Marginal):
     """
 
     def __init__(self, c: float = 2.0, k: float = 2.0) -> None:
+        """Initialise the symmetric Burr XII marginal.
+
+        Args:
+            c: Shape parameter (> 0) controlling tail shape.  Defaults to ``2.0``.
+            k: Shape parameter (> 0) controlling tail weight.  Defaults to ``2.0``.
+        """
         if c <= 0.0:
             raise ValueError(f"BurrXII c must be > 0; got {c}.")
         if k <= 0.0:
@@ -291,6 +297,7 @@ class StudentT(Marginal):
     """
 
     def __init__(self, df: float) -> None:
+        """Initialise the Student-t marginal with ``df`` degrees of freedom (> 0)."""
         if df <= 0.0:
             raise ValueError(f"StudentT df must be > 0; got {df}.")
         self.df = float(df)
@@ -425,6 +432,13 @@ class MixtureOfGaussians(Marginal):
         means: list[float],
         scales: list[float],
     ) -> None:
+        """Initialise and normalise the mixture components.
+
+        Args:
+            weights: Positive mixture weights (normalised to sum to 1).
+            means: Component means.
+            scales: Positive component standard deviations.
+        """
         w = np.asarray(weights, dtype=np.float64)
         m = np.asarray(means, dtype=np.float64)
         s = np.asarray(scales, dtype=np.float64)
@@ -516,6 +530,7 @@ class SkewNormal(Marginal):
     """
 
     def __init__(self, alpha: float) -> None:
+        """Initialise the skew-normal marginal with shape parameter ``alpha``."""
         self.alpha = float(alpha)
         self._dist = stats.skewnorm(a=self.alpha)
 
@@ -617,6 +632,22 @@ class BurrMotionBenchmark:
         sigma_time_source: str | None = None,
         seed: int | None = None,
     ) -> None:
+        """Initialise covariances and pre-generate ``N`` labelled sequences.
+
+        Args:
+            J: Number of joints.
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            N: Number of sequences to pre-generate.
+            marginal: Copula marginal.  Defaults to ``BurrXII(2.0, 2.0)``.
+            rho: Equicorrelation for the default joint covariance.
+            alpha: AR(1) coefficient for the default temporal covariance.
+            sigma_joints: Optional custom ``(J, J)`` correlation matrix.
+            sigma_time: Optional custom ``(T, T)`` correlation matrix.
+            sigma_joints_source: Provenance tag for ``sigma_joints``.
+            sigma_time_source: Provenance tag for ``sigma_time``.
+            seed: Random seed for sampling.
+        """
         self.J = J
         self.F = F
         self.T = T

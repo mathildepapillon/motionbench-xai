@@ -110,6 +110,7 @@ def build_completions_offmanifold(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--fold", type=int, default=1, choices=[1, 2, 3], help="Fold index (1–3).")
     ap.add_argument(
@@ -127,6 +128,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the temporal-window sweep for one fold."""
     args = parse_args()
     fold = args.fold
     N_SEQ = int(args.n_seq)
@@ -203,6 +205,7 @@ def main() -> None:
     flow_imputer = None
 
     def get_vaeac():
+        """Lazily load the release-format VAEAC imputer (cached)."""
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
             from motionbench.imputers.vaeac import VAEACImputer
@@ -213,6 +216,7 @@ def main() -> None:
         return vaeac_imputer
 
     def get_flow():
+        """Lazily load the release-format Flow imputer (cached)."""
         nonlocal flow_imputer
         if flow_imputer is None:
             from motionbench.imputers.flow_matching import FlowMatchingImputer

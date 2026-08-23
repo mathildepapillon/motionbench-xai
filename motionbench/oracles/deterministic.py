@@ -196,6 +196,7 @@ class DeterministicConditionalOracle:
         Z: npt.NDArray[np.integer[Any]],
         marginal: Marginal | None = None,
     ) -> None:
+        """Initialise and precompute the conditional-mean operator for every coalition in ``Z``."""
         self.players = players
         self.marginal = marginal
         J, F, T = players.shape

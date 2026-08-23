@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Build a .npz cache for PTB-XL imputer training.
+"""scripts/build_ptbxl_cache.py — Build a .npz cache for PTB-XL imputer training.
 
 Loads PTBXLDataset on training folds (1-8) and saves:
     x_train: (N, J=12, F=1, T=1000) float32
@@ -23,6 +22,7 @@ from motionbench.data.real.ptbxl import PTBXLDataset  # noqa: E402
 
 
 def main():
+    """Build and save the PTB-XL imputer-training cache (.npz)."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--data_path", type=str, required=True)
     ap.add_argument("--max_sequences", type=int, default=None)

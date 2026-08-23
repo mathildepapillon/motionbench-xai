@@ -1,4 +1,4 @@
-"""scripts/_player_shap_common.py — shared machinery for the real-data player-set sweeps.
+"""scripts/_player_shap_common.py — Shared machinery for the real-data player-set sweeps.
 
 Common code for the sampled-coalition KernelSHAP entry points
 ``run_carepd_players_shap.py`` (SpatialJoints M=17 / JointWindowCells M=68),
@@ -68,7 +68,9 @@ class _Imputer(Protocol):
         n: int,
         rng: np.random.Generator,
         chunk: int = ...,
-    ) -> np.ndarray: ...
+    ) -> np.ndarray:
+        """Draw ``n`` completions per element-level mask row: returns ``(B, n, J, F, T)``."""
+        ...
 
 
 def build_sampled_design(M: int, budget: int) -> tuple[np.ndarray, np.ndarray, int, int]:

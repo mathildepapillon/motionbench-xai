@@ -1,36 +1,24 @@
 """scripts/run_esc50_cells_shap.py — ESC-50 band × window cell KernelSHAP.
 
-Runs sampled-coalition KernelSHAP on ESC-50 mel-spectrograms with the
-spectro-temporal cell player set: 4 contiguous mel-bin quartiles (the same
-band partition as ``run_esc50_freq_shap.py``) × K=4 temporal windows of 256
-frames, i.e. ``BandWindowCells`` with M=16 players.
-
-M=16 exceeds the exact-enumeration bound (M <= 12), so coalitions come from
-the fixed sampled design ``sampled_coalition_set(16, B=2048, seed=7919)``
-shared across methods and folds; faithfulness is computed over all B+2
-design rows (boundary rows included) and PlayerAOPC over the M explicit
-deletion-path coalitions.  See ``scripts/_player_shap_common.py`` and
-RESOLUTIONS.md §12 for the full protocol.
-
-Value function, data selection, mean and donor conventions are identical to
-the temporal sweep ``run_esc50_shap.py``: fills happen in raw mel space; the
-fold's AST classifier (fold-disciplined fine-tune) returns softmax probabilities;
-``v(S) = probs[target]`` with target = argmax of the full-clip prediction;
-the eval subset is ``sort(default_rng(42 + fold).choice(400, 200))`` and the
-marginal donors continue the same stream.
-
-VAEAC/Flow imputer checkpoints default to
-``checkpoints/imputers/esc50_{vaeac,flow}.pt`` (the validation-study format
-documented in ``checkpoints/README.md``).
+Sampled-coalition KernelSHAP (B=2048) on ESC-50 mel-spectrograms, per fold,
+with the spectro-temporal cell player set ``BandWindowCells``: 4 contiguous
+mel-bin quartiles (the same band partition as ``run_esc50_freq_shap.py``) ×
+K=4 temporal windows of 256 frames, M=16.  Value function, data selection,
+mean and donor conventions are identical to the temporal sweep
+``run_esc50_shap.py``: fills in raw mel space, the fold's AST classifier
+(fold-disciplined fine-tune) returns softmax probabilities, eval subset
+``sort(default_rng(42 + fold).choice(400, 200))`` with marginal donors
+continuing the same stream.  VAEAC/Flow imputer checkpoints default to
+``checkpoints/imputers/esc50_{vaeac,flow}.pt`` (see ``checkpoints/README.md``).
+Shared coalition/fill/phi/metric protocol: ``scripts/_player_shap_common.py``
+and RESOLUTIONS.md §12.
 
 Usage::
 
     PYTHONPATH=. python scripts/run_esc50_cells_shap.py --fold 1 \\
         --methods kernelshap_zero kernelshap_mean kernelshap_marginal
 
-Results are written to::
-
-    results/esc50_cells/fold{fold}/{method}/result.json
+Results: ``results/esc50_cells/fold{fold}/{method}/result.json``
 """
 
 from __future__ import annotations
@@ -98,6 +86,7 @@ class ESC50ValueFn:
     """v(S) evaluator: raw mel completions (n, 128, 1, 1024) -> (n, 50) probs."""
 
     def __init__(self, fold: int, device: torch.device) -> None:
+        """Load the fold's AST classifier onto ``device``."""
         from motionbench.classifiers.esc50_classifier import load_esc50_classifier
 
         self.clf = load_esc50_classifier(fold=fold, device=device)
@@ -116,6 +105,7 @@ class ESC50ValueFn:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--fold", type=int, default=1, choices=[1, 2, 3])
     ap.add_argument("--n_seq", type=int, default=200)
@@ -141,6 +131,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the cell player-set sweep for one fold."""
     args = parse_args()
     fold = args.fold
     device = torch.device(args.device)

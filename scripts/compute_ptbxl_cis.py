@@ -92,6 +92,7 @@ def load_method_data(results_dir: Path, folds: list[int]) -> dict:
 
 
 def main() -> None:
+    """Pool per-fold PTB-XL results and bootstrap the CIs."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--results_dir", type=str, default=str(DEFAULT_RESULTS))
     ap.add_argument("--folds", type=int, nargs="+", default=[1, 2, 3])

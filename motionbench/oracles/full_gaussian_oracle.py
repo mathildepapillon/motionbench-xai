@@ -77,6 +77,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
         F: int,
         T: int,
     ) -> None:
+        """Initialise with a full covariance; validate PSD and precompute the Cholesky factor."""
         D = J * F * T
         Sigma_full = np.asarray(Sigma_full, dtype=np.float64)
         if Sigma_full.shape != (D, D):

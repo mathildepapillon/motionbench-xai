@@ -68,6 +68,7 @@ class _FramePositionalEncoding(nn.Module):
     """
 
     def __init__(self, d_model: int, max_len: int = 512) -> None:
+        """Initialise and precompute the ``(max_len, d_model)`` encoding buffer."""
         super().__init__()
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(max_len, dtype=torch.float32).unsqueeze(1)
@@ -205,6 +206,7 @@ class _TransformerTrunk(nn.Module):
         dropout: float,
         max_len: int,
     ) -> None:
+        """Initialise the positional encoding and encoder stack."""
         super().__init__()
         self.pos = _FramePositionalEncoding(d_model, max_len=max_len)
         enc_layer = nn.TransformerEncoderLayer(
@@ -265,6 +267,7 @@ class _EncoderHead(nn.Module):
         d_latent: int,
         max_len: int,
     ) -> None:
+        """Initialise the projection, trunk, and latent parameter heads."""
         super().__init__()
         self.in_proj = nn.Linear(input_feat_dim, d_model)
         self.trunk = _TransformerTrunk(d_model, nhead, num_layers, ff_dim, dropout, max_len)
@@ -314,6 +317,7 @@ class _Decoder(nn.Module):
         dropout: float,
         max_len: int,
     ) -> None:
+        """Initialise the projection, trunk, and output head."""
         super().__init__()
         self.in_proj = nn.Linear(input_feat_dim, d_model)
         self.trunk = _TransformerTrunk(d_model, nhead, num_layers, ff_dim, dropout, max_len)
@@ -354,6 +358,7 @@ class _GaussianScalarHead(nn.Module):
     """
 
     def __init__(self) -> None:
+        """Initialise the shared scalar ``log_sigma`` at zero."""
         super().__init__()
         self.log_sigma = nn.Parameter(torch.zeros(1))
 
@@ -424,6 +429,7 @@ class _VAEAC(nn.Module):
         num_layers: int = 2,
         max_len: int = 512,
     ) -> None:
+        """Initialise the three subnets and the Gaussian output head."""
         super().__init__()
         self.n_joints = n_joints
         self.n_coords = n_coords
@@ -601,6 +607,7 @@ class VAEACImputer(BaseImputer):
         latent_dim: int = 64,
         hidden_dim: int = 256,
     ) -> None:
+        """Initialise the imputer and an untrained VAEAC model on CPU."""
         self._J = J
         self._F = F
         self._T = T

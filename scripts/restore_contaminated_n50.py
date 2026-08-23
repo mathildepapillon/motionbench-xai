@@ -1,4 +1,4 @@
-"""scripts/restore_contaminated_n50.py — emergency N=200 restoration.
+"""scripts/restore_contaminated_n50.py — Emergency N=200 restoration.
 
 Re-runs the 48 ``kernelshap_vaeac`` / ``kernelshap_flow`` cells that were
 overwritten with N=50 results by ``run_synth_vaeac_flow.py``.  Targets all
@@ -43,6 +43,8 @@ METHODS = ["kernelshap_vaeac", "kernelshap_flow"]
 
 @dataclass
 class Cell:
+    """One dataset × classifier × method cell to re-run."""
+
     dataset: str
     classifier: str
     method: str
@@ -52,6 +54,7 @@ class Cell:
 
     @property
     def label(self) -> str:
+        """Human-readable ``dataset/classifier/method`` cell id."""
         return f"{self.dataset}/{self.classifier}/{self.method}"
 
 
@@ -185,6 +188,7 @@ def _worker(
 
 
 def main() -> None:
+    """Re-run every still-contaminated cell across the GPU worker pool."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--gpus", nargs="+", type=int, default=[0, 1, 2, 3, 4, 5, 6, 7])
     p.add_argument("--jobs-per-gpu", type=int, default=2)

@@ -27,6 +27,12 @@ from motionbench.oracles.gaussian_oracle import mask_is_spatial, mask_is_tempora
 
 
 def ec_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
+    """Error-consistency metrics between estimated and true Shapley vectors.
+
+    Returns:
+        ``ec1`` (MAE), ``ec1_norm`` (MAE / mean ``|phi_true|``), ``ec2`` (MSE)
+        and ``ec3`` (1 - Pearson; NaN when either vector is constant).
+    """
     diff = phi_hat - phi_true
     ec1 = float(np.mean(np.abs(diff)))
     denom = float(np.mean(np.abs(phi_true)) + 1e-8)
@@ -41,6 +47,7 @@ def ec_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
 
 
 def topk_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
+    """Ranking metrics on ``|phi|``: ``top1``, ``topk_overlap`` (K = n//2), ``spearman``, ``kendall``."""
     abs_h = np.abs(phi_hat)
     abs_t = np.abs(phi_true)
     n = phi_hat.shape[0]

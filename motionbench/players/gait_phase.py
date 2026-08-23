@@ -61,6 +61,7 @@ class GaitPhase(PlayerSet):
         F: int,
         n_strides: int = 1,
     ) -> None:
+        """Initialise frame boundaries for the ``n_phases * n_strides`` players."""
         self._n_phases = n_phases
         self._n_strides = n_strides
         self._T = T

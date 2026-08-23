@@ -1,4 +1,4 @@
-"""motionbench.metrics.stability -- Stability / robustness metrics wrapping Quantus.
+"""motionbench.metrics.stability — Stability / robustness metrics wrapping Quantus.
 
 Provides metrics that measure how sensitive attributions are to small
 perturbations of the input.  Each Quantus metric requires a method-specific
@@ -102,6 +102,7 @@ class _QuantusWrapper(nn.Module):
         n_classes: int = 2,
         target: int = 0,
     ) -> None:
+        """Initialise the wrapper with the classifier, input dims, and target class."""
         super().__init__()
         self._J = J
         self._F = F
@@ -238,6 +239,7 @@ class MaxSensitivityMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.MaxSensitivity`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         self._quantus: MaxSensitivity = MaxSensitivity(**quantus_kwargs)
 
@@ -321,6 +323,7 @@ class ContinuityMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.Continuity`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         self._quantus: Continuity = Continuity(**quantus_kwargs)
 
@@ -402,6 +405,7 @@ class LipschitzEstimateMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.RelativeInputStability`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         self._quantus: RelativeInputStability = RelativeInputStability(**quantus_kwargs)
 

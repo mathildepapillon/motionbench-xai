@@ -81,6 +81,7 @@ class FrameVelocityNet(nn.Module):
         ff: int | None = None,
         time_dim: int | None = None,
     ) -> None:
+        """Initialise the velocity network for ``(J, F)`` frame tokens."""
         super().__init__()
         self.J, self.F = J, F
         ff = 4 * d_model if ff is None else ff
@@ -150,6 +151,7 @@ class FrameFlowImputer:
         repaint: bool = True,
         **arch: int,
     ) -> None:
+        """Initialise the imputer and its velocity network on ``device``."""
         self.J, self.F, self.T = J, F, T
         self.num_steps = num_steps
         self.repaint = bool(repaint)
@@ -162,6 +164,7 @@ class FrameFlowImputer:
         B = x1n.shape[0]
 
         def harmonize(xk: Tensor, t: float) -> Tensor:
+            """Project observed entries onto the CondOT interpolant at time ``t``."""
             if not self.repaint:
                 return xk
             path = (1.0 - t) * x0 + t * x1n

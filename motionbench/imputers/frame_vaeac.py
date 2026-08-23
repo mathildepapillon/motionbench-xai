@@ -59,6 +59,7 @@ class _Trunk(nn.Module):
     """Linear projection + TransformerEncoder over frame tokens."""
 
     def __init__(self, feat_in: int, d_model: int, nhead: int, n_layers: int, ff: int) -> None:
+        """Initialise the input projection and transformer encoder."""
         super().__init__()
         self.proj = nn.Linear(feat_in, d_model)
         layer = nn.TransformerEncoderLayer(
@@ -72,6 +73,7 @@ class _Trunk(nn.Module):
         self._d_model = d_model
 
     def forward(self, tok: Tensor) -> Tensor:
+        """Project, add frame positional encoding, and encode ``(B, T, feat_in)`` tokens."""
         h = self.proj(tok)
         h = h + _frame_pe(h.shape[1], self._d_model, h.device)
         return self.enc(h)
@@ -83,12 +85,14 @@ class _EncoderHead(nn.Module):
     def __init__(
         self, feat_in: int, d_model: int, d_latent: int, nhead: int, n_layers: int, ff: int
     ) -> None:
+        """Initialise the trunk and latent parameter heads."""
         super().__init__()
         self.trunk = _Trunk(feat_in, d_model, nhead, n_layers, ff)
         self.mu = nn.Linear(d_model, d_latent)
         self.logvar = nn.Linear(d_model, d_latent)
 
     def forward(self, tok: Tensor) -> tuple[Tensor, Tensor]:
+        """Return per-frame ``(mu, logvar)`` for ``(B, T, feat_in)`` tokens."""
         h = self.trunk(tok)
         return self.mu(h), self.logvar(h)
 
@@ -99,11 +103,13 @@ class _DecoderHead(nn.Module):
     def __init__(
         self, feat_in: int, out_dim: int, d_model: int, nhead: int, n_layers: int, ff: int
     ) -> None:
+        """Initialise the trunk and output projection."""
         super().__init__()
         self.trunk = _Trunk(feat_in, d_model, nhead, n_layers, ff)
         self.out = nn.Linear(d_model, out_dim)
 
     def forward(self, tok: Tensor) -> Tensor:
+        """Decode ``(B, T, feat_in)`` tokens to ``(B, T, out_dim)``."""
         return self.out(self.trunk(tok))
 
 
@@ -130,6 +136,7 @@ class FrameVAEACModel(nn.Module):
         n_layers: int = 2,
         ff: int | None = None,
     ) -> None:
+        """Initialise the encoders, decoder, and global ``log_sigma``."""
         super().__init__()
         self.J, self.F = J, F
         ff = 2 * d_model if ff is None else ff
@@ -183,6 +190,7 @@ class FrameVAEACImputer:
     """
 
     def __init__(self, J: int, F: int, T: int, device: str = "cpu", **arch: int) -> None:
+        """Initialise the model on ``device`` for ``(J, F, T)`` sequences."""
         self.J, self.F, self.T = J, F, T
         self.device = torch.device(device)
         self.model = FrameVAEACModel(J, F, **arch).to(self.device)

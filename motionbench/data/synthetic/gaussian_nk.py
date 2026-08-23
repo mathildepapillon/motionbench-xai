@@ -74,6 +74,22 @@ class GaussianNKDataset:
         seed: int = 42,
         label_fn: object | None = None,
     ) -> None:
+        """Initialise the perturbed covariance and pre-sample ``N`` labelled sequences.
+
+        Args:
+            J: Number of joints.
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            N: Number of sequences to pre-generate.
+            K: Number of temporal windows (stored as metadata).
+            rho: Equicorrelation for ``Sigma_joints``.
+            alpha: AR(1) coefficient for ``Sigma_time``.
+            r: Rank of the low-rank perturbation.
+            lam_frac: Perturbation scale as a fraction of ``trace(Sigma_kron)``.
+            seed: Random seed for the perturbation and sampling.
+            label_fn: Optional callable ``(N, J, F, T) → (N,)`` int64; defaults
+                to quantile-bin labels on the joint-0 grand mean.
+        """
         self._J = J
         self._F = F
         self._T = T

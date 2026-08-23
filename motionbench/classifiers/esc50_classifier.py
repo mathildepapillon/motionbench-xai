@@ -1,4 +1,4 @@
-"""motionbench.classifiers.esc50_classifier — per-fold AST ESC-50 classifiers.
+"""motionbench.classifiers.esc50_classifier — Per-fold AST ESC-50 classifiers.
 
 Loads the fold-disciplined AST fine-tunes behind the paper's ESC-50 tables:
 one Audio Spectrogram Transformer per data fold, fine-tuned from
@@ -71,6 +71,7 @@ class ESC50ASTClassifier(nn.Module):
     """
 
     def __init__(self, fold: int = 1, checkpoint: str | Path | None = None) -> None:
+        """Initialise the AST model for ``fold`` and load its fine-tuned checkpoint."""
         super().__init__()
         from transformers import ASTConfig, ASTForAudioClassification
 

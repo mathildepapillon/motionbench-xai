@@ -1,4 +1,4 @@
-"""scripts/build_synthetic_imputer_caches.py — build VAEAC/Flow training caches
+"""scripts/build_synthetic_imputer_caches.py — Build VAEAC/Flow training caches
 for every synthetic dataset in motionbench-xai.
 
 Generic re-implementation of the dataset-specific cache builders that previously
@@ -88,6 +88,7 @@ def _instantiate(module: str, cls: str, kwargs: dict):
 def build_cache(
     name: str, module: str, cls: str, kwargs: dict, care_pd_root: Path, force: bool = False
 ) -> Path:
+    """Instantiate one dataset config and write its cache.npz (skipped if cached, unless ``force``)."""
     out_dir = care_pd_root / "cache" / "vaeac_synthetic" / name
     out_path = out_dir / "cache.npz"
     if out_path.exists() and not force:
@@ -146,6 +147,7 @@ def build_cache(
 
 
 def main() -> None:
+    """Build the requested imputer-training caches."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--datasets",

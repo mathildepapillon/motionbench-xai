@@ -148,6 +148,21 @@ class GaitPeriodicDataset:
         label_fn: LabelFunction | None = None,
         seed: int = 0,
     ) -> None:
+        """Initialise the gait-periodic benchmark and pre-generate ``N`` sequences.
+
+        Args:
+            J: Number of joints.
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            N: Number of sequences to pre-generate.
+            period_mean: Gait cycle period in frames for the cosine kernel.
+            period_std: Documented stride-period variability (metadata only).
+            n_harmonics: Cosine harmonics in the temporal kernel.
+            n_classes: Number of label classes.
+            label_fn: Optional label callable; defaults to quantile-split on
+                the joint-0 grand mean.
+            seed: Random seed for sequence generation.
+        """
         self._J = J
         self._F = F
         self._T = T

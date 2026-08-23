@@ -206,6 +206,7 @@ class PTBXLVAEACImputer(BaseImputer):
         device: str = "cpu",
         **_kwargs: object,
     ) -> None:
+        """Initialise the VAEAC wrapper; the checkpoint is loaded in :meth:`fit`."""
         self._n_completion_samples = int(n_completion_samples)
         self._device_str = device
         self._imputer = None
@@ -354,6 +355,7 @@ class PTBXLFlowImputer(BaseImputer):
         device: str = "cpu",
         **_kwargs: object,
     ) -> None:
+        """Initialise the flow wrapper; the checkpoint is loaded in :meth:`fit`."""
         self._num_steps = int(num_steps)
         self._device_str = device
         self._imputer = None

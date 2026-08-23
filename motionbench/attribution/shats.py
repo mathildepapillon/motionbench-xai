@@ -50,6 +50,7 @@ class ShaTSAttributor(BaseAttributor):
         classifier: Callable[[Tensor], Tensor],
         **kwargs: object,
     ) -> None:
+        """Initialise the stub with a classifier (stored but unused)."""
         super().__init__(classifier, **kwargs)
 
     # ------------------------------------------------------------------

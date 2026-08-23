@@ -141,6 +141,15 @@ class GroupSegmentSHAPAttributor(BaseAttributor):
         n_coalitions: int = 256,
         seed: int | None = None,
     ) -> None:
+        """Initialise the exact group Shapley attributor.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) float32 → (B,) float32``.
+            imputer: Fitted imputer used to fill hidden player coordinates.
+            n_coalitions: Number of imputation draws averaged per coalition
+                value.  Defaults to ``256``.
+            seed: Optional seed for reproducible imputation draws.
+        """
         super().__init__(classifier)
         self._imputer = imputer
         self._n_coalitions = n_coalitions

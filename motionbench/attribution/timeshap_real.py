@@ -87,6 +87,7 @@ class _TimeSHAPClassifierAdapter:
         target: int,
         device: torch.device,
     ) -> None:
+        """Initialise the adapter with the classifier, input dims, target, and device."""
         self._classifier = classifier
         self._J = J
         self._F = F_coords
@@ -137,6 +138,7 @@ class RealTimeSHAPAttributor(BaseAttributor):
         nsamples: int = 32,
         seed: int = 42,
     ) -> None:
+        """Initialise TimeSHAP with a window length and coalition budget."""
         super().__init__(classifier)
         self._window_len = int(window_len)
         self._nsamples = int(nsamples)

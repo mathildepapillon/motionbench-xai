@@ -1,4 +1,4 @@
-"""motionbench.utils.masking — element-level mask utilities.
+"""motionbench.utils.masking — Element-level mask utilities.
 
 Helpers for converting coalition indicators to element-level boolean masks
 and validating mask shapes throughout the motionbench pipeline.

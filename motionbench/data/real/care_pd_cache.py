@@ -56,6 +56,15 @@ class BMCLabCacheDataset:
         max_sequences: int | None = None,
         drop_missing_labels: bool = True,
     ) -> None:
+        """Initialise the dataset from a CARE-PD imputer ``cache.npz``.
+
+        Args:
+            cache_path: Path to the ``cache.npz`` archive.
+            split: ``"val"`` (default) or ``"train"``.
+            max_sequences: Optional head-cap on the number of sequences.
+            drop_missing_labels: Drop samples with UPDRS label ``< 0``.
+                Defaults to ``True``.
+        """
         self._cache_path = Path(cache_path)
         if not self._cache_path.exists():
             raise FileNotFoundError(f"BMCLab cache not found: {self._cache_path}")

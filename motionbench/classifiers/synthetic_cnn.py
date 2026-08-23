@@ -39,6 +39,7 @@ class SyntheticCNNClassifier(Classifier):
         F: int = 3,
         n_classes: int = 3,
     ) -> None:
+        """Initialise the convolutional stack and linear head."""
         super().__init__()
         self.J = J
         self.F = F

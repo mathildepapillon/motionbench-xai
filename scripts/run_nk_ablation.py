@@ -157,10 +157,10 @@ def load_classifier(clf_name: str, device: torch.device) -> torch.nn.Module:
     """
     cfg_path = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(cfg_path)
-    from motionbench.pipelines.synthetic_eval import _build_classifier  # noqa: PLC0415
+    from motionbench.pipelines.synthetic_eval import build_classifier  # noqa: PLC0415
 
     n_classes = 3
-    clf = _build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
+    clf = build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
     clf.eval()
 
     ckpt_path = CKPT_SYNTH / "gaussian_k4" / f"{clf_name}.pt"
@@ -193,7 +193,7 @@ def load_vaeac(device: torch.device):
     Gaussian datasets and is what the motionbench-xai registry maps
     GaussianMotionDataset to.
     """
-    from motionbench.imputers.carepd_imputer import _load_vaeac  # noqa: PLC0415
+    from motionbench.imputers.carepd_imputer import load_vaeac  # noqa: PLC0415
 
     ckpt_dir = CARE_PD / "experiment_outs" / "vaeac_synthetic" / "gaussian_k8_t16"
     cfg_path = CARE_PD / "configs" / "vaeac" / "gaussian_k8_t16.json"
@@ -201,12 +201,12 @@ def load_vaeac(device: torch.device):
         raise FileNotFoundError(f"VAEAC checkpoint dir not found: {ckpt_dir}")
     if not cfg_path.exists():
         raise FileNotFoundError(f"VAEAC config not found: {cfg_path}")
-    return _load_vaeac(ckpt_dir, cfg_path, device)
+    return load_vaeac(ckpt_dir, cfg_path, device)
 
 
 def load_flow(device: torch.device):
     """Load Flow matching from CARE-PD gaussian_k4_t16 checkpoint."""
-    from motionbench.imputers.carepd_imputer import _load_flow  # noqa: PLC0415
+    from motionbench.imputers.carepd_imputer import load_flow  # noqa: PLC0415
 
     ckpt_dir = CARE_PD / "experiment_outs" / "flow_matching_synthetic" / "gaussian_k4_t16"
     cfg_path = CARE_PD / "configs" / "flow_matching" / "gaussian_k4_t16.json"
@@ -222,7 +222,7 @@ def load_flow(device: torch.device):
         json.dump(cfg, fh)
         tmp_cfg = Path(fh.name)
     try:
-        imp = _load_flow(ckpt_dir, tmp_cfg, device)
+        imp = load_flow(ckpt_dir, tmp_cfg, device)
     finally:
         tmp_cfg.unlink()
     return imp
@@ -438,6 +438,7 @@ def run_sanity_check(device: torch.device) -> dict:
     clf = load_classifier("synthetic_transformer", device)
 
     def clf_fn(x_batch: Tensor) -> Tensor:
+        """Class-0 softmax probability (raw output if 1-D): batch → ``(B,)`` CPU tensor."""
         x_dev = x_batch.float().to(device)
         with torch.no_grad():
             logits = clf(x_dev)
@@ -561,6 +562,7 @@ def run_experiment(device: torch.device) -> dict:
             tgt = int(targets[i])
 
             def clf_fn_i(x_b: Tensor, _tgt: int = tgt, _clf=clf) -> Tensor:  # noqa: ANN001
+                """Softmax probability of the frozen target class: batch → ``(B,)`` CPU tensor."""
                 with torch.no_grad():
                     out = _clf(x_b.float().to(device))
                 if out.ndim == 2:
@@ -648,6 +650,7 @@ def run_experiment(device: torch.device) -> dict:
                 elif method == "kernelshap_zero":
 
                     def zero_fill(x_obs: Tensor, obs_mask: Tensor) -> Tensor:
+                        """Zero-fill hidden entries."""
                         return torch.where(obs_mask, x_obs, torch.zeros_like(x_obs))
 
                     for i in range(N_TEST):
@@ -666,6 +669,7 @@ def run_experiment(device: torch.device) -> dict:
                 elif method == "kernelshap_mean":
 
                     def mean_fill(x_obs: Tensor, obs_mask: Tensor) -> Tensor:
+                        """Mean-fill hidden entries."""
                         return torch.where(obs_mask, x_obs, mean_tensor)
 
                     for i in range(N_TEST):
@@ -758,6 +762,7 @@ def run_experiment(device: torch.device) -> dict:
 
 
 def main() -> None:
+    """Run the N/K ablation grid and write per-cell results."""
     t_start = time.time()
     os.chdir(REPO)
     log.info("CUDA_VISIBLE_DEVICES=%s", os.environ.get("CUDA_VISIBLE_DEVICES", "<unset>"))

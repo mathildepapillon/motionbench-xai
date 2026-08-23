@@ -170,6 +170,7 @@ class KNNConditionalImputer(BaseImputer):
     """
 
     def __init__(self, k: int = 20, eps: float = 1e-8) -> None:
+        """Initialise with neighbour count ``k`` and distance stabiliser ``eps``."""
         self.k = k
         self.eps = eps
         self._pool_raw: _F64 | None = None  # (N, J, F, T) float64
@@ -339,6 +340,7 @@ class EmpiricalConditionalImputer(BaseImputer):
         bandwidth: float | str = "auto",
         eta: float = 0.95,
     ) -> None:
+        """Initialise with kernel bandwidth and η-truncation fraction."""
         if not isinstance(bandwidth, str) and bandwidth <= 0:
             raise ValueError(f"bandwidth must be positive or 'auto'; got {bandwidth!r}.")
         if not (0.0 < eta <= 1.0):
@@ -623,6 +625,7 @@ class VineCopulaImputer(BaseImputer):
     """
 
     def __init__(self, max_vine_dim: int = 20) -> None:
+        """Initialise with the maximum dimension for pyvinecopulib fitting."""
         self.max_vine_dim = max_vine_dim
 
         self._pool_raw: _F64 | None = None  # (N, J, F, T) float64

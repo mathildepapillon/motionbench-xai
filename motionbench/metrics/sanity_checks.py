@@ -1,4 +1,4 @@
-"""motionbench.metrics.sanity_checks -- Sanity-check metrics wrapping Quantus.
+"""motionbench.metrics.sanity_checks — Sanity-check metrics wrapping Quantus.
 
 Implements two sanity-check metrics that validate whether an attribution
 method is actually sensitive to model parameters and not merely computing
@@ -89,6 +89,7 @@ class _QuantusWrapper(nn.Module):
         n_classes: int = 2,
         target: int = 0,
     ) -> None:
+        """Initialise the wrapper with the classifier, input dims, and target class."""
         super().__init__()
         self._J = J
         self._F = F
@@ -257,6 +258,7 @@ class ModelParameterRandomisationMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.MPRT`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         quantus_kwargs.setdefault("return_average_correlation", True)
         self._quantus: MPRT = MPRT(**quantus_kwargs)
@@ -354,6 +356,7 @@ class RandomLogitMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.RandomLogit`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         self._quantus: RandomLogit = RandomLogit(**quantus_kwargs)
 

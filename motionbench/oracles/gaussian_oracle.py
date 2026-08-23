@@ -86,6 +86,7 @@ class GaussianOracle(Oracle, BaseImputer):
         Sigma_joints: np.ndarray,
         Sigma_time: np.ndarray,
     ) -> None:
+        """Initialise with Kronecker covariance factors; precompute Cholesky factors."""
         self.Sigma_joints: np.ndarray = np.asarray(Sigma_joints, dtype=np.float64)
         self.Sigma_time: np.ndarray = np.asarray(Sigma_time, dtype=np.float64)
         self._J: int = self.Sigma_joints.shape[0]

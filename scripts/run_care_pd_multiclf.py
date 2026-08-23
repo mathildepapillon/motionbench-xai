@@ -1,4 +1,4 @@
-"""scripts/run_care_pd_multiclf.py — multi-classifier CARE-PD SHAP sweep.
+"""scripts/run_care_pd_multiclf.py — Multi-classifier CARE-PD SHAP sweep.
 
 Temporal-window KernelSHAP over the CARE-PD classifiers (the coalition
 design, WLS solve, and metrics live in
@@ -93,6 +93,18 @@ def build_completions_offmanifold(
     kind: str,
     mean_per_jf: Tensor | None = None,
 ) -> Tensor:
+    """Fill hidden frames of ``x`` for each temporal coalition.
+
+    Args:
+        x: ``(J, F, T)`` clip.
+        frame_mask_2k: ``(n_coal, T)`` bool, True = frame observed.
+        kind: ``"zero"``, ``"mean"`` (per-(J, F) train mean) or ``"marginal"``
+            (``mean_per_jf`` carries a full ``(J, F, T)`` donor clip).
+        mean_per_jf: Fill source for ``"mean"`` / ``"marginal"``.
+
+    Returns:
+        ``(n_coal, J, F, T)`` filled clips.
+    """
     J, F, T = x.shape
     n_coal = frame_mask_2k.shape[0]
     obs = frame_mask_2k.view(n_coal, 1, 1, T).expand(n_coal, J, F, T)
@@ -117,6 +129,7 @@ def build_completions_offmanifold(
 def load_classifier(
     clf_name: str, fold: int, device: torch.device, stats_mean=None, stats_std=None
 ):
+    """Build the ported CARE-PD backbone and strictly load its fold checkpoint."""
     ckpt_rel = CKPT_TEMPLATES[clf_name].format(fold=fold)
     ckpt_path = REPO_ROOT / ckpt_rel
     if not ckpt_path.exists():
@@ -170,6 +183,7 @@ def clf_forward(clf_name: str, clf, x_batch: Tensor, device: torch.device) -> Te
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument(
         "--classifier",
@@ -193,6 +207,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the temporal-window sweep for one classifier × fold."""
     args = parse_args()
     clf_name = args.classifier
     fold = args.fold
@@ -265,19 +280,21 @@ def main() -> None:
     flow_imputer = None
 
     def get_vaeac():
+        """Lazily load the CARE-PD VAEAC imputer (cached)."""
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
-            from motionbench.imputers.carepd_imputer import _CARE_PD_ROOT, _load_vaeac
+            from motionbench.imputers.carepd_imputer import _CARE_PD_ROOT, load_vaeac
 
             ckpt_dir = _CARE_PD_ROOT / "experiment_outs/vaeac_real/bmclab_fold1_real_gait_bm"
             cfg_path = _CARE_PD_ROOT / "configs/vaeac/bmclab_fold1_real_gait_bm.json"
-            vaeac_imputer = _load_vaeac(ckpt_dir, cfg_path, device)
+            vaeac_imputer = load_vaeac(ckpt_dir, cfg_path, device)
         return vaeac_imputer
 
     def get_flow():
+        """Lazily load the CARE-PD Flow imputer (cached)."""
         nonlocal flow_imputer
         if flow_imputer is None:
-            from motionbench.imputers.carepd_imputer import _CARE_PD_ROOT, _load_flow
+            from motionbench.imputers.carepd_imputer import _CARE_PD_ROOT, load_flow
 
             ckpt_dir = _CARE_PD_ROOT / "experiment_outs/flow_matching/bmclab_h36m3d_fold1"
             cfg_path = _CARE_PD_ROOT / "configs/flow_matching/bmclab_h36m3d_fold1.json"
@@ -289,7 +306,7 @@ def main() -> None:
                 json.dump(cfg, f)
                 tmp_cfg = Path(f.name)
             try:
-                flow_imputer = _load_flow(ckpt_dir, tmp_cfg, device)
+                flow_imputer = load_flow(ckpt_dir, tmp_cfg, device)
             finally:
                 tmp_cfg.unlink()
         return flow_imputer

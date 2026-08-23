@@ -87,6 +87,14 @@ class BMCLabDataset:
         labels_path: str | Path,
         clip_len: int = 80,
     ) -> None:
+        """Initialise the dataset by loading all sequences into memory.
+
+        Args:
+            joints_paths: ``.npz`` pose archives (first view per sequence).
+            labels_path: Joblib-serialised nested label dict.
+            clip_len: Frames per clip ``T``; shorter sequences are zero-padded,
+                longer ones centre-cropped.  Defaults to ``80``.
+        """
         self._clip_len = clip_len
         self._joints_paths = [Path(p) for p in joints_paths]
         self._labels_path = Path(labels_path)

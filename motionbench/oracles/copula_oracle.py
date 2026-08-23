@@ -140,6 +140,7 @@ class CopulaOracle(Oracle, BaseImputer):
         Sigma_time: npt.NDArray[np.float64],
         marginal: Marginal | None = None,
     ) -> None:
+        """Initialise with correlation factors and marginal; precompute Cholesky factors."""
         from motionbench.data.synthetic.burr_motion import BurrXII  # noqa: PLC0415
 
         self.Sigma_joints: npt.NDArray[np.float64] = np.asarray(Sigma_joints, dtype=np.float64)

@@ -1,4 +1,4 @@
-"""scripts/build_burr_caches.py — build VAEAC/Flow caches for Burr datasets.
+"""scripts/build_burr_caches.py — Build VAEAC/Flow caches for Burr datasets.
 
 Produces caches at ``$CARE_PD_ROOT/cache/vaeac_synthetic/burr_m{5,10}_jft/``
 matching the (N, T, J, F) layout that ``train_vaeac.py`` / ``train_flow_matching.py``

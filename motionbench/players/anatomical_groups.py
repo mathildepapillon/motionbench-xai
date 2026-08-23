@@ -76,6 +76,7 @@ class AnatomicalGroups(PlayerSet):
         F: int,
         T: int,
     ) -> None:
+        """Initialise and validate the joint-group partition over ``(J, F, T)``."""
         self._group_names = list(groups.keys())
         self._group_indices = [list(v) for v in groups.values()]
         self._J = J

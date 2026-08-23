@@ -158,6 +158,7 @@ class _FramePE(nn.Module):
     """
 
     def __init__(self, d_model: int, max_len: int = 512) -> None:
+        """Initialise and precompute the ``(max_len, d_model)`` encoding buffer."""
         super().__init__()
         pe = torch.zeros(max_len, d_model)
         pos = torch.arange(max_len, dtype=torch.float32).unsqueeze(1)
@@ -205,6 +206,7 @@ class _FlowTimeMLP(nn.Module):
     """
 
     def __init__(self, sinusoid_dim: int, out_dim: int) -> None:
+        """Initialise the two-layer SiLU MLP over the sinusoidal embedding."""
         super().__init__()
         if sinusoid_dim % 2 != 0:
             raise ValueError(f"_FlowTimeMLP: sinusoid_dim must be even, got {sinusoid_dim}.")
@@ -266,6 +268,7 @@ class _VelocityNet(nn.Module):
         time_emb_dim: int = 128,
         max_len: int = 512,
     ) -> None:
+        """Initialise the transformer velocity network with the given architecture."""
         super().__init__()
         if d_model % nhead != 0:
             raise ValueError(f"_VelocityNet: d_model={d_model} must be divisible by nhead={nhead}.")
@@ -415,6 +418,7 @@ class FlowMatchingImputer(BaseImputer):
         solver: str = "midpoint",
         device: str | None = None,
     ) -> None:
+        """Initialise the imputer with architecture, training, and solver configuration."""
         if solver not in self._ALLOWED_SOLVERS:
             raise ValueError(
                 f"FlowMatchingImputer: solver must be one of "

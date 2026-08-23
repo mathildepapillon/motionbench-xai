@@ -81,6 +81,7 @@ def _load_data(args: argparse.Namespace) -> torch.Tensor:
 
 
 def main() -> None:
+    """Train a VAEACImputer from CLI arguments and save the checkpoint."""
     p = argparse.ArgumentParser(description="Train a VAEACImputer on skeletal motion data.")
     # Architecture
     p.add_argument("--J", type=int, default=17, help="Number of skeletal joints")

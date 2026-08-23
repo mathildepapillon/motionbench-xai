@@ -1,4 +1,4 @@
-"""scripts/run_oracle_metrics_fast.py — evaluate oracle metrics using cached attributions.
+"""scripts/run_oracle_metrics_fast.py — Evaluate oracle metrics using cached attributions.
 
 For kernelshap_oracle cells that already have attributions.npz written (from a
 high n_mc run), but are missing result.json, this script re-runs ONLY the
@@ -59,6 +59,7 @@ ALL_CLASSIFIERS = ["synthetic_mlp", "synthetic_cnn", "synthetic_transformer"]
 
 
 def has_valid_result(path: Path) -> bool:
+    """True if ``path`` is a result.json carrying at least one metric key."""
     if not path.exists():
         return False
     try:
@@ -69,6 +70,7 @@ def has_valid_result(path: Path) -> bool:
 
 
 def has_valid_attributions(path: Path) -> bool:
+    """True if ``path`` is a loadable, non-empty attributions .npz."""
     if not path.exists():
         return False
     try:
@@ -96,6 +98,7 @@ def build_cfg(metric_n_mc: int = 50, device: str = "cuda") -> object:
 
 
 def main() -> None:
+    """Re-evaluate oracle metrics from cached attributions across the grid."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
     parser.add_argument("--classifiers", nargs="+", default=ALL_CLASSIFIERS)
@@ -159,7 +162,7 @@ def main() -> None:
 
     cfg = build_cfg(metric_n_mc=args.metric_n_mc, device=device_str)
 
-    from motionbench.pipelines.synthetic_eval import _run_cell  # noqa: PLC0415
+    from motionbench.pipelines.synthetic_eval import run_cell  # noqa: PLC0415
 
     summary = []
     t_total = time.time()
@@ -167,7 +170,7 @@ def main() -> None:
     for ds, clf in cells:
         result_path = RESULTS_DIR / ds / clf / METHOD / "result.json"
 
-        # Remove invalid/stub result.json so _run_cell doesn't skip
+        # Remove invalid/stub result.json so run_cell doesn't skip
         if result_path.exists() and not has_valid_result(result_path):
             log.info("[STUB] Removing invalid result.json for %s/%s/%s", ds, clf, METHOD)
             result_path.unlink()
@@ -182,7 +185,7 @@ def main() -> None:
         )
         t0 = time.time()
         try:
-            result = _run_cell(ds, clf, METHOD, cfg)
+            result = run_cell(ds, clf, METHOD, cfg)
             wall = time.time() - t0
             ec1 = result.get("ec1", float("nan"))
             sp = result.get("spearman", float("nan"))

@@ -95,6 +95,7 @@ N_ORACLE_MC = 50  # Gaussian conditional MC samples per coalition
 
 
 def load_dataset():
+    """Instantiate the scalability dataset from its Hydra config."""
     from omegaconf import OmegaConf
 
     ds_yaml = REPO / "configs" / "data" / f"{DATASET_NAME}.yaml"
@@ -113,13 +114,14 @@ def load_dataset():
 
 
 def load_classifier(device: torch.device):
+    """Build the synthetic classifier and load its checkpoint onto ``device``."""
     from omegaconf import OmegaConf
 
     clf_yaml = REPO / "configs" / "classifiers" / f"{CLF_NAME}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
-    from motionbench.pipelines.synthetic_eval import _build_classifier
+    from motionbench.pipelines.synthetic_eval import build_classifier
 
-    clf = _build_classifier(clf_cfg, J, F, T, 4, N_CLASSES).to(device)
+    clf = build_classifier(clf_cfg, J, F, T, 4, N_CLASSES).to(device)
     ckpt_path = (
         REPO
         / "motionbench"
@@ -145,6 +147,7 @@ def load_classifier(device: torch.device):
 
 
 def build_marginal_imputer(dataset):
+    """Fit a ``MarginalDonorImputer`` on ``dataset``."""
     from motionbench.imputers.off_manifold import MarginalDonorImputer
 
     imp = MarginalDonorImputer()
@@ -157,7 +160,7 @@ def build_vaeac_imputer(dataset, device_str: str):
     from motionbench.imputers.carepd_imputer import (
         _CARE_PD_ROOT,
         _VAEAC_REGISTRY,
-        _load_vaeac,
+        load_vaeac,
     )
 
     cls_key = type(dataset).__name__
@@ -168,7 +171,7 @@ def build_vaeac_imputer(dataset, device_str: str):
     cfg_path = _CARE_PD_ROOT / cfg_rel
     if not ckpt_dir.exists():
         raise FileNotFoundError(f"VAEAC checkpoint dir not found: {ckpt_dir}")
-    return _load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
+    return load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
 
 
 # ---------------------------------------------------------------------------
@@ -183,12 +186,12 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
         if comp.ndim == 4:
             comp = comp[0]
     elif hasattr(imp, "sample_completions"):
-        from motionbench.imputers.carepd_imputer import _mask_to_coalition
+        from motionbench.imputers.carepd_imputer import mask_to_coalition
 
         device = imp._device
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
-        coalition_mask, _ = _mask_to_coalition(mask)
+        coalition_mask, _ = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
         completions = imp.sample_completions(
             x=x_in,
@@ -341,6 +344,7 @@ def run_cell(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--n-seq", type=int, default=30, help="Number of sequences to evaluate per cell."
@@ -365,6 +369,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the wall-clock scalability grid and write timings."""
     args = parse_args()
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     log.info(
@@ -394,7 +399,10 @@ def main() -> None:
 
     # Build per-sequence classifier function factory
     def make_clf_fn(target_i: int):
+        """Return a ``clf_fn`` closed over ``target_i``."""
+
         def clf_fn(arr) -> Tensor:
+            """Softmax probability of ``target_i``: batch → ``(B,)`` CPU tensor."""
             if isinstance(arr, np.ndarray):
                 t_arr = torch.from_numpy(arr.astype(np.float32)).to(device)
             else:

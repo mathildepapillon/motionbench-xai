@@ -1,53 +1,26 @@
 """scripts/run_ptbxl_leads_shap.py — Lead-level KernelSHAP on PTB-XL.
 
-Runs KernelSHAP treating each of the **12 ECG leads as an independent player**
-(J=12 spatial players).  This is complementary to ``run_ptbxl_shap.py`` which
-uses K=4 temporal windows.  Comparing the two player sets demonstrates that
-careful grouping recovers qualitatively different, clinically interpretable
-structures:
+KernelSHAP treating each of the 12 ECG leads as one player (J=12 spatial
+players; the 2^12 = 4096 coalitions are enumerated exactly and batched
+through the classifier in a single forward pass per sequence) —
+complementary to ``run_ptbxl_shap.py`` (K=4 temporal windows).  Comparing
+the two player sets recovers clinically interpretable structure: windows
+2–3 (QRS complex + ST-segment) temporally, precordial leads V1–V4
+(indices 6–9 in the standard WFDB 12-lead order) spatially.  Off-manifold
+imputers (Zero / Mean / Marginal) run by default; ``--methods
+kernelshap_vaeac kernelshap_flow`` enables the on-manifold imputers, which
+handle spatial coalition masks via the ``mask_to_coalition`` helper in
+``motionbench/imputers/carepd_imputer.py``.  Shared KernelSHAP utilities
+are imported from ``run_care_pd_multiclf.py``.
 
-- **Temporal (K=4)**: attribution concentrates on windows 2–3 (QRS complex +
-  ST-segment), the canonical ECG markers for myocardial infarction.
-- **Lead-level (J=12)**: attribution concentrates on precordial leads V1–V4
-  (indices 6–9 in the standard WFDB 12-lead order), which are the most
-  sensitive indicators of anterior MI.
-
-With J=12 there are 2^12 = 4096 coalitions.  These are enumerated exactly,
-which is fast because all 4096 completions are batched through the classifier
-in a single forward pass per sequence (≈ 40 s for N=200 with a ResNet-1d on a
-modern GPU).
-
-Only *off-manifold* imputers (Zero / Mean / Marginal) are run by default.
-On-manifold imputers can be enabled with ``--methods kernelshap_vaeac
-kernelshap_flow``; the PTB-XL VAEAC/Flow imputers handle lead-level (spatial)
-coalition masks via the ``_mask_to_coalition`` helper in
-``motionbench/imputers/carepd_imputer.py``.
-
-Shared KernelSHAP utilities are imported from ``run_care_pd_multiclf.py`` to
-avoid duplication (``shapley_kernel``, ``kernel_shap_exact``,
-``faithfulness_correlation``, ``player_aopc``).
-
-Results are written to::
-
-    results/ptbxl_leads/{fold}/{method}/result.json
-
-Attribution profiles (mean |φ| per lead) are stored in each result JSON under
-the key ``phi_mean_per_lead`` — this vector is parsed by
-``generate_paper_tables.py`` to produce the clinical structure recovery table.
+Results: ``results/ptbxl_leads/{fold}/{method}/result.json``; the mean |φ|
+per lead is stored under ``phi_mean_per_lead`` and parsed by
+``generate_paper_tables.py`` for the clinical structure recovery table.
 
 Usage::
 
-    conda activate motionbench-xai
-
-    # Single fold (off-manifold methods)
     CUDA_VISIBLE_DEVICES=0 python scripts/run_ptbxl_leads_shap.py \\
         --data_path /data/ptb-xl --fold 1 --device cuda:0
-
-    # All three folds
-    for fold in 1 2 3; do
-        CUDA_VISIBLE_DEVICES=$((fold-1)) python scripts/run_ptbxl_leads_shap.py \\
-            --data_path /data/ptb-xl --fold $fold &
-    done
 """
 
 from __future__ import annotations
@@ -173,6 +146,7 @@ def build_completions_leads(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument(
         "--data_path",
@@ -204,6 +178,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the lead-level sweep for one fold."""
     args = parse_args()
     fold = args.fold
     N_SEQ = int(args.n_seq)
@@ -297,6 +272,7 @@ def main() -> None:
     flow_imputer = None
 
     def get_vaeac():
+        """Lazily load the PTB-XL VAEAC imputer (cached)."""
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
             from motionbench.imputers.ptbxl_imputer import (
@@ -306,12 +282,13 @@ def main() -> None:
             )
 
             cfg_path = _resolve_cfg(_VAEAC_CKPT_DIR, "ptbxl_vaeac_cfg.json", _VAEAC_DEFAULT_CFG)
-            from motionbench.imputers.carepd_imputer import _load_vaeac
+            from motionbench.imputers.carepd_imputer import load_vaeac
 
-            vaeac_imputer = _load_vaeac(_VAEAC_CKPT_DIR, cfg_path, device)
+            vaeac_imputer = load_vaeac(_VAEAC_CKPT_DIR, cfg_path, device)
         return vaeac_imputer
 
     def get_flow():
+        """Lazily build the local FlowMatchingImputer adapter (cached)."""
         nonlocal flow_imputer
         if flow_imputer is None:
             # Use local FlowMatchingImputer (trained on PTB-XL) wrapped to
@@ -350,10 +327,12 @@ def main() -> None:
                 """
 
                 def __init__(self, imp):
+                    """Wrap a loaded ``FlowMatchingImputer``."""
                     self._imp = imp
                     self._device = imp._device
 
                 def sample_completions_batched(self, x, mask, coalition_masks, n_samples=1):
+                    """Return ``(B, n_samples, J, F, T)`` unconditional prior draws (one per coalition row)."""
                     # x: (1, J, F, T), coalition_masks: (B, J) spatial bool
                     x_sq = x.squeeze(0).cpu()  # (J, F, T)
                     J, F, T = x_sq.shape

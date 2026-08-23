@@ -399,6 +399,20 @@ class GaussianMotionBenchmark:
         sigma_joints_source: str | None = None,
         sigma_time_source: str | None = None,
     ) -> None:
+        """Initialise covariances, Cholesky factors, and window assignments.
+
+        Args:
+            J: Number of joints.
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            rho: Equicorrelation for the default joint covariance.
+            alpha: AR(1) coefficient for the default temporal covariance.
+            K: Number of temporal windows for conditional caching.
+            sigma_joints: Optional custom ``(J, J)`` PSD joint covariance.
+            sigma_time: Optional custom ``(T, T)`` PSD temporal covariance.
+            sigma_joints_source: Provenance tag for ``sigma_joints``.
+            sigma_time_source: Provenance tag for ``sigma_time``.
+        """
         if K <= 0:
             raise ValueError(f"K must be positive; got {K}.")
 
@@ -820,6 +834,22 @@ class GaussianMotionDataset:
         seed: int | None = None,
         label_fn: object | None = None,
     ) -> None:
+        """Initialise the benchmark and pre-generate ``N`` labelled sequences.
+
+        Args:
+            J: Number of joints.
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            N: Number of sequences to pre-generate.
+            rho: Equicorrelation for the default joint covariance.
+            alpha: AR(1) coefficient for the default temporal covariance.
+            K: Number of temporal windows (stored in the benchmark).
+            sigma_joints: Optional custom ``(J, J)`` joint covariance.
+            sigma_time: Optional custom ``(T, T)`` temporal covariance.
+            seed: Random seed for sequence generation.
+            label_fn: Optional callable ``(N, J, F, T) → (N,)`` int64; defaults
+                to quantile-bin labels on the joint-0 grand mean.
+        """
         self._benchmark = GaussianMotionBenchmark(
             J=J,
             F=F,

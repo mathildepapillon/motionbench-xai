@@ -46,6 +46,7 @@ class BandWindowCells(PlayerSet):
     """
 
     def __init__(self, J: int, n_bands: int, K: int, F: int, T: int) -> None:
+        """Initialise band edges and window width for the ``n_bands * K`` cells."""
         if T % K != 0:
             raise ValueError(f"T={T} must be divisible by K={K} for equal-width windows.")
         if n_bands > J:

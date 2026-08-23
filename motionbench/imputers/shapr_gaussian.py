@@ -95,6 +95,7 @@ class ShaprGaussianImputer(BaseImputer):
     """
 
     def __init__(self, shrinkage: str = "ledoit_wolf") -> None:
+        """Initialise with the covariance shrinkage estimator."""
         if shrinkage not in ("ledoit_wolf", "ml"):
             raise ValueError(f"shrinkage must be 'ledoit_wolf' or 'ml'; got {shrinkage!r}.")
         self.shrinkage = shrinkage

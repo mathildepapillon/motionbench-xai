@@ -80,6 +80,7 @@ class _ResBlock1d(nn.Module):
     """
 
     def __init__(self, in_channels: int, out_channels: int) -> None:
+        """Initialise the three convolutions and the shortcut."""
         super().__init__()
         self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size=8, padding="same", bias=False)
         self.bn1 = nn.BatchNorm1d(out_channels)
@@ -127,6 +128,7 @@ class _ResNet1dWang(nn.Module):
     """
 
     def __init__(self, in_channels: int = 12) -> None:
+        """Initialise the three residual blocks."""
         super().__init__()
         self.block1 = _ResBlock1d(in_channels, 64)
         self.block2 = _ResBlock1d(64, 128)
@@ -187,6 +189,7 @@ class ECGResNet1dClassifier(Classifier):
         n_classes: int = 2,
         in_channels: int = _N_LEADS,
     ) -> None:
+        """Initialise the backbone and classification head, optionally loading a checkpoint."""
         super().__init__(checkpoint_path=checkpoint_path, n_classes=n_classes)
         self.backbone = _ResNet1dWang(in_channels=in_channels)
         self.cls_head = nn.Linear(self.backbone.out_dim, n_classes)

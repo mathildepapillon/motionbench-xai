@@ -1,4 +1,4 @@
-"""scripts/build_skeleton_gait_cache.py — build VAEAC/Flow cache for skeleton_gait_combined.
+"""scripts/build_skeleton_gait_cache.py — Build VAEAC/Flow cache for skeleton_gait_combined.
 
 Produces a (N, T, J, F) cache.npz at
   ``$CARE_PD_ROOT/cache/vaeac_synthetic/skeleton_gait_combined/cache.npz``

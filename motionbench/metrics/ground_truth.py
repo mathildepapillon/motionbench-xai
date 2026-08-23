@@ -86,6 +86,7 @@ class EC1Metric(BaseMetric):
     requires_oracle: ClassVar[bool] = True
 
     def __init__(self, n_mc: int = 1000, oracle_seed: int | None = None) -> None:
+        """Initialise the metric with the oracle Monte-Carlo configuration."""
         self._n_mc = n_mc
         self._oracle_seed = oracle_seed
 
@@ -145,6 +146,7 @@ class EC2Metric(BaseMetric):
     requires_oracle: ClassVar[bool] = True
 
     def __init__(self, n_mc: int = 1000, oracle_seed: int | None = None) -> None:
+        """Initialise the metric with the oracle Monte-Carlo configuration."""
         self._n_mc = n_mc
         self._oracle_seed = oracle_seed
 
@@ -205,6 +207,7 @@ class EC3Metric(BaseMetric):
     requires_oracle: ClassVar[bool] = True
 
     def __init__(self, n_mc: int = 1000, oracle_seed: int | None = None) -> None:
+        """Initialise the metric with the oracle Monte-Carlo configuration."""
         self._n_mc = n_mc
         self._oracle_seed = oracle_seed
 
@@ -281,6 +284,7 @@ class TopKRecovery(BaseMetric):
         n_mc: int = 1000,
         oracle_seed: int | None = None,
     ) -> None:
+        """Initialise the metric with ``k`` and the oracle Monte-Carlo configuration."""
         self._k = k
         self._n_mc = n_mc
         self._oracle_seed = oracle_seed
@@ -353,6 +357,7 @@ class SpearmanRankMetric(BaseMetric):
     requires_oracle: ClassVar[bool] = True
 
     def __init__(self, n_mc: int = 1000, oracle_seed: int | None = None) -> None:
+        """Initialise the metric with the oracle Monte-Carlo configuration."""
         self._n_mc = n_mc
         self._oracle_seed = oracle_seed
 
@@ -415,6 +420,7 @@ class KendallRankMetric(BaseMetric):
     requires_oracle: ClassVar[bool] = True
 
     def __init__(self, n_mc: int = 1000, oracle_seed: int | None = None) -> None:
+        """Initialise the metric with the oracle Monte-Carlo configuration."""
         self._n_mc = n_mc
         self._oracle_seed = oracle_seed
 
@@ -491,6 +497,7 @@ class EfficiencyErrorMetric(BaseMetric):
     requires_oracle: ClassVar[bool] = True
 
     def __init__(self, n_mc: int = 1000, oracle_seed: int | None = None) -> None:
+        """Initialise the metric with the oracle Monte-Carlo configuration."""
         self._n_mc = n_mc
         self._oracle_seed = oracle_seed
 

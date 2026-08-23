@@ -1,4 +1,4 @@
-"""scripts/run_m_ablation.py — sensitivity of EC1 to the number of completion samples M.
+"""scripts/run_m_ablation.py — Sensitivity of EC1 to the number of completion samples M.
 
 For each M in {1, 5, 20, 50}, we run KS--VAEAC on ``gaussian_k4`` with three
 classifiers (synthetic_mlp, synthetic_cnn, synthetic_transformer) and compute
@@ -54,6 +54,7 @@ N_SEQ = 50
 
 
 def ec1(phi_hat: np.ndarray, phi_true: np.ndarray) -> float:
+    """Mean absolute error between Shapley vectors."""
     return float(np.mean(np.abs(phi_hat - phi_true)))
 
 
@@ -72,9 +73,9 @@ def _build_dataset(ds_name: str):
 def _build_clf(clf_name: str, J: int, F: int, T: int, K: int, n_classes: int, device):
     clf_yaml = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
-    from motionbench.pipelines.synthetic_eval import _build_classifier
+    from motionbench.pipelines.synthetic_eval import build_classifier
 
-    clf = _build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
+    clf = build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
     clf.eval()
     return clf
 
@@ -83,14 +84,14 @@ def _build_vaeac_for(dataset, device):
     from motionbench.imputers.carepd_imputer import (
         _CARE_PD_ROOT,
         _VAEAC_REGISTRY,
-        _load_vaeac,
+        load_vaeac,
     )
 
     cls_key = type(dataset).__name__
     if cls_key not in _VAEAC_REGISTRY:
         raise RuntimeError(f"No VAEAC registry entry for {cls_key}")
     ckpt_rel, cfg_rel = _VAEAC_REGISTRY[cls_key]
-    return _load_vaeac(_CARE_PD_ROOT / ckpt_rel, _CARE_PD_ROOT / cfg_rel, device)
+    return load_vaeac(_CARE_PD_ROOT / ckpt_rel, _CARE_PD_ROOT / cfg_rel, device)
 
 
 def _oracle_phi(dataset, x_i, target_i: int, clf, K: int, T: int, J: int, F: int, device):
@@ -100,6 +101,7 @@ def _oracle_phi(dataset, x_i, target_i: int, clf, K: int, T: int, J: int, F: int
         return None
 
     def clf_fn(arr) -> Tensor:
+        """Softmax probability of the frozen target class: batch → ``(B,)`` CPU tensor."""
         if isinstance(arr, np.ndarray):
             t_arr = torch.from_numpy(arr.astype(np.float32)).to(device)
         elif isinstance(arr, torch.Tensor):
@@ -197,6 +199,7 @@ def run_one_combo(
 
 
 def main() -> None:
+    """Run the M-sensitivity sweep and write summary + LaTeX table."""
     t_total = time.time()
     device = torch.device(DEVICE)
 
@@ -257,6 +260,7 @@ def main() -> None:
 
 
 def write_latex_table(summary: dict) -> None:
+    """Render the EC1-vs-M table as LaTeX and write it next to the summary."""
     M_VALS = summary["M"]
     ec1_avg = summary["ec1_avg"]
     ec1_std = summary["ec1_std_across_classifiers"]

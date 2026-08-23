@@ -1,51 +1,25 @@
 """scripts/run_ptbxl_cells_shap.py — PTB-XL lead × window cell KernelSHAP.
 
-Runs sampled-coalition KernelSHAP on PTB-XL ECGs with the spatio-temporal
-cell player set: 12 leads × K=4 temporal windows of 250 samples, i.e.
-``JointWindowCells`` with M=48 players (cell index ``lead * 4 + window``).
-This is the finer-granularity companion of the lead-level sweep
-``run_ptbxl_leads_shap.py`` (M=12, exact enumeration).
-
-M=48 exceeds the exact-enumeration bound, so coalitions come from the fixed
-sampled design ``sampled_coalition_set(48, B=2048, seed=7919)`` shared
-across methods and folds; faithfulness is computed over all B+2 design rows
-(boundary rows included) and PlayerAOPC over the M explicit deletion-path
-coalitions.  See ``scripts/_player_shap_common.py`` and RESOLUTIONS.md §12
-for the full protocol.
-
-Value function and pool conventions match the leads sweep: fills happen in
-z-scored cache coordinates; the per-fold 1-D ResNet
-(``ECGResNet1dClassifier``) gives ``v(S) = softmax(logits)[target]`` with
-target = argmax of the full-clip prediction; the mean/donor pool is the
-2000-record training pool (``max_sequences=2000``), donors drawn as
-``default_rng(42 + fold).integers(0, len(pool), N)``.
-
-Data layouts (first match wins):
-
-1. ``--cache_dir`` (or ``$PTBXL_CACHE_DIR``): prepared caches —
-   ``fold{f}_eval.npz`` (key ``x``, (200, 12, 1, 1000), z-scored) and
-   ``fold{f}_pool.npz`` (key ``x``, (2000, 12, 1, 1000)).
-2. ``--data_path`` (or ``$PTBXL_DATA_ROOT``): the raw PTB-XL download,
-   loaded through ``PTBXLDataset`` with the training-fold stats saved by
-   ``train_ptbxl_classifier.py`` — the exact loading path of
-   ``run_ptbxl_leads_shap.py``.
-
-Classifier checkpoints: the release layout
-``motionbench/classifiers/checkpoints/real/ptbxl_fold{f}.pt`` or the
-validation study's bare ``block1/2/3 + head`` state dicts documented in
-``checkpoints/README.md`` (``ptbxl_clf/fold{f}.pt``); both load strictly
-after key remapping.  VAEAC/Flow imputer checkpoints default to
-``checkpoints/imputers/ptbxl_{vaeac,flow}.pt`` (study format; the smaller
-architecture is read from the checkpoint's ``arch`` dict).
+Sampled-coalition KernelSHAP (B=2048) on PTB-XL ECGs, per fold, with the
+spatio-temporal cell player set ``JointWindowCells``: 12 leads × K=4
+temporal windows of 250 samples, M=48 (cell index ``lead * 4 + window``) —
+the finer-granularity companion of ``run_ptbxl_leads_shap.py`` (M=12,
+exact enumeration).  Value function and pool conventions match the leads
+sweep: fills in z-scored cache coordinates, per-fold 1-D ResNet
+(``ECGResNet1dClassifier``), 2000-record training pool with donors
+``default_rng(42 + fold).integers(0, len(pool), N)``.  Data resolves via
+``--cache_dir``/``$PTBXL_CACHE_DIR``, then ``--data_path``/
+``$PTBXL_DATA_ROOT`` (raw PTB-XL through ``PTBXLDataset``); classifier and
+imputer checkpoints per ``checkpoints/README.md``.  Shared
+coalition/fill/phi/metric protocol: ``scripts/_player_shap_common.py`` and
+RESOLUTIONS.md §12.
 
 Usage::
 
     PYTHONPATH=. python scripts/run_ptbxl_cells_shap.py --fold 1 \\
         --methods kernelshap_zero kernelshap_mean kernelshap_marginal
 
-Results are written to::
-
-    results/ptbxl_cells/fold{fold}/{method}/result.json
+Results: ``results/ptbxl_cells/fold{fold}/{method}/result.json``
 """
 
 from __future__ import annotations
@@ -121,6 +95,7 @@ class PTBXLValueFn:
     """v(S) evaluator: cache-space completions (n, 12, 1, 1000) -> (n, 2) probs."""
 
     def __init__(self, clf, device: torch.device) -> None:
+        """Initialise with a loaded per-fold classifier."""
         self.clf = clf
         self.device = device
 
@@ -192,6 +167,7 @@ def load_ptbxl_data(fold: int, n_seq: int, cache_dir: str | None, data_path: str
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--fold", type=int, default=1, choices=[1, 2, 3])
     ap.add_argument("--n_seq", type=int, default=200)
@@ -224,6 +200,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the cell player-set sweep for one fold."""
     args = parse_args()
     fold = args.fold
     device = torch.device(args.device)

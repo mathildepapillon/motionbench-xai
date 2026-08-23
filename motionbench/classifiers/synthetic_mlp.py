@@ -61,6 +61,7 @@ class SyntheticMLPClassifier(Classifier):
         hidden: int = 64,
         player_mode: PlayerMode = "temporal",
     ) -> None:
+        """Initialise the MLP and pre-compute temporal window boundaries."""
         super().__init__()
         if player_mode not in ("temporal", "spatial"):
             raise ValueError(f"player_mode must be 'temporal' or 'spatial'; got {player_mode!r}")

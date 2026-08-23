@@ -80,6 +80,7 @@ def _make_predict_fn(
     """
 
     def predict_fn(z_batch: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """Evaluate the classifier on imputed sequences for ``(N, M)`` coalition rows."""
         results: list[float] = []
         for z_row in z_batch:
             z_tensor = torch.as_tensor(z_row > 0.5, dtype=torch.bool)
@@ -126,6 +127,7 @@ class KernelSHAPTemporalAttributor(BaseAttributor):
         n_coalitions: int = 100,
         seed: int | None = None,
     ) -> None:
+        """Initialise temporal KernelSHAP with an imputer and coalition budget."""
         super().__init__(classifier)
         self._imputer = imputer
         self._n_coalitions = n_coalitions

@@ -66,6 +66,7 @@ def batched_prob_fn(model, target, device, batch=1024):
     """(n, J, F, T) float32 -> (n,) float64 softmax prob, as in the study."""
 
     def fn(arr):
+        """Batched softmax probability of ``target``: ``(n, J, F, T)`` → ``(n,)`` float64."""
         vals = []
         with torch.no_grad():
             for s in range(0, len(arr), batch):
@@ -189,6 +190,7 @@ def hi_budget_regrade(playerset, dataset, model, device, phi, n_seq, gt_dir):
 
 
 def main():
+    """Validate KS-Gauss parity against the study's ks_shapr reference results."""
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--ground-truth",

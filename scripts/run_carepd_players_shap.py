@@ -1,47 +1,18 @@
 """scripts/run_carepd_players_shap.py — CARE-PD spatial / cell player-set KernelSHAP.
 
-Runs sampled-coalition KernelSHAP on the BMCLab CARE-PD gait sequences with
-two player sets that go beyond the temporal windows of
-``run_care_pd_multiclf.py``:
-
-- ``--playerset joint``: one player per H36M joint across all frames/axes
-  (``SpatialJoints``, M=17).
-- ``--playerset cell``: joint × temporal-window cells
-  (``JointWindowCells``, M=68 = 17 joints × K=4 windows of 20 frames).
-
-Both exceed the exact-enumeration bound (M <= 12), so coalitions come from
-the fixed sampled design ``sampled_coalition_set(M, B=2048, seed=7919)``
-shared across methods and folds; faithfulness is computed over all B+2
-design rows (boundary rows included) and PlayerAOPC over the M explicit
-deletion-path coalitions.  See ``scripts/_player_shap_common.py`` and
-RESOLUTIONS.md §12 for the full protocol.
-
-Value function (identical to the temporal sweep): coalition fills happen in
-RAW cache coordinates; the filled clip goes through crop_scale + confidence
-(``crop_scale_and_conf`` semantics, vectorised) and the CARE-PD
-``MotionEncoder`` head (valid-frame masked mean over T, flatten joints,
-linear head); ``v(S) = softmax(logits)[target]`` with the target = argmax of
-the full-clip prediction.  MotionAGFormer clips are zero-padded 80 -> 81
-frames BEFORE the transform with valid mask ``[1]*80 + [0]``.
-
-POTR is excluded: it fails the pooled accuracy gate (0.374).
-
-Data layouts (first match wins):
-
-1. ``--cache_dir`` (or ``$CAREPD_CACHE_DIR``): prepared evaluation caches —
-   ``fold{f}_eval.npz`` with key ``x`` of shape (n, 80, 17, 3) (raw world
-   coordinates, label-filtered) and ``imputer_train.npz`` with key ``x``
-   (the fold-1 train pool, used fold-independently for the mean/donor pool).
-2. The CARE-PD release layout under ``$CARE_PD_ROOT`` (same cache.npz files
-   as ``run_care_pd_multiclf.py``; the fold-1 pool is used whenever the eval
-   cache carries no train split).
-
-Checkpoints: ``--ckpt`` accepts either the release slim state dicts
-(``motionbench/classifiers/checkpoints/real/carepd_bmclab_fold{f}_{clf}.pt``)
-or the validation study's ``{state_dict, backbone, fold}`` dicts documented
-in ``checkpoints/README.md`` (``carepd_clf/{clf}_fold{f}.pt``); both load
-strictly after key remapping.  VAEAC/Flow imputer checkpoints default to
-``checkpoints/imputers/carepd_{vaeac,flow}.pt`` (study format).
+Sampled-coalition KernelSHAP (B=2048) on the BMCLab CARE-PD gait sequences,
+per fold, for motionbert and motionagformer (POTR is excluded: it fails the
+pooled accuracy gate at 0.374).  Player sets beyond the temporal windows of
+``run_care_pd_multiclf.py``: ``--playerset joint`` (``SpatialJoints``, M=17)
+or ``--playerset cell`` (``JointWindowCells``, M=68 = 17 joints × K=4
+windows).  Value function as in the temporal sweep: fills in RAW cache
+coordinates → vectorised crop_scale + confidence → CARE-PD ``MotionEncoder``
+head, with MotionAGFormer clips zero-padded 80 → 81 frames before the
+transform.  Eval caches resolve via ``--cache_dir``/``$CAREPD_CACHE_DIR``,
+then the CARE-PD release layout; checkpoints accept the release slim state
+dicts or the study format (see ``checkpoints/README.md``).  Shared
+coalition/fill/phi/metric protocol: ``scripts/_player_shap_common.py`` and
+RESOLUTIONS.md §12.
 
 Usage::
 
@@ -49,9 +20,7 @@ Usage::
         --playerset joint --classifier motionbert --fold 1 \\
         --methods kernelshap_zero kernelshap_mean kernelshap_marginal
 
-Results are written to::
-
-    results/carepd_players/{playerset}/{classifier}/fold{fold}/{method}/result.json
+Results: ``results/carepd_players/{playerset}/{classifier}/fold{fold}/{method}/result.json``
 """
 
 from __future__ import annotations
@@ -203,6 +172,7 @@ class CarePDValueFn:
     """
 
     def __init__(self, clf_name: str, clf, device: torch.device) -> None:
+        """Initialise with a loaded backbone and its name (drives padding semantics)."""
         self.clf_name = clf_name
         self.clf = clf
         self.device = device
@@ -287,6 +257,7 @@ def load_carepd_data(fold: int, n_seq: int, cache_dir: str | None):
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--playerset", type=str, required=True, choices=["joint", "cell"])
     ap.add_argument(
@@ -320,6 +291,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the requested player-set sweep for one classifier × fold."""
     args = parse_args()
     clf_name, fold = args.classifier, args.fold
     device = torch.device(args.device)

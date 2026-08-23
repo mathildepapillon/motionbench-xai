@@ -89,6 +89,7 @@ class _PTBXLSplitDataset(PTBXLDataset):
         train_stats: tuple[np.ndarray, np.ndarray] | None = None,
         max_sequences: int | None = None,
     ) -> None:
+        """Initialise a PTB-XL dataset restricted to ``fold_ids`` (bypasses the parent split logic)."""
         # We bypass the parent split logic by monkey-patching _FOLD_SPLITS.
         # Import at function scope to avoid circular issues.
         import motionbench.data.real.ptbxl as _ptbxl_mod
@@ -176,6 +177,7 @@ def _evaluate(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(
         description="Train ECGResNet1dClassifier on PTB-XL NORM vs MI.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -215,6 +217,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Train the PTB-XL 1-D ResNet for one fold and save the checkpoint."""
     args = parse_args()
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     fold_cfg = _FOLD_CONFIG[args.fold]

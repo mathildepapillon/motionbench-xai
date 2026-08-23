@@ -1,4 +1,4 @@
-"""scripts/train_esc50_ast.py — fold-disciplined AST fine-tuning on ESC-50.
+"""scripts/train_esc50_ast.py — Fold-disciplined AST fine-tuning on ESC-50.
 
 Trains the per-fold ESC-50 classifiers behind the paper's ESC-50 tables:
 one Audio Spectrogram Transformer per data fold, fine-tuned from
@@ -69,6 +69,7 @@ def accuracy(model, x_tm: torch.Tensor, y: torch.Tensor, device, batch: int = 48
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--fold", type=int, required=True, choices=[1, 2, 3])
     ap.add_argument(
@@ -95,6 +96,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Fine-tune the AST classifier for one fold and save the checkpoint."""
     args = parse_args()
 
     fold = args.fold
@@ -131,6 +133,7 @@ def main() -> None:
     warmup = max(1, int(0.05 * total_steps))
 
     def lr_lambda(step: int) -> float:
+        """Linear warmup then cosine decay LR multiplier."""
         if step < warmup:
             return (step + 1) / warmup
         p = (step - warmup) / max(1, total_steps - warmup)

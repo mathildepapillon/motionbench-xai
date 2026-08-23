@@ -257,6 +257,12 @@ class LabelFunction(ABC):
         n_classes: int = 3,
         percentiles: tuple[float, ...] = (33.0, 67.0),
     ) -> None:
+        """Initialise the quantile-binarisation configuration.
+
+        Args:
+            n_classes: Number of output classes (>= 2).
+            percentiles: ``n_classes - 1`` strictly increasing percentile cutoffs.
+        """
         if n_classes < 2:
             raise ValueError(f"n_classes must be >= 2; got {n_classes}.")
         if len(percentiles) != n_classes - 1:
@@ -349,6 +355,13 @@ class Linear(LabelFunction):
         n_classes: int = 3,
         percentiles: tuple[float, ...] = (33.0, 67.0),
     ) -> None:
+        """Initialise with a flattened weight vector.
+
+        Args:
+            weights: ``(J*F*T,)`` 1-D weight vector.
+            n_classes: Number of output classes.
+            percentiles: Quantile cutoffs for binarisation.
+        """
         super().__init__(n_classes=n_classes, percentiles=percentiles)
         w = np.asarray(weights, dtype=np.float64)
         if w.ndim != 1:
@@ -427,6 +440,14 @@ class OlsenInteraction(LabelFunction):
         percentiles: tuple[float, ...] = (33.0, 67.0),
         seed: int = 0,
     ) -> None:
+        """Initialise the K-window Olsen label; calibration is deferred to the first call.
+
+        Args:
+            K: Number of temporal windows (positive multiple of 4).
+            n_classes: Number of output classes.
+            percentiles: Quantile cutoffs for binarisation.
+            seed: Seed for sampling the interaction coefficients.
+        """
         super().__init__(n_classes=n_classes, percentiles=percentiles)
         if K <= 0 or K % 4 != 0:
             raise ValueError(f"K must be a positive multiple of 4; got {K}.")
@@ -525,6 +546,14 @@ class SpatialOlsen(LabelFunction):
         percentiles: tuple[float, ...] = (33.0, 67.0),
         seed: int = 0,
     ) -> None:
+        """Initialise the spatial Olsen label; calibration is deferred to the first call.
+
+        Args:
+            signal_joints: Exactly 4 distinct joint indices driving the label.
+            n_classes: Number of output classes.
+            percentiles: Quantile cutoffs for binarisation.
+            seed: Seed for sampling the interaction coefficients.
+        """
         super().__init__(n_classes=n_classes, percentiles=percentiles)
         if len(signal_joints) != 4:
             raise ValueError(
@@ -648,6 +677,15 @@ class ThresholdedXOR(LabelFunction):
         jitter_std: float = 1e-3,
         seed: int = 0,
     ) -> None:
+        """Initialise the XOR label; threshold calibration is deferred to the first call.
+
+        Args:
+            K: Number of temporal windows (positive even integer).
+            n_classes: Number of output classes.
+            percentiles: Quantile cutoffs for binarisation.
+            jitter_std: Std of the tie-breaking jitter.  Defaults to ``1e-3``.
+            seed: Seed for the tie-breaking jitter.
+        """
         super().__init__(n_classes=n_classes, percentiles=percentiles)
         if K <= 0 or K % 2 != 0:
             raise ValueError(f"K must be a positive even integer; got {K}.")
@@ -738,6 +776,16 @@ class LocalizedTemporal(LabelFunction):
         n_classes: int = 3,
         percentiles: tuple[float, ...] = (33.0, 67.0),
     ) -> None:
+        """Initialise with the driving window index.
+
+        Args:
+            window_idx: Temporal window driving the label (in ``[0, K)``).
+            K: Total number of equal-width windows.
+            fn: Optional reduction ``(N, J, F, window_size) → (N,)``; defaults
+                to the grand mean.
+            n_classes: Number of output classes.
+            percentiles: Quantile cutoffs for binarisation.
+        """
         super().__init__(n_classes=n_classes, percentiles=percentiles)
         if window_idx < 0 or window_idx >= K:
             raise ValueError(f"window_idx={window_idx} out of range [0, K={K}).")
@@ -794,6 +842,14 @@ class LocalizedSpatial(LabelFunction):
         n_classes: int = 3,
         percentiles: tuple[float, ...] = (33.0, 67.0),
     ) -> None:
+        """Initialise with the driving joint index.
+
+        Args:
+            joint_idx: Joint driving the label.
+            fn: Optional reduction ``(N, F, T) → (N,)``; defaults to the grand mean.
+            n_classes: Number of output classes.
+            percentiles: Quantile cutoffs for binarisation.
+        """
         super().__init__(n_classes=n_classes, percentiles=percentiles)
         if joint_idx < 0:
             raise ValueError(f"joint_idx must be >= 0; got {joint_idx}.")
@@ -860,6 +916,17 @@ class LocalizedSpatiotemporal(LabelFunction):
         n_classes: int = 3,
         percentiles: tuple[float, ...] = (33.0, 67.0),
     ) -> None:
+        """Initialise with the driving (joint, window) cell.
+
+        Args:
+            joint_idx: Joint driving the label.
+            window_idx: Temporal window driving the label (in ``[0, K)``).
+            K: Total number of equal-width windows.
+            fn: Optional reduction ``(N, F, window_size) → (N,)``; defaults to
+                the grand mean.
+            n_classes: Number of output classes.
+            percentiles: Quantile cutoffs for binarisation.
+        """
         super().__init__(n_classes=n_classes, percentiles=percentiles)
         if joint_idx < 0:
             raise ValueError(f"joint_idx must be >= 0; got {joint_idx}.")

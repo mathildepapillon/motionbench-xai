@@ -1,4 +1,4 @@
-"""scripts/_run_one_cell.py — single-cell entry point for multi-GPU dispatch.
+"""scripts/_run_one_cell.py — Single-cell entry point for multi-GPU dispatch.
 
 Internal helper used by ``run_xor_sweep_multigpu.py`` and
 ``restore_contaminated_n50.py``.  Bypasses the Hydra
@@ -7,7 +7,7 @@ collide with config-group directories (``classifiers/``, ``methods/``,
 ``data/``).
 
 Constructs a minimal :class:`omegaconf.DictConfig` programmatically, then
-calls :func:`motionbench.pipelines.synthetic_eval._run_cell` directly.
+calls :func:`motionbench.pipelines.synthetic_eval.run_cell` directly.
 
 Usage::
 
@@ -32,10 +32,11 @@ sys.path.insert(0, str(REPO))
 
 from omegaconf import OmegaConf  # noqa: E402
 
-from motionbench.pipelines.synthetic_eval import _run_cell  # noqa: E402
+from motionbench.pipelines.synthetic_eval import run_cell  # noqa: E402
 
 
 def _parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -63,6 +64,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run one dataset × classifier × method cell and write its result.json."""
     args = _parse_args()
 
     if args.metrics_mode == "full":
@@ -98,7 +100,7 @@ def main() -> None:
     }
     cfg = OmegaConf.create(cfg_d)
 
-    result = _run_cell(args.dataset, args.classifier, args.method, cfg)
+    result = run_cell(args.dataset, args.classifier, args.method, cfg)
     out_path = args.results_dir / args.dataset / args.classifier / args.method / "result.json"
     if out_path.exists():
         print(f"OK {args.dataset}/{args.classifier}/{args.method} -> {out_path}")

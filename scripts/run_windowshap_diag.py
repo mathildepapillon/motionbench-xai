@@ -57,8 +57,8 @@ ORACLE_N_COALITIONS = 64
 from motionbench.attribution.windowshap import WindowSHAPAttributor  # noqa: E402
 from motionbench.metrics.ground_truth import EC1Metric  # noqa: E402
 from motionbench.pipelines.synthetic_eval import (  # noqa: E402
-    _build_classifier,
-    _instantiate_dataset,
+    build_classifier,
+    instantiate_dataset,
 )
 from motionbench.players.temporal_windows import TemporalWindows  # noqa: E402
 
@@ -102,7 +102,7 @@ def run_cell(
 
     # ---- Dataset -------------------------------------------------------
     ds_cfg = _load_cfg("data", dataset_name)
-    dataset, K = _instantiate_dataset(ds_cfg)
+    dataset, K = instantiate_dataset(ds_cfg)
     J, F, T = dataset.shape
     n_classes = int(dataset.metadata.get("n_classes", 3))
     n_seq = min(N_SEQ, len(dataset))
@@ -111,7 +111,7 @@ def run_cell(
     # ---- Classifier ----------------------------------------------------
     clf_cfg = _load_cfg("classifiers", CLF_NAME)
     clf_device = torch.device(device)
-    classifier = _build_classifier(clf_cfg, J, F, T, K, n_classes)
+    classifier = build_classifier(clf_cfg, J, F, T, K, n_classes)
     classifier = classifier.to(clf_device)
     classifier.eval()
 
@@ -256,6 +256,7 @@ def run_cell(
 
 
 def main() -> None:
+    """Run the WindowSHAP window-length diagnostic across datasets."""
     t_total = time.time()
     device = DEVICE
 

@@ -1,11 +1,12 @@
 """scripts/run_esc50_freq_shap.py — Frequency-band KernelSHAP on ESC-50.
 
-Runs KernelSHAP treating **J=12 frequency bands as independent spatial
-players**, complementing the temporal K=4 player set in ``run_esc50_shap.py``.
-The 128 mel bins are partitioned into 12 contiguous frequency bands
-(roughly 10-11 bins each), giving 2^12=4096 coalitions enumerated exactly.
-This directly mirrors the PTB-XL lead-level (J=12) experimental setup and
-makes the two datasets directly comparable on their spatial player sets.
+KernelSHAP treating J=12 frequency bands as spatial players (the 128 mel
+bins partitioned into 12 contiguous bands; 2^12 = 4096 coalitions
+enumerated exactly), complementing the temporal K=4 player set in
+``run_esc50_shap.py`` and mirroring the PTB-XL lead-level (J=12) setup.
+All five imputers are supported: Zero, Mean, Marginal, VAEAC, Flow — the
+Flow imputer is unconditional (a single prior draw per sequence, reused
+across all coalitions, as in the PTB-XL lead-level flow run).
 
 Band boundaries (0-indexed mel bins, inclusive)::
 
@@ -22,35 +23,19 @@ Band boundaries (0-indexed mel bins, inclusive)::
     Band 10:  bins 110-120  (110–120)   air
     Band 11:  bins 121-127  (121–127)   ultra-high
 
-All five imputation strategies are supported: Zero, Mean, Marginal, VAEAC,
-Flow.  The Flow imputer is unconditional (a single prior draw per sequence
-is reused across all coalitions, as in the PTB-XL lead-level flow run).
-
-Results are written to::
-
-    results/esc50_freq/{fold}/{method}/result.json
+Imputer checkpoints: the learned-imputer rows (``kernelshap_vaeac`` /
+``kernelshap_flow``) load release-format checkpoints produced by
+``scripts/train_vaeac.py`` / ``scripts/train_flow.py`` (override with
+``--vaeac_ckpt`` / ``--flow_ckpt``).  The reference archive's
+``checkpoints/imputers/esc50_*.pt`` are in the validation-study format
+consumed by the cells entry point (``run_esc50_cells_shap.py``, Frame*
+loaders) — see checkpoints/README.md.
 
 Usage::
 
-    conda activate motionbench-xai
-
-    # Run all methods for one fold
     CUDA_VISIBLE_DEVICES=0 python scripts/run_esc50_freq_shap.py --fold 1 --device cuda:0
 
-    # Run all three folds in parallel
-    for fold in 1 2 3; do
-        CUDA_VISIBLE_DEVICES=$((fold-1)) python scripts/run_esc50_freq_shap.py \\
-            --fold $fold --device cuda:0 &
-    done
-    wait
-
-Imputer checkpoints: the learned-imputer rows (``kernelshap_vaeac`` /
-``kernelshap_flow``) load release-format checkpoints produced by
-``scripts/train_vaeac.py`` / ``scripts/train_flow.py`` (default paths
-below, override with ``--vaeac_ckpt`` / ``--flow_ckpt``).  The reference
-archive's ``checkpoints/imputers/esc50_*.pt`` are in the validation-study
-format consumed by the cells entry point
-(``run_esc50_cells_shap.py``, Frame* loaders) — see checkpoints/README.md.
+Results: ``results/esc50_freq/{fold}/{method}/result.json``
 """
 
 from __future__ import annotations
@@ -184,6 +169,7 @@ def build_completions_freq(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--fold", type=int, default=1, choices=FOLDS)
     ap.add_argument(
@@ -205,6 +191,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the frequency-band sweep for one fold."""
     args = parse_args()
     fold = args.fold
     N_SEQ = args.n_seq
@@ -257,6 +244,7 @@ def main() -> None:
     flow_imputer = None
 
     def get_vaeac():
+        """Lazily load the release-format VAEAC imputer (cached)."""
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
             from motionbench.imputers.vaeac import VAEACImputer
@@ -265,6 +253,7 @@ def main() -> None:
         return vaeac_imputer
 
     def get_flow():
+        """Lazily load the release-format Flow imputer (cached)."""
         nonlocal flow_imputer
         if flow_imputer is None:
             from motionbench.imputers.flow_matching import FlowMatchingImputer

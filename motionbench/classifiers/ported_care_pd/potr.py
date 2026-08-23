@@ -95,6 +95,7 @@ class _GraphConvolution(nn.Module):
     """Adjacency-weighted graph convolution: σ(A × H × W)."""
 
     def __init__(self, in_features: int, out_features: int, output_nodes: int = 17) -> None:
+        """Initialise the graph-convolution weight and adjacency parameters."""
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -104,6 +105,7 @@ class _GraphConvolution(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
+        """Uniformly randomise the weight and adjacency parameters."""
         stdv = 1. / math.sqrt(self.weight.size(1))
         self.weight.data.uniform_(-stdv, stdv)
         self.att.data.uniform_(-stdv, stdv)
@@ -122,6 +124,7 @@ class _GC_Block(nn.Module):
     """Residual GCN block."""
 
     def __init__(self, in_features: int, p_dropout: float, output_nodes: int = 17) -> None:
+        """Initialise the residual GCN block."""
         super().__init__()
         self.gc1 = _GraphConvolution(in_features, in_features, output_nodes)
         self.bn1 = nn.BatchNorm1d(output_nodes * in_features)
@@ -131,6 +134,7 @@ class _GC_Block(nn.Module):
         self.act = nn.Tanh()
 
     def forward(self, x: Tensor) -> Tensor:
+        """Apply the two graph convolutions with a residual connection."""
         y = self.gc1(x)
         b, n, f = y.shape
         y = self.bn1(y.reshape(b, -1)).reshape(b, n, f)
@@ -160,6 +164,7 @@ class _SimpleEncoder(nn.Module):
         model_dim: int = 128,
         p_dropout: float = 0.3,
     ) -> None:
+        """Initialise the GCN pose encoder."""
         super().__init__()
         self._input_features = input_features
         self._output_nodes = n_nodes
@@ -216,6 +221,7 @@ class _PositionEncodings1D:
         temperature: float = 10000.0,
         alpha: float = 1.0,
     ) -> None:
+        """Initialise the encoding with feature count, temperature, and frequency scale."""
         self._num_pos_feats = num_pos_feats
         self._temperature = temperature
         self._alpha = alpha
@@ -247,6 +253,7 @@ class _EncoderLayer(nn.Module):
         dim_ffn: int = 2048,
         dropout: float = 0.3,
     ) -> None:
+        """Initialise the self-attention and feed-forward sub-layers."""
         super().__init__()
         self._self_attn = nn.MultiheadAttention(model_dim, num_heads, dropout)
         self._relu = nn.ReLU()
@@ -294,6 +301,7 @@ class _TransformerEncoder(nn.Module):
         dim_ffn: int = 2048,
         dropout: float = 0.3,
     ) -> None:
+        """Initialise a stack of ``num_layers`` encoder layers."""
         super().__init__()
         self._encoder_stack = nn.ModuleList([
             _EncoderLayer(model_dim, num_heads, dim_ffn, dropout)
@@ -301,6 +309,7 @@ class _TransformerEncoder(nn.Module):
         ])
 
     def forward(self, input_sequence: Tensor, pos_encodings: Tensor) -> tuple[Tensor, Tensor]:
+        """Run the encoder stack; returns ``(T, B, model_dim)`` and the last attention weights."""
         outputs = input_sequence
         attn_weights = None
         for layer in self._encoder_stack:
@@ -333,6 +342,7 @@ class _POTRBackbone(nn.Module):
         pos_enc_beta: float = 500.0,
         pos_enc_alpha: float = 10.0,
     ) -> None:
+        """Initialise the GCN embedding, transformer encoder, and fixed positional encodings."""
         super().__init__()
         self._source_seq_length = source_seq_length
         self._model_dim = model_dim
@@ -418,6 +428,7 @@ class POTRClassifier(Classifier):
         stats_mean: Union["np.ndarray", None] = None,  # noqa: F821
         stats_std: Union["np.ndarray", None] = None,   # noqa: F821
     ) -> None:
+        """Initialise the backbone and head, optionally loading a checkpoint and z-score stats."""
         super().__init__(checkpoint_path=checkpoint_path, n_classes=n_classes)
 
         self.backbone = _POTRBackbone(

@@ -1,9 +1,10 @@
-"""carepd_imputer.py — Bridge adapters that wrap CARE-PD's trained
-VAEACImputer and FlowImputer behind the motionbench-xai BaseImputer API.
+"""motionbench.imputers.carepd_imputer — Bridge adapters for CARE-PD's trained imputers.
 
-These adapters load pre-trained checkpoints from the CARE-PD project and
-expose them as drop-in ``BaseImputer`` implementations that can be wired
-into any motionbench-xai KernelSHAP method config.
+Wraps CARE-PD's trained VAEACImputer and FlowImputer behind the
+motionbench-xai ``BaseImputer`` API: the adapters load pre-trained
+checkpoints from the CARE-PD project and expose them as drop-in
+implementations that can be wired into any motionbench-xai KernelSHAP
+method config.
 
 Mask translation
 ----------------
@@ -374,6 +375,7 @@ class CarepdVAEACImputer(BaseImputer):
         device: str = "cpu",
         **_kwargs: object,  # absorb extra pipeline kwargs (J, F, T, etc.)
     ) -> None:
+        """Initialise the VAEAC wrapper; the checkpoint is resolved in :meth:`fit`."""
         self._n_completion_samples = int(n_completion_samples)
         self._device_str = device
         self._imputer = None  # set in fit()
@@ -504,6 +506,7 @@ class CarepdFlowImputer(BaseImputer):
         device: str = "cpu",
         **_kwargs: object,  # absorb extra pipeline kwargs (J, F, T, etc.)
     ) -> None:
+        """Initialise the flow wrapper; the checkpoint is resolved in :meth:`fit`."""
         self._num_steps = int(num_steps)
         self._device_str = device
         self._imputer = None

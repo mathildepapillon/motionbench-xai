@@ -43,6 +43,7 @@ class JointWindowCells(PlayerSet):
     """
 
     def __init__(self, J: int, K: int, F: int, T: int) -> None:
+        """Initialise the ``J * K`` cell grid with equal-width windows."""
         if T % K != 0:
             raise ValueError(f"T={T} must be divisible by K={K} for equal-width windows.")
         self._J = J

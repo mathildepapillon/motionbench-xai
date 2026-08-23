@@ -161,6 +161,7 @@ class Classifier(nn.Module, ABC):
         checkpoint_path: str | Path | None = None,
         n_classes: int = 4,
     ) -> None:
+        """Initialise the classifier with an optional checkpoint path and output size."""
         super().__init__()
         self.n_classes = n_classes
         self._checkpoint_path = Path(checkpoint_path) if checkpoint_path is not None else None

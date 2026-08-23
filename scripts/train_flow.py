@@ -1,4 +1,4 @@
-"""scripts/train_flow — Training entry point for FlowMatchingImputer.
+"""scripts/train_flow.py — Training entry point for FlowMatchingImputer.
 
 Trains a :class:`~motionbench.imputers.flow_matching.FlowMatchingImputer`
 on a pre-saved ``.pt`` tensor dataset and saves the checkpoint.
@@ -79,6 +79,7 @@ class _TensorDataset:
         skeleton: str = "generic",
         frame_rate: float = 30.0,
     ) -> None:
+        """Initialise from a pre-loaded ``(N, J, F, T)`` tensor (see class Args)."""
         assert x.dim() == 4, f"Expected (N, J, F, T), got {tuple(x.shape)}"
         self._x = x.float()
         self._y = labels.long() if labels is not None else torch.zeros(len(x), dtype=torch.long)
@@ -95,15 +96,18 @@ class _TensorDataset:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """Per-sample data shape ``(J, F, T)``."""
         _, J, F, T = self._x.shape
         return J, F, T
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Dataset metadata (skeleton, frame rate)."""
         return self._meta
 
     @property
     def oracle(self) -> None:
+        """No ground-truth oracle for tensor datasets."""
         return None
 
 
@@ -185,6 +189,7 @@ def _seed_all(seed: int) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser."""
     p = argparse.ArgumentParser(
         description="Train FlowMatchingImputer and save checkpoint.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

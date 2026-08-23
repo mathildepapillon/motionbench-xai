@@ -34,6 +34,7 @@ class _SinusoidalPositionalEncoding(nn.Module):
     """
 
     def __init__(self, d_model: int, max_len: int = 512, dropout: float = 0.1) -> None:
+        """Initialise and pre-compute the sinusoidal encoding table."""
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
@@ -89,6 +90,7 @@ class SyntheticTransformerClassifier(Classifier):
         nhead: int = 4,
         num_layers: int = 4,
     ) -> None:
+        """Initialise the input projection, encoder stack, and linear head."""
         super().__init__()
         self.J = J
         self.F = F

@@ -94,6 +94,7 @@ for name, (imputer, game) in methods.items():
             target = int(clf(x[None]).argmax(-1).item())
 
         def prob_fn(batch: torch.Tensor, _t: int = target) -> torch.Tensor:
+            """Softmax probability of the frozen target class: ``(B, J, F, T) → (B,)``."""
             with torch.no_grad():
                 return torch.softmax(clf(batch), dim=-1)[:, _t]
 

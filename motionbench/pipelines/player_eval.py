@@ -173,6 +173,7 @@ def _batched_prob_fn(
     """
 
     def fn(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.float64]:
+        """Batched softmax-probability evaluation of ``(n, J, F, T)`` numpy input."""
         vals = []
         with torch.no_grad():
             for s in range(0, len(arr), batch):

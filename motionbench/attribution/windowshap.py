@@ -60,6 +60,7 @@ except ImportError:  # pragma: no cover - exercised only without the extra
         """
 
         def __init__(self, *args: object, **kwargs: object) -> None:
+            """Raise ImportError with install instructions for ``windowshap``."""
             raise ImportError(
                 "The optional 'windowshap' package is required for WindowSHAP "
                 "attributors but is not installed.  Install it with:\n"
@@ -100,6 +101,16 @@ class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
         num_output: int = 1,
         nsamples: int | str = "auto",
     ) -> npt.NDArray[np.float32]:
+        """Compute sliding-window SHAP values with SHAP ≥0.46 output normalisation.
+
+        Args:
+            num_output: Number of model outputs (only ``1`` is supported).
+            nsamples: KernelSHAP coalition budget per window, or ``"auto"``.
+
+        Returns:
+            ``(N, T, F_flat)`` float32 per-timestep SHAP values, or a
+            ``(dem_phi, ts_phi)`` tuple when demographic features are present.
+        """
         import shap as _shap  # noqa: PLC0415
 
         seq_len: int = self.background_ts.shape[1]
@@ -174,6 +185,7 @@ class _ClassifierAdapter:
         T: int,
         target: int,
     ) -> None:
+        """Initialise the adapter with the classifier, input dims, and target class."""
         self._classifier = classifier
         self._J = J
         self._F = F_coords
@@ -253,6 +265,7 @@ class WindowSHAPAttributor(BaseAttributor):
         stride: int | None = None,
         seed: int | None = None,
     ) -> None:
+        """Initialise sliding-window SHAP with a window length and stride."""
         super().__init__(classifier)
         self._window_len = window_len
         self._stride = stride  # resolved to window_len at attribute time if None
@@ -359,6 +372,7 @@ class _UniformWindowAttributor(BaseAttributor):
         nsamples: int = 256,
         seed: int | None = None,
     ) -> None:
+        """Initialise the uniform-window attributor with a window length and budget."""
         super().__init__(classifier)
         self._window_len = int(window_len)
         self._nsamples = int(nsamples)

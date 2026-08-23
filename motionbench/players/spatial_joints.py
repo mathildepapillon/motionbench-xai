@@ -34,6 +34,7 @@ class SpatialJoints(PlayerSet):
     """
 
     def __init__(self, J: int, F: int, T: int) -> None:
+        """Initialise with the ``(J, F, T)`` element-space shape."""
         self._J = J
         self._F = F
         self._T = T

@@ -84,6 +84,7 @@ class AttentionRolloutAttributor(BaseAttributor):
     requires_gradient: ClassVar[bool] = False
 
     def __init__(self, classifier: Callable[[Tensor], Tensor], **kwargs: object) -> None:
+        """Initialise the attributor with an attention-exposing classifier."""
         super().__init__(classifier, **kwargs)
 
     # ------------------------------------------------------------------

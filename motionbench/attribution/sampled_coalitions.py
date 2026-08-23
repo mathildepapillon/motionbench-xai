@@ -124,6 +124,7 @@ def sampled_coalition_set(
     rng = np.random.default_rng([seed, M, budget])
 
     def log_kernel(s: int) -> float:
+        """Log of the per-row KernelSHAP weight for coalition size ``s``."""
         # log of the per-row kernel weight (M-1) / (C(M,s) * s * (M-s)).
         return (
             math.log(M - 1)
@@ -133,10 +134,12 @@ def sampled_coalition_set(
         )
 
     def log_mass(s: int) -> float:
+        """Log of the total kernel mass at coalition size ``s``."""
         # log of the per-size total mass C(M,s) * kernel(s) = (M-1)/(s*(M-s)).
         return math.log(M - 1) - math.log(s) - math.log(M - s)
 
     def n_of(s: int) -> int:
+        """Number of coalitions of size ``s``."""
         return math.comb(M, s)
 
     sizes = list(range(1, M))

@@ -74,6 +74,7 @@ class _ScalarWrapper(nn.Module):
     """
 
     def __init__(self, fn: Callable[[Tensor], Tensor], target: int) -> None:
+        """Initialise the wrapper with a classifier callable and target class."""
         super().__init__()
         self._fn = fn
         self._target = target
@@ -129,6 +130,14 @@ class GradCAMAttributor(BaseAttributor):
         layer: nn.Module,
         interpolate_mode: Literal["bilinear", "nearest"] = "nearest",
     ) -> None:
+        """Initialise Grad-CAM with a target convolutional layer.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) → (B,)`` or ``(B, n_classes)``.
+            layer: Convolutional layer at which to compute Grad-CAM activations.
+            interpolate_mode: Upsampling mode for 2-D activation maps —
+                ``"bilinear"`` | ``"nearest"``.  Defaults to ``"nearest"``.
+        """
         super().__init__(classifier)
         self._layer = layer
         self._interpolate_mode: Literal["bilinear", "nearest"] = interpolate_mode

@@ -1,50 +1,24 @@
 """scripts/run_xor_sweep_multigpu.py — End-to-end multi-GPU XOR sweep runner.
 
-This script drives the full evaluation pipeline for the new
-``xor_label_gaussian`` synthetic dataset, distributing work across all
-available CUDA devices with a configurable number of jobs per GPU.
+Drives the full evaluation pipeline for the ``xor_label_gaussian``
+synthetic dataset across the available CUDA devices:
 
-Pipeline stages
----------------
-1.  **Train classifiers.**  Three architectures (MLP, CNN, Transformer) are
-    trained in parallel — one per GPU — by delegating to
-    :mod:`scripts.train_synthetic_clf`.
+1. **Train classifiers** — MLP, CNN, Transformer in parallel (one per GPU)
+   via :mod:`scripts.train_synthetic_clf`.
+2. **Verify imputers** — ``xor_label_gaussian`` reuses
+   :class:`GaussianMotionDataset` with identical (J=5, F=3, T=16, rho=0.5,
+   alpha=0.8) covariance as ``gaussian_k4``, so the VAEAC/Flow checkpoints
+   registered for that class already match; no imputer retraining.
+3. **Run the method × classifier sweep** — each cell is an independent
+   subprocess pinned to one GPU (``CUDA_VISIBLE_DEVICES`` is set before
+   torch import, so pinning is exact and failures stay isolated), invoking
+   the ``motionbench run`` Hydra entry point with single-cell overrides.
 
-2.  **Verify imputers.**  ``xor_label_gaussian`` re-uses the same
-    :class:`GaussianMotionDataset` class with identical (J=5, F=3, T=16,
-    rho=0.5, alpha=0.8) covariance as the existing ``gaussian_k4`` baseline,
-    so the pre-trained VAEAC and Flow checkpoints registered for
-    ``GaussianMotionDataset`` already match this distribution.  No imputer
-    retraining is required.
+Usage::
 
-3.  **Run SHAP / IG / gradient sweep.**  All ``len(METHODS) × len(CLASSIFIERS)``
-    cells are dispatched as independent subprocesses, scheduled across
-    ``len(gpus) × jobs_per_gpu`` worker slots.  Each worker pins itself to a
-    single GPU via ``CUDA_VISIBLE_DEVICES`` and invokes the existing
-    ``motionbench run`` Hydra entry point with single-cell overrides.
-
-Why subprocess-per-cell?
-------------------------
-* It re-uses the existing, well-tested pipeline code path verbatim.
-* Each subprocess sets ``CUDA_VISIBLE_DEVICES`` *before* importing torch, so
-  GPU pinning is exact.  Joblib worker initialisers cannot guarantee this
-  ordering for already-loaded torch processes.
-* Failures are isolated — one bad cell does not corrupt other workers.
-
-Usage
------
-::
-
-    # Use all 8 GPUs, 2 jobs per GPU (16 concurrent cells)
-    python scripts/run_xor_sweep_multigpu.py
-
-    # Override GPU set / parallelism
+    python scripts/run_xor_sweep_multigpu.py                  # all GPUs, 2 jobs/GPU
     python scripts/run_xor_sweep_multigpu.py --gpus 0 1 2 3 --jobs-per-gpu 4
-
-    # Skip the classifier-training step (already done)
-    python scripts/run_xor_sweep_multigpu.py --skip-train
-
-    # Run only a subset of methods (debugging)
+    python scripts/run_xor_sweep_multigpu.py --skip-train     # classifiers already trained
     python scripts/run_xor_sweep_multigpu.py --methods kernelshap_zero kernelshap_vaeac
 """
 
@@ -110,6 +84,7 @@ class Cell:
 
     @property
     def label(self) -> str:
+        """Human-readable ``dataset/classifier/method`` cell id."""
         return f"{self.dataset}/{self.classifier}/{self.method}"
 
 
@@ -351,6 +326,7 @@ def _print_summary(cells: list[Cell], total_s: float) -> None:
 
 
 def _parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     detected = _detect_gpus()
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -413,6 +389,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Schedule and run the full sweep, then print a summary."""
     args = _parse_args()
     if not args.gpus:
         raise SystemExit(

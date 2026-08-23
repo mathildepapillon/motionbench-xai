@@ -1,4 +1,4 @@
-"""scripts/compute_carepd_aopc_significance.py — paired bootstrap p-values for
+"""scripts/compute_carepd_aopc_significance.py — Paired bootstrap p-values for
 PlayerAOPC differences across the four KernelSHAP imputers shown in Figure 1
 of the paper.
 
@@ -160,6 +160,7 @@ def pairwise_grid(
 
 
 def main() -> None:
+    """Run the paired AOPC bootstrap and report p-values."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--results_dir", type=str, default=str(DEFAULT_RESULTS))
     ap.add_argument("--classifiers", type=str, nargs="+", default=DEFAULT_CLASSIFIERS)

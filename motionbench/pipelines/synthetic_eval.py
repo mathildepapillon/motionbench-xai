@@ -533,6 +533,7 @@ class _SampleCachedOracle:
     """
 
     def __init__(self, base_oracle: Any, cached_phi: Tensor) -> None:
+        """Initialise the wrapper with the base oracle and cached Shapley vector."""
         self._base = base_oracle
         self._phi = cached_phi
 
@@ -541,6 +542,7 @@ class _SampleCachedOracle:
         return self._phi
 
     def conditional_sample(self, *args: Any, **kwargs: Any) -> Any:
+        """Forward to the base oracle's ``conditional_sample``."""
         return self._base.conditional_sample(*args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
@@ -609,6 +611,7 @@ def _evaluate_metrics(
         """Return a softmax-probability callable for a specific target class."""
 
         def clf_fn(b: Tensor) -> Tensor:
+            """Softmax probability of class ``tgt`` for a ``(B, J, F, T)`` batch."""
             with torch.no_grad():
                 logits = classifier(b.to(clf_device))
             proba = torch.softmax(logits, dim=-1)

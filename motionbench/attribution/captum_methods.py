@@ -82,6 +82,12 @@ class _ModuleWrapper(nn.Module):
     """
 
     def __init__(self, fn: Callable[[Tensor], Tensor], target: int) -> None:
+        """Initialise the wrapper with a classifier callable and target class.
+
+        Args:
+            fn: Classifier callable ``(B, J, F, T) → (B,)`` or ``(B, n_classes)``.
+            target: Class index to extract when ``fn`` returns ``(B, n_classes)``.
+        """
         super().__init__()
         self._fn = fn
         self._target = target
@@ -150,6 +156,15 @@ class IntegratedGradientsAttributor(BaseAttributor):
         baseline: BaselineType = "zero",
         n_steps: int = 50,
     ) -> None:
+        """Initialise IntegratedGradientsAttributor.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) → (B,)`` or ``(B, n_classes)``.
+            baseline: Baseline strategy — ``"zero"`` | ``"mean"`` | ``"gaussian"``.
+                Defaults to ``"zero"``.
+            n_steps: Number of Riemann approximation steps along the
+                baseline-to-input path.  Defaults to ``50``.
+        """
         super().__init__(classifier)
         self._baseline_type: BaselineType = baseline
         self._n_steps = n_steps
@@ -204,6 +219,13 @@ class DeepLiftAttributor(BaseAttributor):
         *,
         baseline: BaselineType = "zero",
     ) -> None:
+        """Initialise DeepLiftAttributor.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) → (B,)`` or ``(B, n_classes)``.
+            baseline: Baseline strategy — ``"zero"`` | ``"mean"`` | ``"gaussian"``.
+                Defaults to ``"zero"``.
+        """
         super().__init__(classifier)
         self._baseline_type: BaselineType = baseline
 
@@ -262,6 +284,16 @@ class GradientShapAttributor(BaseAttributor):
         n_samples: int = 50,
         stdevs: float = 0.0,
     ) -> None:
+        """Initialise GradientShapAttributor.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) → (B,)`` or ``(B, n_classes)``.
+            baseline: Baseline strategy — ``"zero"`` | ``"mean"`` | ``"gaussian"``.
+                Defaults to ``"zero"``.
+            n_samples: Number of Monte-Carlo noise samples.  Defaults to ``50``.
+            stdevs: Standard deviation of Gaussian noise added to the input.
+                Defaults to ``0.0``.
+        """
         super().__init__(classifier)
         self._baseline_type: BaselineType = baseline
         self._n_samples = n_samples
@@ -321,6 +353,12 @@ class SaliencyAttributor(BaseAttributor):
         *,
         baseline: BaselineType = "zero",
     ) -> None:
+        """Initialise SaliencyAttributor.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) → (B,)`` or ``(B, n_classes)``.
+            baseline: Accepted for API consistency but unused by this method.
+        """
         super().__init__(classifier)
         self._baseline_type: BaselineType = baseline
 
@@ -378,6 +416,16 @@ class SmoothGradAttributor(BaseAttributor):
         nt_samples: int = 50,
         stdevs: float = 0.1,
     ) -> None:
+        """Initialise SmoothGradAttributor.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) → (B,)`` or ``(B, n_classes)``.
+            baseline: Accepted for API consistency but unused by this method.
+            nt_samples: Number of noisy input copies to average over.
+                Defaults to ``50``.
+            stdevs: Standard deviation of the added Gaussian noise.  Defaults
+                to ``0.1``.
+        """
         super().__init__(classifier)
         self._baseline_type: BaselineType = baseline
         self._nt_samples = nt_samples
@@ -437,6 +485,12 @@ class InputXGradientAttributor(BaseAttributor):
         *,
         baseline: BaselineType = "zero",
     ) -> None:
+        """Initialise InputXGradientAttributor.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) → (B,)`` or ``(B, n_classes)``.
+            baseline: Accepted for API consistency but unused by this method.
+        """
         super().__init__(classifier)
         self._baseline_type: BaselineType = baseline
 

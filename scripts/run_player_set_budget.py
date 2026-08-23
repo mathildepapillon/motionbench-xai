@@ -1,4 +1,4 @@
-"""scripts/run_player_set_budget.py — coalition-budget equalization sweep (reviewer C5/W6).
+"""scripts/run_player_set_budget.py — Coalition-budget equalization sweep (reviewer C5/W6).
 
 Re-runs the player-set comparison at **fixed coalition budgets** {16, 64, 256} to
 disentangle whether the Ptemp advantage over Pjoint arises from structural
@@ -76,11 +76,12 @@ RESULTS_DIR = REPO / "results" / "player_set_budget"
 
 
 class CellTimeout(Exception):  # noqa: N818
-    pass
+    """Raised when a cell exceeds its wall-clock budget."""
 
 
 @contextmanager
 def cell_timeout(seconds: int) -> Iterator[None]:
+    """SIGALRM-based wall-clock budget for one cell (no-op if ``seconds <= 0``)."""
     if seconds <= 0:
         yield
         return
@@ -108,6 +109,13 @@ def cell_timeout(seconds: int) -> Iterator[None]:
 
 
 def build_imputer(method_base: str, dataset, device_str: str):
+    """Build and fit the imputer for the given base method name.
+
+    Args:
+        method_base: One of {marginal, vaeac}.
+        dataset: Fitted dataset object.
+        device_str: e.g. "cuda:0".
+    """
     if method_base == "marginal":
         from motionbench.imputers.off_manifold import MarginalDonorImputer
 
@@ -119,7 +127,7 @@ def build_imputer(method_base: str, dataset, device_str: str):
         from motionbench.imputers.carepd_imputer import (
             _CARE_PD_ROOT,
             _VAEAC_REGISTRY,
-            _load_vaeac,
+            load_vaeac,
         )
 
         cls_key = type(dataset).__name__
@@ -130,7 +138,7 @@ def build_imputer(method_base: str, dataset, device_str: str):
         cfg_path = _CARE_PD_ROOT / cfg_rel
         if not ckpt_dir.exists():
             raise FileNotFoundError(f"VAEAC checkpoint dir not found: {ckpt_dir}")
-        return _load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
+        return load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
 
     raise ValueError(
         f"Unknown method_base for this script: {method_base!r}. Use 'marginal' or 'vaeac'."
@@ -148,18 +156,23 @@ def build_imputer(method_base: str, dataset, device_str: str):
 
 
 def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
+    """Draw one completion of ``x_obs`` under ``mask``: returns ``(J, F, T)``.
+
+    Uses ``impute`` when the imputer provides it, otherwise the CARE-PD
+    ``sample_completions`` path with the mask reduced via ``mask_to_coalition``.
+    """
     if hasattr(imp, "impute"):
         comp = imp.impute(x_obs, mask, n_samples=1)
         if comp.ndim == 4:
             comp = comp[0]
     elif hasattr(imp, "sample_completions"):
-        from motionbench.imputers.carepd_imputer import _mask_to_coalition
+        from motionbench.imputers.carepd_imputer import mask_to_coalition
 
         J, F, T = x_obs.shape
         device = imp._device
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
-        coalition_mask, _ = _mask_to_coalition(mask)
+        coalition_mask, _ = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
         completions = imp.sample_completions(
             x=x_in,
@@ -185,6 +198,7 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
 
 
 def load_dataset(ds_name: str):
+    """Instantiate the dataset from ``configs/data/{ds_name}.yaml`` (``K`` stripped — pipeline-only)."""
     ds_yaml = REPO / "configs" / "data" / f"{ds_name}.yaml"
     ds_cfg = OmegaConf.load(ds_yaml)
     ds_cfg_d = OmegaConf.to_container(ds_cfg, resolve=True)
@@ -234,6 +248,7 @@ def run_one_cell(
     n_seq: int,
     cell_timeout_s: int,
 ) -> dict:
+    """Run one dataset × player-set × method × budget cell and write its result.json."""
     M = players.n_players
     J, F, T = dataset.shape
     n_classes = int(dataset.metadata.get("n_classes", 3))
@@ -247,9 +262,9 @@ def run_one_cell(
     # Load classifier
     clf_yaml = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
-    from motionbench.pipelines.synthetic_eval import _build_classifier
+    from motionbench.pipelines.synthetic_eval import build_classifier
 
-    clf = _build_classifier(clf_cfg, J, F, T, K_ds, n_classes).to(device)
+    clf = build_classifier(clf_cfg, J, F, T, K_ds, n_classes).to(device)
     clf.eval()
 
     ckpt_path = (
@@ -358,6 +373,7 @@ def run_one_cell(
             _target_i = target_i
 
             def clf_fn(arr, _target_i: int = _target_i) -> Tensor:  # noqa: ANN001
+                """Softmax probability of the frozen target class: batch → ``(B,)`` CPU tensor."""
                 if isinstance(arr, np.ndarray):
                     t_arr = torch.from_numpy(arr.astype(np.float32)).to(device)
                 elif isinstance(arr, Tensor):
@@ -447,6 +463,7 @@ CLASSIFIER_DEFAULT = "synthetic_mlp"
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--datasets", nargs="+", default=DATASETS_DEFAULT)
     p.add_argument(
@@ -477,6 +494,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the requested player-set × method × budget sweep."""
     args = parse_args()
     t_total = time.time()
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")

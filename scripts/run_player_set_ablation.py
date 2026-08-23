@@ -1,4 +1,4 @@
-"""scripts/run_player_set_ablation.py — cross-player-set ablation sweep.
+"""scripts/run_player_set_ablation.py — Cross-player-set ablation sweep.
 
 Runs two sweeps on GPU 7:
   1. skeleton_structured  × P_joint (M=17 spatial joints)
@@ -68,11 +68,12 @@ RESULTS_DIR = REPO / "results" / "synthetic"
 
 
 class CellTimeout(Exception):  # noqa: N818
-    pass
+    """Raised when a cell exceeds its wall-clock budget."""
 
 
 @contextmanager
 def cell_timeout(seconds: int) -> Iterator[None]:
+    """SIGALRM-based wall-clock budget for one cell (no-op if ``seconds <= 0``)."""
     if seconds <= 0:
         yield
         return
@@ -95,6 +96,7 @@ def cell_timeout(seconds: int) -> Iterator[None]:
 
 
 def efficiency_error(phi: np.ndarray, v_full: float, v_empty: float) -> float:
+    """``|sum(phi) - (v(full) - v(empty))|``."""
     return float(abs(phi.sum() - (v_full - v_empty)))
 
 
@@ -129,7 +131,7 @@ def build_imputer(method_base: str, dataset, device_str: str):
         from motionbench.imputers.carepd_imputer import (
             _CARE_PD_ROOT,
             _VAEAC_REGISTRY,
-            _load_vaeac,
+            load_vaeac,
         )
 
         cls_key = type(dataset).__name__
@@ -140,7 +142,7 @@ def build_imputer(method_base: str, dataset, device_str: str):
         cfg_path = _CARE_PD_ROOT / cfg_rel
         if not ckpt_dir.exists():
             raise FileNotFoundError(f"VAEAC checkpoint dir not found: {ckpt_dir}")
-        return _load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
+        return load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
 
     if method_base == "flow":
         import tempfile
@@ -148,7 +150,7 @@ def build_imputer(method_base: str, dataset, device_str: str):
         from motionbench.imputers.carepd_imputer import (
             _CARE_PD_ROOT,
             _FLOW_REGISTRY,
-            _load_flow,
+            load_flow,
         )
 
         cls_key = type(dataset).__name__
@@ -165,7 +167,7 @@ def build_imputer(method_base: str, dataset, device_str: str):
             json.dump(cfg, f)
             tmp_cfg = Path(f.name)
         try:
-            imp = _load_flow(ckpt_dir, tmp_cfg, torch.device(device_str))
+            imp = load_flow(ckpt_dir, tmp_cfg, torch.device(device_str))
         finally:
             tmp_cfg.unlink(missing_ok=True)
         return imp
@@ -197,13 +199,13 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
             comp = comp[0]
     elif hasattr(imp, "sample_completions"):
         # Raw CARE-PD imputer (VAEACImputer / FlowImputer)
-        from motionbench.imputers.carepd_imputer import _mask_to_coalition
+        from motionbench.imputers.carepd_imputer import mask_to_coalition
 
         J, F, T = x_obs.shape
         device = imp._device
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
-        coalition_mask, _ = _mask_to_coalition(mask)
+        coalition_mask, _ = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
         completions = imp.sample_completions(
             x=x_in,
@@ -244,25 +246,25 @@ def impute_all_batched(
 
     ``coalition_masks`` must be uniformly shaped: all ``(J,)`` spatial or all
     ``(T,)`` temporal.  Mixed-axis coalitions (P_cell spatiotemporal) are
-    reduced to temporal via the ``_mask_to_coalition`` heuristic.
+    reduced to temporal via the ``mask_to_coalition`` heuristic.
     """
     if not hasattr(imp, "sample_completions_batched"):
         return None
 
-    from motionbench.imputers.carepd_imputer import _mask_to_coalition
+    from motionbench.imputers.carepd_imputer import mask_to_coalition
 
     J, F, T = x_obs.shape
     N = len(coal_masks)
 
     # Build 1-D coalition representation for each mask.
-    # _mask_to_coalition returns (1,J) spatial or (1,T) temporal.  Boundary
+    # mask_to_coalition returns (1,J) spatial or (1,T) temporal.  Boundary
     # coalitions (all-True / all-False) are always classified as "temporal"
-    # by _mask_to_coalition even when the player set is spatial.  Normalise
+    # by mask_to_coalition even when the player set is spatial.  Normalise
     # all entries to the most common dimension by converting boundary
     # (all-True / all-False) entries to match the inner coalitions.
     coal_1d_list: list[Tensor] = []
     for mask in coal_masks:
-        c1d, _ = _mask_to_coalition(mask)
+        c1d, _ = mask_to_coalition(mask)
         coal_1d_list.append(c1d.squeeze(0))  # (J,) or (T,)
 
     dims = [c.shape[0] for c in coal_1d_list]
@@ -346,6 +348,7 @@ def run_one_cell(
     n_coalitions: int,
     cell_timeout_s: int,
 ) -> dict:
+    """Run one dataset × player-set × classifier × method cell and write its result.json."""
     M = players.n_players
     J, F, T = dataset.shape
     n_classes = int(dataset.metadata.get("n_classes", 3))
@@ -359,9 +362,9 @@ def run_one_cell(
     # Load classifier
     clf_yaml = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
-    from motionbench.pipelines.synthetic_eval import _build_classifier
+    from motionbench.pipelines.synthetic_eval import build_classifier
 
-    clf = _build_classifier(clf_cfg, J, F, T, K_ds, n_classes).to(device)
+    clf = build_classifier(clf_cfg, J, F, T, K_ds, n_classes).to(device)
     clf.eval()
 
     ckpt_path = (
@@ -498,6 +501,7 @@ def run_one_cell(
             _target_i = target_i  # capture for closure
 
             def clf_fn(arr, _target_i: int = _target_i) -> Tensor:  # noqa: ANN001
+                """Softmax probability of the frozen target class: batch → ``(B,)`` CPU tensor."""
                 if isinstance(arr, np.ndarray):
                     t_arr = torch.from_numpy(arr.astype(np.float32)).to(device)
                 elif isinstance(arr, Tensor):
@@ -597,6 +601,7 @@ CLASSIFIERS_DEFAULT = ["synthetic_mlp", "synthetic_cnn", "synthetic_transformer"
 
 
 def load_dataset(ds_name: str):
+    """Instantiate the dataset from ``configs/data/{ds_name}.yaml`` (``K`` stripped — pipeline-only)."""
     ds_yaml = REPO / "configs" / "data" / f"{ds_name}.yaml"
     ds_cfg = OmegaConf.load(ds_yaml)
     ds_cfg_d = OmegaConf.to_container(ds_cfg, resolve=True)
@@ -609,6 +614,7 @@ def load_dataset(ds_name: str):
 
 
 def make_players(player_factory: str, J: int, F: int, T: int, K: int):
+    """Instantiate ``spatial_joints`` (SpatialJoints) or ``joint_window_cells`` (JointWindowCells)."""
     if player_factory == "spatial_joints":
         from motionbench.players.spatial_joints import SpatialJoints
 
@@ -621,6 +627,7 @@ def make_players(player_factory: str, J: int, F: int, T: int, K: int):
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--sweeps",
@@ -650,6 +657,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run the requested player-set × classifier × method sweep."""
     args = parse_args()
     t_total = time.time()
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")

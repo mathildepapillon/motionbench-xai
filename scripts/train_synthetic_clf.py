@@ -1,51 +1,25 @@
-"""Train synthetic classifiers (11 datasets × 3 architectures = 33 checkpoints) and save them.
+"""scripts/train_synthetic_clf.py — Train synthetic classifiers (11 datasets × 3 architectures).
 
-The 9 datasets that appear in the main-paper Table 1 (`tab:datasets`) are
-trained alongside two appendix datasets used by the player-imputer 2x2 grid
-(``window_label_gaussian``) and the XOR-label robustness sweep
-(``xor_label_gaussian``).
+Trains the 9 datasets of main-paper Table 1 (`tab:datasets`) plus two
+appendix datasets — ``window_label_gaussian`` (player-imputer 2x2 grid) and
+``xor_label_gaussian`` (XOR-label robustness sweep) — for 33 checkpoints in
+total.  Each classifier is trained on data drawn from the same parametric
+distribution as the evaluation set, using a separate seed to avoid data
+leakage; training is dispatched across the available CUDA devices in
+parallel via joblib.
 
-Each classifier is trained on data drawn from the same parametric distribution as
-the evaluation set, using a separate seed to avoid data leakage.  Training is
-dispatched across all available CUDA devices in parallel via joblib.
+Checkpoints land in
+``motionbench/classifiers/checkpoints/synthetic/{dataset}/{classifier}.pt``,
+each storing ``{model_state_dict, config, val_acc, epoch, dataset,
+classifier}`` (``config`` holds the constructor kwargs, ``val_acc``/
+``epoch`` the best validation accuracy and when it was reached).
 
-Checkpoint layout
------------------
-motionbench/classifiers/checkpoints/synthetic/
-  gaussian_k4/
-    synthetic_mlp.pt
-    synthetic_cnn.pt
-    synthetic_transformer.pt
-  gaussian_k8/ ...
-  burr_m5/ ...
-  burr_m10/ ...
-  skeleton_structured/ ...
-  gait_periodic/ ...
+Usage::
 
-Each .pt stores::
-
-    {
-        "model_state_dict": OrderedDict,
-        "config": dict,          # constructor kwargs
-        "val_acc": float,        # best validation accuracy
-        "epoch": int,            # epoch at which best val_acc was achieved
-        "dataset": str,
-        "classifier": str,
-    }
-
-Usage
------
-# Train all 33 (11 datasets × 3 architectures) on all available GPUs:
-python scripts/train_synthetic_clf.py
-
-# Subset of datasets/classifiers on specific GPUs:
-python scripts/train_synthetic_clf.py \\
-    --datasets gaussian_k4 burr_m5 \\
-    --classifiers synthetic_mlp synthetic_cnn \\
-    --gpus 0 1
-
-# Force CPU (debugging only — not recommended):
-python scripts/train_synthetic_clf.py --force-cpu
+    python scripts/train_synthetic_clf.py                      # all 33 cells, all GPUs
+    python scripts/train_synthetic_clf.py --datasets gaussian_k4 burr_m5 \\
+        --classifiers synthetic_mlp synthetic_cnn --gpus 0 1
+    python scripts/train_synthetic_clf.py --force-cpu          # debugging only
 """
 
 from __future__ import annotations
@@ -536,6 +510,7 @@ def _train_with_retry(
 
 
 def _parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Train all synthetic classifiers across all datasets.",
         formatter_class=argparse.RawDescriptionHelpFormatter,

@@ -1,4 +1,4 @@
-"""scripts/compute_real_cis_multiclf.py — bootstrap CIs for the
+"""scripts/compute_real_cis_multiclf.py — Bootstrap CIs for the
 multi-classifier CARE-PD sweep produced by ``run_care_pd_multiclf.py``.
 
 Reads from::
@@ -167,6 +167,7 @@ def summarize_method(method_data: dict, B: int, seed: int) -> dict:
 
 
 def process_classifier(clf_dir: Path, clf_name: str, folds: list[int], B: int, seed: int) -> dict:
+    """Pool one classifier's per-fold results into bootstrapped per-method summaries."""
     data = load_method_data(clf_dir, folds)
     methods_present = [m for m in ALL_METHODS if data[m]]
     log.info("[%s] found %d methods across folds %s", clf_name, len(methods_present), folds)
@@ -224,6 +225,7 @@ def process_classifier(clf_dir: Path, clf_name: str, folds: list[int], B: int, s
 
 
 def main() -> None:
+    """Bootstrap CIs for every classifier and write the combined summary."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--results_dir", type=str, default=str(DEFAULT_RESULTS))
     ap.add_argument("--classifiers", type=str, nargs="+", default=DEFAULT_CLASSIFIERS)

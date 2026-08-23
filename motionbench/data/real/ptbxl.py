@@ -176,6 +176,16 @@ class PTBXLDataset:
         max_sequences: int | None = None,
         train_stats: tuple[np.ndarray, np.ndarray] | None = None,
     ) -> None:
+        """Initialise the dataset by loading and filtering PTB-XL records.
+
+        Args:
+            data_path: PTB-XL root directory.
+            split: ``"train"``, ``"val"``, or ``"test"`` (default).
+            normalize: Apply per-lead z-score normalisation.  Defaults to ``True``.
+            max_sequences: Optional head-cap on the number of records.
+            train_stats: Pre-computed per-lead ``(mean, std)`` arrays; computed
+                from the train split when ``None``.
+        """
         if split not in _FOLD_SPLITS:
             raise ValueError(f"split must be one of {list(_FOLD_SPLITS)}; got {split!r}.")
 

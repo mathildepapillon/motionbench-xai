@@ -116,6 +116,7 @@ class _MotionBenchMasker(shap.maskers.Masker):  # type: ignore[misc]
         imputer: BaseImputer,
         n_completion_samples: int,
     ) -> None:
+        """Initialise the masker with the observed sequence, player set, and imputer."""
         self._x_obs = x_obs
         self._players = players
         self._imputer = imputer
@@ -233,6 +234,7 @@ class KernelShapAttributor(BaseAttributor):
         algorithm: str = "kernel",
         value_fn: str = "f_of_mean",
     ) -> None:
+        """Initialise KernelSHAP with an imputer and sampling configuration."""
         super().__init__(classifier)
         if value_fn not in ("f_of_mean", "mean_of_f"):
             raise ValueError(f"Unknown value_fn {value_fn!r}; use 'f_of_mean' or 'mean_of_f'.")

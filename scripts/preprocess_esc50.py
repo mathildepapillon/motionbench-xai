@@ -36,6 +36,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument(
         "--esc50_dir",
@@ -71,6 +72,7 @@ def resample_audio(waveform: np.ndarray, orig_sr: int, target_sr: int) -> np.nda
 
 
 def main() -> None:
+    """Convert ESC-50 audio into per-fold mel-spectrogram caches."""
     args = parse_args()
     esc50_dir = _REPO_ROOT / args.esc50_dir
     output_dir = _REPO_ROOT / args.output_dir

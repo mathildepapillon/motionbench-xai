@@ -37,6 +37,7 @@ class TemporalWindows(PlayerSet):
     """
 
     def __init__(self, K: int, T: int, J: int, F: int) -> None:
+        """Initialise ``K`` equal-width windows over ``T`` frames."""
         if T % K != 0:
             raise ValueError(f"T={T} must be divisible by K={K} for equal-width windows.")
         self._K = K
