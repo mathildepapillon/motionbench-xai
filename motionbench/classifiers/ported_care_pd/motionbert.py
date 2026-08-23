@@ -34,6 +34,7 @@ import collections
 import logging
 import math
 import warnings
+from functools import partial
 from pathlib import Path
 from typing import Any, Union
 
@@ -276,7 +277,10 @@ class _DSTformerBackbone(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
-        norm_layer=nn.LayerNorm,
+        # CARE-PD builds the DSTformer with LayerNorm(eps=1e-6)
+        # (CARE-PD/model/backbone_loader.py), not the nn.LayerNorm default
+        # eps=1e-5; keep that so fine-tuned checkpoints reproduce exactly.
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
         att_fuse: bool = True,
     ) -> None:
         super().__init__()

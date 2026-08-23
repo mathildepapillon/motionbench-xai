@@ -30,7 +30,19 @@ motionbench/classifiers/checkpoints/
   real/ptbxl_fold{n}.pt                    # PTB-XL per-fold ResNets
 results/synthetic_imputers/{family}/       # VAEAC / Flow synthetic imputers
 results/ptbxl_imputers/vaeac/vaeac_best.pt # retrained PTB-XL VAEAC
+checkpoints/                               # study-format real-data files
+  carepd_clf/{backbone}_fold{n}.pt         #   (see "Real-data checkpoints")
+  ptbxl_clf/fold{n}.pt
+  imputers/{carepd,esc50,ptbxl}_{vaeac,flow}.pt
 ```
+
+The `checkpoints/{carepd_clf,ptbxl_clf,imputers}/` tree holds the real-data
+files in the validation study's own format (paths in the "Real-data
+checkpoints" table below are relative to `checkpoints/`).  The real-data
+player-set entry points (`scripts/run_carepd_players_shap.py`,
+`run_esc50_cells_shap.py`, `run_ptbxl_cells_shap.py`) load classifiers from
+either layout and read the VAEAC/Flow imputers from
+`checkpoints/imputers/`.
 
 Synthetic classifier checkpoints are dicts with keys `model_state_dict`,
 `config` (constructor kwargs), `val_acc`, `epoch` (written by
@@ -126,6 +138,12 @@ train_losses}` respectively — retrain with `scripts/train_vaeac.py` /
 | imputers/ptbxl_flow.pt | `b629bc09598d9541125e8b0432ba209b64f79f6513b8ca977d079bd184d3afef` | |
 | imputers/esc50_vaeac.pt | `ddf4d4678afdbb513095a67e52e290bc59e97796b5b09c03e9679d32fe70a50b` | |
 | imputers/esc50_flow.pt | `496c522f60ef8d85b6b4690081301ea913b2b9a90b09b9c08315ca8cb59661db` | |
+
+These load natively: the classifiers through the loaders in the player-set
+entry points (key remap + strict load into the ported architectures), the
+imputers through `motionbench.imputers.FrameVAEACImputer.load` /
+`FrameFlowImputer.load` (architecture read from the checkpoint's `arch`
+dict; VAEAC `dec_trunk`/`dec_out` keys remapped on load).
 
 ## Provenance notes (release-notes item 5)
 
