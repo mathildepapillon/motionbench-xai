@@ -157,6 +157,46 @@ conditional, `x = F⁻¹(Φ(z))`, observed entries restored bit-for-bit) with
 probability clips at 1e-9; conditional covariances symmetrised and
 ridge-regularised at 1e-8 ([study] B1/B3).
 
+## 11. KS-Gauss (fitted Gaussian conditional; the study's `ks_shapr` row)
+
+**Added in this release:** the shapr-style parametric Gaussian conditional
+imputer of Aas et al. (2021) §3.2 as
+`motionbench/imputers/shapr_gaussian.py::ShaprGaussianImputer`, wired into
+the `player_eval` pipeline as method `kernelshap_gauss`
+(`configs/methods/kernelshap_gauss.yaml`) — the paper's **KS-Gauss** rows,
+produced by the validation study under the internal name `ks_shapr`.
+
+**Executed protocol (pinned):** flattened `D = J*F*T` Gaussian with
+**Ledoit-Wolf** covariance (the paper's plain ML covariance is singular at
+pool size N = 1000 < D; `shrinkage: ml` remains available), fitted on the
+family's **imputer-training pool** (N = 1000 fresh draws at seed 99, §8) —
+*not* on the N = 200 evaluation set that the other classical imputers use
+(§7).  The pipeline realises this via the method config's `fit_data`
+override (`{N: 1000, seed: 99}`), merged onto the dataset config for the
+fit-time dataset only.  5 completions per coalition; **conditional** grading
+game.  Per-mask conditional parameters `(W, chol(Σ_c))` are cached; jitters
+as in the study (`1e-10`-scaled on Σ_oo, `1e-8`-scaled escalating ×10 on
+Σ_c).
+
+**Parity gate** (`scripts/validate_ks_gauss_parity.py`): the study's cells
+`{joint,cell}/gauss_k4/mlp/ks_shapr` (200 sequences each) were reproduced
+end-to-end with release components only, threading the study's exact
+per-sequence RNG stream (`default_rng([seed, idx])` through the coalition
+rows in design order; the imputer's keyword-only `generator` argument exists
+for this).  Fills are **bit-identical** to the study's (train pool, fitted
+`mu`/`Σ`, and conditional draws all bit-equal); against the stored
+`per_sequence.npz` the residual is classifier CPU-vs-GPU noise:
+
+| cell | max&#124;Δφ&#124; | max&#124;Δφ*&#124; | max&#124;ΔEC1&#124; | target flips |
+|---|---|---|---|---|
+| joint/gauss_k4/mlp (M=5, exact) | 7.0e-08 | 9.3e-08 | 3.0e-08 | 0 |
+| cell/gauss_k4/mlp (M=20, B=1024) | 3.3e-08 | 4.1e-08 | 4.0e-09 | 0 |
+
+The study's hi-budget target regrade (B = 8192, seed 900001; the numbers in
+its `analysis_final.json`) is reproduced by the same script: hi-budget
+`max|Δφ*| = 3.1e-08`; the regraded EC1/EC3 (0.011237 / 0.099142) agree with
+the study's `regrade_hi.json` to 2.6e-10 / 2.7e-09.
+
 ---
 
 *Provenance: sections 1–9 adapt, with permission of scope, the RESOLUTIONS

@@ -12,7 +12,11 @@ Protocol (per cell = dataset × player set × classifier × method)
    :func:`~motionbench.attribution.sampled_coalitions.sampled_coalition_set`
    (exact enumeration for M <= 12, shap-style importance-corrected sampling
    above).  Every method and the grading target share this design, so
-   coalition noise cancels in the comparison.
+   coalition noise cancels in the comparison.  The method's imputer is fitted
+   on the evaluation dataset by default; a method config may pin a different
+   fit pool via ``fit_data`` overrides merged onto the dataset config
+   (KS-Gauss fits on the family's imputer-training pool,
+   ``fit_data: {N: 1000, seed: 99}``).
 2. For each evaluation sequence: the explained scalar is the classifier's
    softmax probability of its own argmax class.  The method's game value is
 
@@ -56,7 +60,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
@@ -97,7 +101,7 @@ __all__ = ["run_player_eval"]
 # Methods whose imputer defines the conditional game (per the paper's game
 # table; note KS-Empirical is assigned the *marginal* game there).  Used only
 # when the method config does not carry an explicit ``game`` key.
-_COND_IMPUTER_MARKERS = ("Oracle", "VAEAC", "Flow")
+_COND_IMPUTER_MARKERS = ("Oracle", "VAEAC", "Flow", "ShaprGaussian")
 
 
 def _build_player_set(players_cfg: DictConfig, J: int, F: int, T: int, K: int) -> PlayerSet:
@@ -339,7 +343,21 @@ def _run_player_cell(
                 f"Method {method_name!r} defines no imputer; the player-set "
                 "pipeline evaluates imputer-based KernelSHAP methods only."
             )
-        imputer = _build_and_fit_imputer(method_cfg, dataset, J=J, F=F, T=T, device=str(device))
+        # Imputers are fitted on the evaluation dataset by default.  A method
+        # config may pin a different fit pool via ``fit_data`` overrides that
+        # are merged onto the dataset config (e.g. KS-Gauss fits on the
+        # family's imputer-training pool: ``fit_data: {N: 1000, seed: 99}``).
+        fit_dataset = dataset
+        fit_overrides = OmegaConf.select(method_cfg, "fit_data")
+        if fit_overrides is not None:
+            fit_cfg = cast("DictConfig", OmegaConf.merge(dataset_cfg, fit_overrides))
+            fit_dataset, _ = _instantiate_dataset(fit_cfg)
+            if fit_dataset.shape != dataset.shape:
+                raise ValueError(
+                    f"fit_data overrides for method {method_name!r} changed the "
+                    f"sample shape: {fit_dataset.shape} != {dataset.shape}."
+                )
+        imputer = _build_and_fit_imputer(method_cfg, fit_dataset, J=J, F=F, T=T, device=str(device))
         n_completion = int(method_cfg.get("n_completion_samples", 5))
         game = _infer_game(method_cfg)
 

@@ -13,6 +13,7 @@ from motionbench.imputers.off_manifold import (
     MeanImputer,
     ZeroImputer,
 )
+from motionbench.imputers.shapr_gaussian import ShaprGaussianImputer
 from motionbench.imputers.vaeac import VAEACImputer
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "KNNConditionalImputer",
     "EmpiricalConditionalImputer",
     "VineCopulaImputer",
+    "ShaprGaussianImputer",
     "VAEACImputer",
     "FlowMatchingImputer",
 ]

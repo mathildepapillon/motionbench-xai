@@ -21,6 +21,7 @@ methods:
   - kernelshap_mean
   - kernelshap_marginal
   - kernelshap_empirical
+  - kernelshap_gauss   # KS-Gauss: fitted Gaussian conditional (Aas et al. 2021)
   - kernelshap_oracle
 
 classifiers:

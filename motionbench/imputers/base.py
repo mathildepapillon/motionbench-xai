@@ -24,6 +24,7 @@ Off-manifold (fast, biased):
 Classical conditional:
     ``KNNConditionalImputer``   — k-NN over observed coordinates.
     ``EmpiricalConditionalImputer`` — Gaussian-kernel weighting (shapr default).
+    ``ShaprGaussianImputer``    — fitted Gaussian conditional (shapr parametric).
     ``VineCopulaImputer``       — Gaussian / non-parametric copula.
 
 Learned on-manifold:

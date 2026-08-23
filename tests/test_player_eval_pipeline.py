@@ -121,6 +121,20 @@ def tiny_config_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "imputer:\n  _target_: motionbench.oracles.gaussian_oracle.GaussianOracle\n"
         "n_completion_samples: 3\nseed: 42\n"
     )
+    (root / "methods" / "kernelshap_gauss.yaml").write_text(
+        "name: kernelshap_gauss\ngame: cond\n"
+        "attributor:\n  _target_: motionbench.attribution.kernel_shap.KernelShapAttributor\n"
+        "imputer:\n  _target_: motionbench.imputers.shapr_gaussian.ShaprGaussianImputer\n"
+        "fit_data:\n  N: 40\n  seed: 99\n"
+        "n_completion_samples: 2\nseed: 42\n"
+    )
+    (root / "methods" / "kernelshap_gauss_badfit.yaml").write_text(
+        "name: kernelshap_gauss_badfit\ngame: cond\n"
+        "attributor:\n  _target_: motionbench.attribution.kernel_shap.KernelShapAttributor\n"
+        "imputer:\n  _target_: motionbench.imputers.shapr_gaussian.ShaprGaussianImputer\n"
+        "fit_data:\n  T: 10\n"  # changes the sample shape -> must be rejected
+        "n_completion_samples: 2\nseed: 42\n"
+    )
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
@@ -178,6 +192,33 @@ def test_end_to_end_oracle_conditional_game(tiny_config_tree: Path):
     assert row["game"] == "cond"
     assert np.isfinite(row["ec1"]) and np.isfinite(row["ec3"])
     assert row["ec1"] >= 0.0
+
+
+def test_end_to_end_gauss_fits_on_fit_data_pool(tiny_config_tree: Path):
+    """KS-Gauss cell fits its imputer on the ``fit_data`` override pool."""
+    torch.manual_seed(0)
+    df = run_player_eval(_tiny_cfg(tiny_config_tree, ["kernelshap_gauss"]))
+    row = df.iloc[0]
+    assert row["game"] == "cond"
+    assert np.isfinite(row["ec1"]) and np.isfinite(row["ec3"])
+    per_seq = np.load(
+        tiny_config_tree
+        / "results"
+        / "spatial"
+        / "tiny_gauss"
+        / "synthetic_mlp"
+        / "kernelshap_gauss"
+        / "per_sequence.npz"
+    )
+    assert per_seq["phi"].shape == (4, 3)
+
+
+def test_fit_data_shape_change_is_rejected(tiny_config_tree: Path):
+    """A ``fit_data`` override that alters the sample shape fails the cell."""
+    torch.manual_seed(0)
+    df = run_player_eval(_tiny_cfg(tiny_config_tree, ["kernelshap_gauss_badfit"]))
+    row = df.iloc[0]
+    assert "error" in row and "shape" in str(row["error"])
 
 
 def test_cell_resume_from_cache(tiny_config_tree: Path):
