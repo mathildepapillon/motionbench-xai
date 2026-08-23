@@ -134,9 +134,7 @@ def _sinusoidal_embedding(values: Tensor, dim: int, max_period: float = 1_000.0)
     v = values.reshape(-1).to(torch.float32)
     half = dim // 2
     freqs = torch.exp(
-        -math.log(max_period)
-        * torch.arange(half, dtype=torch.float32, device=v.device)
-        / half
+        -math.log(max_period) * torch.arange(half, dtype=torch.float32, device=v.device) / half
     )
     args = v[:, None] * freqs[None, :]
     emb = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
@@ -160,12 +158,12 @@ class _FramePE(nn.Module):
     """
 
     def __init__(self, d_model: int, max_len: int = 512) -> None:
+        """Initialise and precompute the ``(max_len, d_model)`` encoding buffer."""
         super().__init__()
         pe = torch.zeros(max_len, d_model)
         pos = torch.arange(max_len, dtype=torch.float32).unsqueeze(1)
         div = torch.exp(
-            torch.arange(0, d_model, 2, dtype=torch.float32)
-            * (-math.log(10_000.0) / d_model)
+            torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10_000.0) / d_model)
         )
         pe[:, 0::2] = torch.sin(pos * div)
         pe[:, 1::2] = torch.cos(pos * div)
@@ -185,9 +183,7 @@ class _FramePE(nn.Module):
             ValueError: If ``T > max_len``.
         """
         if self.max_len < T:
-            raise ValueError(
-                f"_FramePE: T={T} exceeds max_len={self.max_len}."
-            )
+            raise ValueError(f"_FramePE: T={T} exceeds max_len={self.max_len}.")
         # pe is a buffer; cast to keep mypy happy
         pe: Tensor = self.pe  # type: ignore[assignment]
         return pe[:T]
@@ -210,11 +206,10 @@ class _FlowTimeMLP(nn.Module):
     """
 
     def __init__(self, sinusoid_dim: int, out_dim: int) -> None:
+        """Initialise the two-layer SiLU MLP over the sinusoidal embedding."""
         super().__init__()
         if sinusoid_dim % 2 != 0:
-            raise ValueError(
-                f"_FlowTimeMLP: sinusoid_dim must be even, got {sinusoid_dim}."
-            )
+            raise ValueError(f"_FlowTimeMLP: sinusoid_dim must be even, got {sinusoid_dim}.")
         self.sinusoid_dim = sinusoid_dim
         self.mlp = nn.Sequential(
             nn.Linear(sinusoid_dim, out_dim),
@@ -273,15 +268,12 @@ class _VelocityNet(nn.Module):
         time_emb_dim: int = 128,
         max_len: int = 512,
     ) -> None:
+        """Initialise the transformer velocity network with the given architecture."""
         super().__init__()
         if d_model % nhead != 0:
-            raise ValueError(
-                f"_VelocityNet: d_model={d_model} must be divisible by nhead={nhead}."
-            )
+            raise ValueError(f"_VelocityNet: d_model={d_model} must be divisible by nhead={nhead}.")
         if time_emb_dim % 2 != 0:
-            raise ValueError(
-                f"_VelocityNet: time_emb_dim must be even, got {time_emb_dim}."
-            )
+            raise ValueError(f"_VelocityNet: time_emb_dim must be even, got {time_emb_dim}.")
         self.n_joints = n_joints
         self.n_coords = n_coords
         self.d_model = d_model
@@ -426,15 +418,14 @@ class FlowMatchingImputer(BaseImputer):
         solver: str = "midpoint",
         device: str | None = None,
     ) -> None:
+        """Initialise the imputer with architecture, training, and solver configuration."""
         if solver not in self._ALLOWED_SOLVERS:
             raise ValueError(
                 f"FlowMatchingImputer: solver must be one of "
                 f"{self._ALLOWED_SOLVERS!r}; got {solver!r}."
             )
         if num_steps < 2:
-            raise ValueError(
-                f"FlowMatchingImputer: num_steps must be >= 2; got {num_steps}."
-            )
+            raise ValueError(f"FlowMatchingImputer: num_steps must be >= 2; got {num_steps}.")
         self.J = J
         self.F = F
         self.T = T
@@ -446,8 +437,7 @@ class FlowMatchingImputer(BaseImputer):
         self._lr = lr
         self._solver = solver
         self._device = torch.device(
-            device if device is not None
-            else ("cuda" if torch.cuda.is_available() else "cpu")
+            device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
         )
         self._net: _VelocityNet | None = None
         self._fitted = False
@@ -576,13 +566,9 @@ class FlowMatchingImputer(BaseImputer):
             ValueError: If ``x_obs.shape != mask.shape``.
         """
         if not self._fitted or self._net is None:
-            raise RuntimeError(
-                "FlowMatchingImputer.impute: fit() must be called first."
-            )
+            raise RuntimeError("FlowMatchingImputer.impute: fit() must be called first.")
         if x_obs.shape != mask.shape:
-            raise ValueError(
-                f"x_obs.shape={tuple(x_obs.shape)} != mask.shape={tuple(mask.shape)}."
-            )
+            raise ValueError(f"x_obs.shape={tuple(x_obs.shape)} != mask.shape={tuple(mask.shape)}.")
 
         if seed is not None:
             torch.manual_seed(seed)
@@ -651,9 +637,7 @@ class FlowMatchingImputer(BaseImputer):
             RuntimeError: If ``fit`` has not been called.
         """
         if not self._fitted or self._net is None:
-            raise RuntimeError(
-                "FlowMatchingImputer.save: fit() must be called before save()."
-            )
+            raise RuntimeError("FlowMatchingImputer.save: fit() must be called before save().")
         torch.save(
             {
                 "constructor_params": {

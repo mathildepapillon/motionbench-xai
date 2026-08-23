@@ -1,7 +1,10 @@
-"""motionbench.utils.seeding — Deterministic seed helpers.
+"""motionbench.utils.seeding — Deterministic seed helper.
 
-All motionbench experiments must be reproducible.  Call ``seed_everything``
-at the top of every script or pipeline to lock all random sources.
+Provides ``seed_everything``, which locks every random source (Python,
+NumPy, PyTorch CPU/CUDA) and enables cuDNN determinism.  The release
+trainers use their own narrower seeding (torch/numpy/random only): the
+shipped checkpoints were produced without cuDNN determinism flags, so this
+helper must not be retro-wired into them.
 """
 
 from __future__ import annotations
@@ -16,19 +19,16 @@ __all__ = ["seed_everything"]
 
 
 def seed_everything(seed: int = 42) -> None:
-    """Fix all random seeds for full reproducibility.
+    """Fix all random seeds and enable cuDNN determinism.
 
-    Sets seeds for Python ``random``, NumPy, PyTorch CPU and (if available)
-    PyTorch CUDA.  Also sets ``PYTHONHASHSEED`` for dict/set ordering
-    reproducibility.
+    Sets ``PYTHONHASHSEED`` and seeds Python ``random``, NumPy, PyTorch CPU
+    and (if available) PyTorch CUDA; on CUDA it also flips cuDNN to
+    deterministic, non-benchmarking mode.  Note the cuDNN flags change
+    kernel selection: the release trainers deliberately seed only
+    torch/numpy/random, so do not add this helper to them.
 
     Args:
         seed: Integer seed value.  Default ``42``.
-
-    Example::
-
-        from motionbench.utils.seeding import seed_everything
-        seed_everything(0)
     """
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)

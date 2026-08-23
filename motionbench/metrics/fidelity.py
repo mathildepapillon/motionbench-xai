@@ -110,6 +110,7 @@ class _QuantusModelWrapper(nn.Module):
     """
 
     def __init__(self, fn: Callable[[Tensor], Tensor], target: int) -> None:
+        """Initialise the wrapper with a classifier callable and target class."""
         super().__init__()
         self._fn = fn
         self._target = target
@@ -159,6 +160,7 @@ def _make_perturb_func(
         indices: Any,
         **kwargs: object,
     ) -> Any:
+        """Impute the indexed features of each flat ``(B, J*F*T)`` row via the imputer."""
         # arr:     (B, n_features) numpy float
         # indices: (B, n_perturb) numpy int  — features to REPLACE (hidden)
         batch_size = arr.shape[0]
@@ -278,6 +280,7 @@ class FaithfulnessCorrelationMetric(BaseMetric):
         subset_size: int = 10,
         disable_warnings: bool = True,
     ) -> None:
+        """Initialise the metric with an imputer and Quantus sampling settings."""
         self._imputer = imputer
         self._nr_runs = nr_runs
         self._subset_size = subset_size
@@ -355,6 +358,7 @@ class MonotonicityCorrelationMetric(BaseMetric):
         features_in_step: int = 1,
         disable_warnings: bool = True,
     ) -> None:
+        """Initialise the metric with an imputer and Quantus sampling settings."""
         self._imputer = imputer
         self._nr_samples = nr_samples
         self._features_in_step = features_in_step
@@ -431,6 +435,7 @@ class PixelFlippingMetric(BaseMetric):
         features_in_step: int = 1,
         disable_warnings: bool = True,
     ) -> None:
+        """Initialise the deletion-curve metric with an imputer and step size."""
         self._imputer = imputer
         self._features_in_step = features_in_step
         self._disable_warnings = disable_warnings
@@ -516,6 +521,7 @@ class SelectivityMetric(BaseMetric):
         patch_size: int = 1,
         disable_warnings: bool = True,
     ) -> None:
+        """Initialise the insertion-curve metric with an imputer and patch size."""
         self._imputer = imputer
         self._patch_size = patch_size
         self._disable_warnings = disable_warnings
@@ -605,6 +611,7 @@ class PlayerDeletionMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = True
 
     def __init__(self, imputer: BaseImputer) -> None:
+        """Initialise the metric with the imputer used to mask absent players."""
         self._imputer = imputer
 
     def evaluate(
@@ -660,7 +667,7 @@ class PlayerDeletionMetric(BaseMetric):
         suff_vals: list[float] = []
 
         # Incrementally track the current observed mask for deletion/insertion.
-        del_obs = torch.ones(J, F, T, dtype=torch.bool)   # start: all observed
+        del_obs = torch.ones(J, F, T, dtype=torch.bool)  # start: all observed
         suf_obs = torch.zeros(J, F, T, dtype=torch.bool)  # start: all masked
 
         for k_idx in range(M):
@@ -702,9 +709,10 @@ class _OracleImputer(BaseImputer):
     is_on_manifold: bool = True
 
     def __init__(self, oracle: Oracle) -> None:
+        """Initialise the adapter with a fitted oracle."""
         self._oracle = oracle
 
-    def fit(self, train_data: Any) -> "_OracleImputer":  # noqa: ANN401
+    def fit(self, train_data: Any) -> _OracleImputer:  # noqa: ANN401
         """No-op — oracle requires no additional fitting."""
         return self
 
@@ -768,6 +776,7 @@ class ManifoldFidelityGapMetric(BaseMetric):
         disable_warnings: bool = True,
         **_kwargs: Any,
     ) -> None:
+        """Initialise the gap metric with Quantus sampling settings."""
         self._nr_runs = nr_runs
         self._subset_size = subset_size
         self._disable_warnings = disable_warnings
@@ -842,7 +851,7 @@ class ManifoldFidelityGapMetric(BaseMetric):
 def _build_granularity(
     name: str,
     shape: tuple[int, int, int],
-) -> "PlayerSet | None":
+) -> PlayerSet | None:
     """Construct a player set at the requested granularity, or ``None`` if the
     granularity is incompatible with ``shape`` (e.g.\\ window count does not
     divide ``T``).
@@ -874,7 +883,7 @@ def _build_granularity(
 
     if name.startswith("joint_phase"):
         try:
-            K = int(name[len("joint_phase"):])
+            K = int(name[len("joint_phase") :])
         except ValueError:
             return None
         if T % K != 0 or K < 1:
@@ -883,7 +892,7 @@ def _build_granularity(
 
     if name.startswith("phase"):
         try:
-            K = int(name[len("phase"):])
+            K = int(name[len("phase") :])
         except ValueError:
             return None
         if T % K != 0 or K < 1:
@@ -957,10 +966,9 @@ class CrossGranularityFaithfulnessMetric(BaseMetric):
         n_samples: int = 1,
         **_kwargs: Any,
     ) -> None:
+        """Initialise CGFS with a granularity hierarchy and sample count."""
         self._granularities = (
-            list(granularities)
-            if granularities is not None
-            else list(self._DEFAULT_GRANULARITIES)
+            list(granularities) if granularities is not None else list(self._DEFAULT_GRANULARITIES)
         )
         self._n_samples = n_samples
 

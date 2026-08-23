@@ -9,6 +9,7 @@ No heavy dependencies (no captum, shap, quantus, etc.) are used here.
 Run:
     python examples/smoke_test.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -44,18 +45,22 @@ class MockPlayers(PlayerSet):
     """M equal temporal windows over T frames."""
 
     def __init__(self) -> None:
+        """Initialise M non-overlapping windows of width ``T // M``."""
         self._J, self._F, self._T, self._M = J, F, T, M
         self._ws = T // M
 
     @property
     def n_players(self) -> int:
+        """Number of players (temporal windows)."""
         return self._M
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """Per-sample data shape ``(J, F, T)``."""
         return self._J, self._F, self._T
 
     def coalition_mask(self, z: torch.Tensor) -> torch.Tensor:
+        """Expand a ``(M,)`` coalition indicator to a ``(J, F, T)`` bool mask (True = observed)."""
         mask = torch.zeros(J, F, T, dtype=torch.bool)
         for k in range(M):
             if z[k]:
@@ -63,6 +68,7 @@ class MockPlayers(PlayerSet):
         return mask
 
     def aggregate(self, phi_coords: torch.Tensor) -> torch.Tensor:
+        """Sum element-level attributions ``(J, F, T)`` into per-player scores ``(M,)``."""
         phi = torch.zeros(M)
         for k in range(M):
             phi[k] = phi_coords[:, :, k * self._ws : (k + 1) * self._ws].sum()
@@ -79,6 +85,7 @@ class MockOracle(Oracle):
         n: int,
         seed: int | None = None,
     ) -> torch.Tensor:
+        """Return ``(n, J, F, T)`` samples: observed entries copied from ``x_obs``, hidden entries zero."""
         out = torch.zeros(n, J, F, T)
         out[:, mask] = x_obs[mask]
         return out
@@ -91,6 +98,7 @@ class MockOracle(Oracle):
         n_mc: int = 100,
         seed: int | None = None,
     ) -> torch.Tensor:
+        """Return uniform ground-truth Shapley values ``(n_players,)``."""
         return torch.full((players.n_players,), 1.0 / players.n_players)
 
 
@@ -98,32 +106,39 @@ class MockDataset:
     """Minimal GroundTruthDataset with mock oracle."""
 
     def __init__(self) -> None:
+        """Initialise the dataset with its mock oracle."""
         self._oracle = MockOracle()
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return a deterministic ``((J, F, T) float32, scalar label)`` pair."""
         torch.manual_seed(idx)
         return torch.randn(J, F, T), torch.tensor(0)
 
     def __len__(self) -> int:
+        """Number of samples."""
         return N
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """Per-sample data shape ``(J, F, T)``."""
         return J, F, T
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Dataset metadata dict (skeleton layout, frame rate)."""
         return {"skeleton": "mock_5j", "frame_rate": 30.0}
 
     @property
     def oracle(self) -> MockOracle:
+        """Ground-truth oracle for this dataset."""
         return self._oracle
 
 
 class MockImputer(BaseImputer):
     """Zero-fill imputer."""
 
-    def fit(self, train_data: BaseDataset) -> "MockImputer":  # type: ignore[override]
+    def fit(self, train_data: BaseDataset) -> MockImputer:  # type: ignore[override]
+        """Mark the imputer as fitted; returns ``self`` for chaining."""
         self._fitted = True
         return self
 
@@ -134,6 +149,7 @@ class MockImputer(BaseImputer):
         n_samples: int,
         seed: int | None = None,
     ) -> torch.Tensor:
+        """Return ``(n_samples, J, F, T)`` completions: observed entries copied, hidden entries zero."""
         out = torch.zeros(n_samples, J, F, T)
         out[:, mask] = x_obs[mask]
         return out
@@ -148,6 +164,7 @@ class MockAttributor(BaseAttributor):
         players: PlayerSet,
         target: int = 0,
     ) -> torch.Tensor:
+        """Attribute ``(J, F, T)`` input ``x`` to players; returns ``(n_players,) float32``."""
         return players.aggregate(x.abs())
 
 
@@ -167,6 +184,7 @@ class MockMetric(BaseMetric):
         oracle: Oracle | None = None,
         imputer: BaseImputer | None = None,
     ) -> dict[str, float]:
+        """Score ``(n_players,)`` attributions ``phi`` against the oracle; returns ``{"ec1": float}``."""
         self._check_deps(oracle, imputer)
         assert oracle is not None
         phi_true = oracle.true_shapley(x, classifier, players)
@@ -190,6 +208,7 @@ def mock_classifier(x: torch.Tensor) -> torch.Tensor:
 
 
 def run_smoke_test() -> None:
+    """Exercise Dataset → PlayerSet → Oracle → Imputer → Attributor → Metric end to end."""
     print("=" * 60)
     print("MotionBench-XAI Phase 0 smoke test")
     print("=" * 60)

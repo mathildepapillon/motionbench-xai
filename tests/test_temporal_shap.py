@@ -11,6 +11,7 @@ Fast (non-slow) tests verify instantiation, property contracts, and the
 ShaTSAttributor NotImplementedError.  Full attribute() calls are marked
 ``@pytest.mark.slow`` because they invoke the underlying SHAP solvers.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -25,13 +26,14 @@ from motionbench.attribution.group_segment_shap import (
     direct_group_shapley,
     shapley_from_value_table,
 )
+from motionbench.attribution.kernelshap_temporal import (
+    KernelSHAPTemporalAttributor,
+    TimeSHAPAttributor,  # compat alias
+)
 from motionbench.attribution.shats import ShaTSAttributor
-from motionbench.attribution.kernelshap_temporal import KernelSHAPTemporalAttributor
-from motionbench.attribution.kernelshap_temporal import TimeSHAPAttributor  # compat alias
 from motionbench.attribution.windowshap import WindowSHAPAttributor
 from motionbench.imputers.base import BaseImputer
 from tests.conftest import F, J, M, T
-
 
 # ---------------------------------------------------------------------------
 # Shared test helpers
@@ -63,7 +65,7 @@ class _TemporalPlayerSet:
 class _ZeroImputer(BaseImputer):
     """Trivial imputer: fills hidden coordinates with zeros."""
 
-    def fit(self, train_data: object) -> "_ZeroImputer":  # type: ignore[override]
+    def fit(self, train_data: object) -> _ZeroImputer:  # type: ignore[override]
         return self
 
     def impute(
@@ -417,6 +419,5 @@ def test_group_segment_shap_efficiency() -> None:
     expected_sum = v_grand - v_empty
     actual_sum = float(phi.sum().item())
     assert abs(actual_sum - expected_sum) < 1e-4, (
-        f"Efficiency violated: sum(phi)={actual_sum:.6f} != "
-        f"v(all)-v(none)={expected_sum:.6f}"
+        f"Efficiency violated: sum(phi)={actual_sum:.6f} != v(all)-v(none)={expected_sum:.6f}"
     )

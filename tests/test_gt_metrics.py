@@ -17,7 +17,7 @@ A ``MockPlayerSet`` (equal-width temporal windows) and a ``MockOracle``
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -34,6 +34,9 @@ from motionbench.metrics.ground_truth import (
     TopKRecovery,
 )
 from motionbench.players.base import PlayerSet
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ---------------------------------------------------------------------------
 # Constants matching conftest.py
@@ -386,8 +389,7 @@ def test_efficiency_error_kernel_shap() -> None:
     metric = EfficiencyErrorMetric(n_mc=1000, oracle_seed=1)
     result = metric.evaluate(phi, x, _linear_clf, players, oracle=oracle)
     assert result["efficiency_error"] < 1e-3, (
-        f"EfficiencyError={result['efficiency_error']:.2e} ≥ 1e-3 "
-        f"(Σφ={phi.sum():.6f}, expected≈50)"
+        f"EfficiencyError={result['efficiency_error']:.2e} ≥ 1e-3 (Σφ={phi.sum():.6f}, expected≈50)"
     )
 
 

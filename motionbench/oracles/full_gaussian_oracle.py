@@ -27,14 +27,14 @@ Aas, K., Jullum, M., & Løland, A. (2021).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 from torch import Tensor
 
-from motionbench.oracles.base import Oracle
 from motionbench.imputers.base import BaseImputer
+from motionbench.oracles.base import Oracle
 from motionbench.utils.coalitions import (
     enumerate_coalitions,
     sample_kernelshap_coalitions,
@@ -42,6 +42,8 @@ from motionbench.utils.coalitions import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from motionbench.data.base import BaseDataset
     from motionbench.players.base import PlayerSet
 
@@ -75,21 +77,19 @@ class FullGaussianOracle(Oracle, BaseImputer):
         F: int,
         T: int,
     ) -> None:
+        """Initialise with a full covariance; validate PSD and precompute the Cholesky factor."""
         D = J * F * T
         Sigma_full = np.asarray(Sigma_full, dtype=np.float64)
         if Sigma_full.shape != (D, D):
             raise ValueError(
-                f"Sigma_full shape {Sigma_full.shape} does not match "
-                f"J*F*T = {J}*{F}*{T} = {D}."
+                f"Sigma_full shape {Sigma_full.shape} does not match J*F*T = {J}*{F}*{T} = {D}."
             )
 
         # Symmetrise and check PSD
         Sigma_full = 0.5 * (Sigma_full + Sigma_full.T)
         eig_min = float(np.linalg.eigvalsh(Sigma_full).min())
         if eig_min < -1e-5:
-            raise ValueError(
-                f"Sigma_full is not PSD (min eigenvalue {eig_min:.3e})."
-            )
+            raise ValueError(f"Sigma_full is not PSD (min eigenvalue {eig_min:.3e}).")
 
         self.Sigma_full: np.ndarray = Sigma_full
         self._J = J
@@ -98,9 +98,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
         self._D = D
 
         # Cholesky for unconditional sampling (empty-coalition edge case)
-        self._L_full: np.ndarray = np.linalg.cholesky(
-            Sigma_full + 1e-8 * np.eye(D)
-        )
+        self._L_full: np.ndarray = np.linalg.cholesky(Sigma_full + 1e-8 * np.eye(D))
 
         # Cache: obs_indices_key → (W, L_cond, hid_idx)
         self._cond_cache: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
@@ -128,9 +126,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
             ``(n, J, F, T)`` float32 Tensor.
         """
         if x_obs.shape != mask.shape:
-            raise ValueError(
-                f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}."
-            )
+            raise ValueError(f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}.")
         rng = np.random.default_rng(seed)
         x_np = x_obs.detach().cpu().numpy().astype(np.float64)
         mask_np = mask.detach().cpu().numpy().astype(bool)
@@ -206,9 +202,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
             Soo = self.Sigma_full[np.ix_(obs_idx, obs_idx)]
             Shh = self.Sigma_full[np.ix_(hid_idx, hid_idx)]
             Sho = self.Sigma_full[np.ix_(hid_idx, obs_idx)]
-            W = Sho @ np.linalg.solve(
-                Soo + 1e-10 * np.eye(n_obs), np.eye(n_obs)
-            )
+            W = Sho @ np.linalg.solve(Soo + 1e-10 * np.eye(n_obs), np.eye(n_obs))
             Sc = Shh - W @ Sho.T
             Sc = 0.5 * (Sc + Sc.T) + 1e-8 * np.eye(n_hid)
             L_cond = np.linalg.cholesky(Sc)
@@ -245,7 +239,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
         self,
         x: Tensor,
         classifier: Callable[[Tensor], Tensor],
-        players: "PlayerSet",
+        players: PlayerSet,
         n_mc: int = 50,
         n_coalitions: int = 2000,
         seed: int | None = None,
@@ -273,7 +267,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
         M = players.n_players
         rng = np.random.default_rng(seed)
 
-        n_exact = 2 ** M
+        n_exact = 2**M
         use_exact = n_exact <= n_coalitions
         if use_exact:
             coalitions, weights = enumerate_coalitions(M)
@@ -295,12 +289,13 @@ class FullGaussianOracle(Oracle, BaseImputer):
 
             if int(z_row.sum()) == M:
                 with torch.no_grad():
-                    val = float(
-                        _eval_classifier(classifier, x.unsqueeze(0)).mean().item()
-                    )
+                    val = float(_eval_classifier(classifier, x.unsqueeze(0)).mean().item())
             elif int(z_row.sum()) == 0:
                 x_marg_np = self._sample_unconditional(
-                    n_mc, J, F, T,
+                    n_mc,
+                    J,
+                    F,
+                    T,
                     np.random.default_rng(int(rng.integers(1 << 31))),
                 )
                 x_marg_t = torch.tensor(x_marg_np, dtype=torch.float32)
@@ -329,7 +324,7 @@ class FullGaussianOracle(Oracle, BaseImputer):
     # BaseImputer ABC                                                      #
     # ------------------------------------------------------------------ #
 
-    def fit(self, train_data: "BaseDataset") -> "FullGaussianOracle":
+    def fit(self, train_data: BaseDataset) -> FullGaussianOracle:
         """No-op: oracle requires no training."""
         return self
 
@@ -364,8 +359,6 @@ def _eval_classifier(
     for i in range(0, len(x), chunk):
         out = classifier_fn(x[i : i + chunk])
         if out.ndim > 1:
-            raise ValueError(
-                "classifier_fn must return a 1-D tensor of scalars."
-            )
+            raise ValueError("classifier_fn must return a 1-D tensor of scalars.")
         results.append(out.float())
     return torch.cat(results)

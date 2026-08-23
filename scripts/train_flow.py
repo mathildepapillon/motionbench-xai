@@ -1,4 +1,4 @@
-"""scripts/train_flow — Training entry point for FlowMatchingImputer.
+"""scripts/train_flow.py — Training entry point for FlowMatchingImputer.
 
 Trains a :class:`~motionbench.imputers.flow_matching.FlowMatchingImputer`
 on a pre-saved ``.pt`` tensor dataset and saves the checkpoint.
@@ -47,12 +47,12 @@ import argparse
 import random
 import time
 from pathlib import Path
+
 import numpy as np
 import torch
 from torch import Tensor
 
 from motionbench.imputers.flow_matching import FlowMatchingImputer
-
 
 # ---------------------------------------------------------------------------
 # Minimal in-memory dataset wrapper
@@ -79,11 +79,10 @@ class _TensorDataset:
         skeleton: str = "generic",
         frame_rate: float = 30.0,
     ) -> None:
+        """Initialise from a pre-loaded ``(N, J, F, T)`` tensor (see class Args)."""
         assert x.dim() == 4, f"Expected (N, J, F, T), got {tuple(x.shape)}"
         self._x = x.float()
-        self._y = (
-            labels.long() if labels is not None else torch.zeros(len(x), dtype=torch.long)
-        )
+        self._y = labels.long() if labels is not None else torch.zeros(len(x), dtype=torch.long)
         self._meta: dict[str, object] = {
             "skeleton": skeleton,
             "frame_rate": frame_rate,
@@ -97,15 +96,18 @@ class _TensorDataset:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """Per-sample data shape ``(J, F, T)``."""
         _, J, F, T = self._x.shape
         return J, F, T
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Dataset metadata (skeleton, frame rate)."""
         return self._meta
 
     @property
     def oracle(self) -> None:
+        """No ground-truth oracle for tensor datasets."""
         return None
 
 
@@ -187,6 +189,7 @@ def _seed_all(seed: int) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser."""
     p = argparse.ArgumentParser(
         description="Train FlowMatchingImputer and save checkpoint.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -194,15 +197,19 @@ def _build_parser() -> argparse.ArgumentParser:
     # Data
     data_grp = p.add_mutually_exclusive_group(required=True)
     data_grp.add_argument(
-        "--data_path", type=Path,
+        "--data_path",
+        type=Path,
         help="Path to pre-saved (N, J, F, T) tensor (.pt file).",
     )
     data_grp.add_argument(
-        "--synthetic", action="store_true",
+        "--synthetic",
+        action="store_true",
         help="Generate synthetic Gaussian data for debugging.",
     )
     p.add_argument(
-        "--n_synthetic", type=int, default=500,
+        "--n_synthetic",
+        type=int,
+        default=500,
         help="Number of synthetic samples (only used with --synthetic).",
     )
     # Shape
@@ -213,7 +220,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--hidden_dim", type=int, default=256, help="VelocityNet d_model.")
     p.add_argument("--num_steps", type=int, default=100, help="ODE integration steps.")
     p.add_argument(
-        "--noise_init_scale", type=float, default=1.0,
+        "--noise_init_scale",
+        type=float,
+        default=1.0,
         help=(
             "Gaussian source std. σ²_data for Burr-XII(c=2,k=2) > 1; "
             "increasing this (e.g. 2.0) can mitigate H2 regression (see module docstring)."
@@ -226,13 +235,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lr", type=float, default=1e-3, help="AdamW learning rate.")
     # Output
     p.add_argument(
-        "--save_path", type=Path, required=True,
+        "--save_path",
+        type=Path,
+        required=True,
         help="Output checkpoint path (e.g. checkpoints/flow.pt).",
     )
     # Misc
     p.add_argument("--seed", type=int, default=42, help="Global random seed.")
     p.add_argument(
-        "--log_every", type=int, default=10,
+        "--log_every",
+        type=int,
+        default=10,
         help="Print loss every N epochs (0 = quiet).",
     )
     return p
@@ -249,17 +262,19 @@ def main() -> None:
     if args.synthetic:
         dataset = _make_synthetic_dataset(
             n_samples=args.n_synthetic,
-            J=args.J, F=args.F, T=args.T,
+            J=args.J,
+            F=args.F,
+            T=args.T,
             seed=args.seed,
         )
     else:
-        dataset = _load_tensor_dataset(
-            path=args.data_path, J=args.J, F=args.F, T=args.T
-        )
+        dataset = _load_tensor_dataset(path=args.data_path, J=args.J, F=args.F, T=args.T)
 
     # --- Model -------------------------------------------------------------
     imputer = FlowMatchingImputer(
-        J=args.J, F=args.F, T=args.T,
+        J=args.J,
+        F=args.F,
+        T=args.T,
         hidden_dim=args.hidden_dim,
         num_steps=args.num_steps,
         noise_init_scale=args.noise_init_scale,
@@ -270,10 +285,11 @@ def main() -> None:
     )
     dev = imputer._device
     print(f"[train_flow] device={dev}  J={args.J} F={args.F} T={args.T}")
-    print(f"[train_flow] hidden_dim={args.hidden_dim}  num_steps={args.num_steps}  "
-          f"noise_init_scale={args.noise_init_scale}  solver={args.solver}")
-    print(f"[train_flow] n_epochs={args.n_epochs}  batch_size={args.batch_size}  "
-          f"lr={args.lr}")
+    print(
+        f"[train_flow] hidden_dim={args.hidden_dim}  num_steps={args.num_steps}  "
+        f"noise_init_scale={args.noise_init_scale}  solver={args.solver}"
+    )
+    print(f"[train_flow] n_epochs={args.n_epochs}  batch_size={args.batch_size}  lr={args.lr}")
 
     # --- Training ----------------------------------------------------------
     t_start = time.time()

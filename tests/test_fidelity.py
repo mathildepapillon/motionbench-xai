@@ -259,9 +259,7 @@ def test_faithfulness_correlation_returns_dict(
     players: _MockPlayers,
 ) -> None:
     """FaithfulnessCorrelationMetric.evaluate() must return a dict with the right key."""
-    metric = FaithfulnessCorrelationMetric(
-        imputer=ZeroImputer(), nr_runs=3, subset_size=2
-    )
+    metric = FaithfulnessCorrelationMetric(imputer=ZeroImputer(), nr_runs=3, subset_size=2)
     result = metric.evaluate(phi_sample, x_sample, classifier, players)
 
     assert isinstance(result, dict)
@@ -280,9 +278,7 @@ def test_monotonicity_correlation_returns_dict(
     phi_sample: Tensor,
     players: _MockPlayers,
 ) -> None:
-    metric = MonotonicityCorrelationMetric(
-        imputer=ZeroImputer(), nr_samples=3, features_in_step=2
-    )
+    metric = MonotonicityCorrelationMetric(imputer=ZeroImputer(), nr_samples=3, features_in_step=2)
     result = metric.evaluate(phi_sample, x_sample, classifier, players)
 
     assert isinstance(result, dict)
@@ -333,9 +329,7 @@ def test_evaluate_imputer_kwarg_overrides_init_imputer(
     init_imp = _CountingImputer()
     eval_imp = _CountingImputer()
 
-    metric = FaithfulnessCorrelationMetric(
-        imputer=init_imp, nr_runs=3, subset_size=2
-    )
+    metric = FaithfulnessCorrelationMetric(imputer=init_imp, nr_runs=3, subset_size=2)
     metric.evaluate(phi_sample, x_sample, classifier, players, imputer=eval_imp)
 
     assert init_imp.call_count == 0, "init imputer should not be called when eval imputer provided"

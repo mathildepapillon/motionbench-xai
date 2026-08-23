@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Build a .npz cache for PTB-XL imputer training.
+"""scripts/build_ptbxl_cache.py — Build a .npz cache for PTB-XL imputer training.
 
 Loads PTBXLDataset on training folds (1-8) and saves:
     x_train: (N, J=12, F=1, T=1000) float32
@@ -7,22 +6,31 @@ Loads PTBXLDataset on training folds (1-8) and saves:
 Usage:
     python scripts/build_ptbxl_cache.py --data_path "$PTBXL_DATA_ROOT"
 """
+
 from __future__ import annotations
-import argparse, sys
+
+import argparse
+import sys
 from pathlib import Path
+
 import numpy as np
 
 REPO = Path(__file__).parents[1]
 sys.path.insert(0, str(REPO))
 
-from motionbench.data.real.ptbxl import PTBXLDataset, _FOLD_SPLITS
+from motionbench.data.real.ptbxl import PTBXLDataset  # noqa: E402
+
 
 def main():
+    """Build and save the PTB-XL imputer-training cache (.npz)."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--data_path", type=str, required=True)
     ap.add_argument("--max_sequences", type=int, default=None)
-    ap.add_argument("--output", type=str,
-                    default=str(REPO / "results" / "ptbxl_imputers" / "ptbxl_train_cache.npz"))
+    ap.add_argument(
+        "--output",
+        type=str,
+        default=str(REPO / "results" / "ptbxl_imputers" / "ptbxl_train_cache.npz"),
+    )
     args = ap.parse_args()
 
     out_path = Path(args.output)
@@ -43,6 +51,7 @@ def main():
 
     np.savez_compressed(out_path, x_train=xs)
     print(f"Saved to {out_path}")
+
 
 if __name__ == "__main__":
     main()

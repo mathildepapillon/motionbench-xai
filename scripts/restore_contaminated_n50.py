@@ -1,4 +1,4 @@
-"""scripts/restore_contaminated_n50.py — emergency N=200 restoration.
+"""scripts/restore_contaminated_n50.py — Emergency N=200 restoration.
 
 Re-runs the 48 ``kernelshap_vaeac`` / ``kernelshap_flow`` cells that were
 overwritten with N=50 results by ``run_synth_vaeac_flow.py``.  Targets all
@@ -12,6 +12,7 @@ Pattern mirrors ``run_xor_sweep_multigpu.py``:
   from a queue and shells out to ``scripts/_run_one_cell.py`` with
   ``CUDA_VISIBLE_DEVICES`` and CPU-thread caps set in the child env.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,6 +43,8 @@ METHODS = ["kernelshap_vaeac", "kernelshap_flow"]
 
 @dataclass
 class Cell:
+    """One dataset × classifier × method cell to re-run."""
+
     dataset: str
     classifier: str
     method: str
@@ -51,11 +54,13 @@ class Cell:
 
     @property
     def label(self) -> str:
+        """Human-readable ``dataset/classifier/method`` cell id."""
         return f"{self.dataset}/{self.classifier}/{self.method}"
 
 
-def _delete_contaminated_n50(results_dir: Path, cells: list[Cell],
-                             cutoff_mtime: float | None = None) -> int:
+def _delete_contaminated_n50(
+    results_dir: Path, cells: list[Cell], cutoff_mtime: float | None = None
+) -> int:
     """Delete only result.json files that are still N=50-contaminated.
 
     A result is "contaminated" if it parses as JSON with n_sequences == 50.
@@ -63,6 +68,7 @@ def _delete_contaminated_n50(results_dir: Path, cells: list[Cell],
     that timestamp (defensive: do not touch anything written after the
     restoration began)."""
     import json as _json
+
     n = 0
     for c in cells:
         rp = results_dir / c.dataset / c.classifier / c.method / "result.json"
@@ -94,9 +100,15 @@ def _filter_pending(results_dir: Path, cells: list[Cell]) -> list[Cell]:
     return pending
 
 
-def _run_cell(cell: Cell, gpu: int, results_dir: Path, n_sequences: int,
-              log_dir: Path, metrics_mode: str = "full",
-              omp_threads: int = 4) -> Cell:
+def _run_cell(
+    cell: Cell,
+    gpu: int,
+    results_dir: Path,
+    n_sequences: int,
+    log_dir: Path,
+    metrics_mode: str = "full",
+    omp_threads: int = 4,
+) -> Cell:
     cell.gpu = gpu
     log_path = log_dir / f"{cell.dataset}__{cell.classifier}__{cell.method}.log"
 
@@ -110,75 +122,104 @@ def _run_cell(cell: Cell, gpu: int, results_dir: Path, n_sequences: int,
     env["TORCH_NUM_THREADS"] = str(omp_threads)
 
     cmd = [
-        sys.executable, str(REPO / "scripts" / "_run_one_cell.py"),
-        "--dataset", cell.dataset,
-        "--classifier", cell.classifier,
-        "--method", cell.method,
-        "--device", "cuda:0",
-        "--n-sequences", str(n_sequences),
-        "--results-dir", str(results_dir),
-        "--metrics-mode", metrics_mode,
+        sys.executable,
+        str(REPO / "scripts" / "_run_one_cell.py"),
+        "--dataset",
+        cell.dataset,
+        "--classifier",
+        cell.classifier,
+        "--method",
+        cell.method,
+        "--device",
+        "cuda:0",
+        "--n-sequences",
+        str(n_sequences),
+        "--results-dir",
+        str(results_dir),
+        "--metrics-mode",
+        metrics_mode,
     ]
 
     t0 = time.time()
     with log_path.open("w") as logf:
-        proc = subprocess.run(cmd, cwd=REPO, env=env, stdout=logf,
-                              stderr=subprocess.STDOUT)
+        proc = subprocess.run(cmd, cwd=REPO, env=env, stdout=logf, stderr=subprocess.STDOUT)
     cell.elapsed_s = time.time() - t0
     cell.rc = proc.returncode
     return cell
 
 
-def _worker(slot_id: int, gpu: int, work_q: queue.Queue,
-            done_q: queue.Queue, results_dir: Path, n_sequences: int,
-            log_dir: Path, metrics_mode: str = "full",
-            omp_threads: int = 4) -> None:
+def _worker(
+    slot_id: int,
+    gpu: int,
+    work_q: queue.Queue,
+    done_q: queue.Queue,
+    results_dir: Path,
+    n_sequences: int,
+    log_dir: Path,
+    metrics_mode: str = "full",
+    omp_threads: int = 4,
+) -> None:
     while True:
         cell = work_q.get()
         if cell is None:
             work_q.task_done()
             return
         try:
-            _run_cell(cell, gpu, results_dir, n_sequences, log_dir,
-                      metrics_mode=metrics_mode, omp_threads=omp_threads)
+            _run_cell(
+                cell,
+                gpu,
+                results_dir,
+                n_sequences,
+                log_dir,
+                metrics_mode=metrics_mode,
+                omp_threads=omp_threads,
+            )
             tag = "OK " if cell.rc == 0 else f"rc{cell.rc}"
         except Exception as exc:  # pragma: no cover
             cell.rc = -2
             tag = f"EXC {type(exc).__name__}"
         finally:
-            print(f"  [slot{slot_id} gpu{gpu}] {tag} {cell.label}  "
-                  f"({cell.elapsed_s:.1f}s)", flush=True)
+            print(
+                f"  [slot{slot_id} gpu{gpu}] {tag} {cell.label}  ({cell.elapsed_s:.1f}s)",
+                flush=True,
+            )
         done_q.put(cell)
         work_q.task_done()
 
 
 def main() -> None:
+    """Re-run every still-contaminated cell across the GPU worker pool."""
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--gpus", nargs="+", type=int,
-                   default=[0, 1, 2, 3, 4, 5, 6, 7])
+    p.add_argument("--gpus", nargs="+", type=int, default=[0, 1, 2, 3, 4, 5, 6, 7])
     p.add_argument("--jobs-per-gpu", type=int, default=2)
-    p.add_argument("--omp-threads", type=int, default=4,
-                   help="Per-process BLAS/OMP thread cap.  Default 4 with "
-                        "16 slots = 64 cores.  For 32 slots use 2.")
-    p.add_argument("--metrics-mode",
-                   choices=["full", "gt_only", "gt_plus_faith"],
-                   default="full",
-                   help="Which metric suite to compute (forwarded to "
-                        "_run_one_cell.py).  Default 'full' matches paper.")
+    p.add_argument(
+        "--omp-threads",
+        type=int,
+        default=4,
+        help="Per-process BLAS/OMP thread cap.  Default 4 with "
+        "16 slots = 64 cores.  For 32 slots use 2.",
+    )
+    p.add_argument(
+        "--metrics-mode",
+        choices=["full", "gt_only", "gt_plus_faith"],
+        default="full",
+        help="Which metric suite to compute (forwarded to "
+        "_run_one_cell.py).  Default 'full' matches paper.",
+    )
     p.add_argument("--n-sequences", type=int, default=200)
-    p.add_argument("--results-dir", type=Path,
-                   default=REPO / "results" / "synthetic")
-    p.add_argument("--log-dir", type=Path,
-                   default=REPO / "outputs" / "restore_n50_logs")
-    p.add_argument("--skip-deletion", action="store_true",
-                   help="Do not auto-delete N=50 contaminated result.json "
-                        "files (use when caller already cleaned up).")
+    p.add_argument("--results-dir", type=Path, default=REPO / "results" / "synthetic")
+    p.add_argument("--log-dir", type=Path, default=REPO / "outputs" / "restore_n50_logs")
+    p.add_argument(
+        "--skip-deletion",
+        action="store_true",
+        help="Do not auto-delete N=50 contaminated result.json "
+        "files (use when caller already cleaned up).",
+    )
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
     args.log_dir.mkdir(parents=True, exist_ok=True)
-    all_cells = [Cell(d, c, m) for d in DATASETS for c in CLASSIFIERS
-                 for m in METHODS]
+    all_cells = [Cell(d, c, m) for d in DATASETS for c in CLASSIFIERS for m in METHODS]
     print(f"Total target cells: {len(all_cells)}")
     if args.dry_run:
         for c in all_cells:
@@ -202,9 +243,11 @@ def main() -> None:
         work_q.put(c)
 
     n_slots = max(1, len(args.gpus) * args.jobs_per_gpu)
-    print(f"Dispatching {len(cells)} cells across {n_slots} slots "
-          f"({len(args.gpus)} GPUs x {args.jobs_per_gpu} jobs/GPU, "
-          f"{args.omp_threads} threads/proc, metrics={args.metrics_mode})")
+    print(
+        f"Dispatching {len(cells)} cells across {n_slots} slots "
+        f"({len(args.gpus)} GPUs x {args.jobs_per_gpu} jobs/GPU, "
+        f"{args.omp_threads} threads/proc, metrics={args.metrics_mode})"
+    )
     print(f"Per-cell logs: {args.log_dir}\n")
 
     threads: list[threading.Thread] = []
@@ -213,10 +256,19 @@ def main() -> None:
         work_q.put(None)
         t = threading.Thread(
             target=_worker,
-            args=(slot_id, gpu, work_q, done_q, args.results_dir,
-                  args.n_sequences, args.log_dir, args.metrics_mode,
-                  args.omp_threads),
-            daemon=True, name=f"slot{slot_id}-gpu{gpu}",
+            args=(
+                slot_id,
+                gpu,
+                work_q,
+                done_q,
+                args.results_dir,
+                args.n_sequences,
+                args.log_dir,
+                args.metrics_mode,
+                args.omp_threads,
+            ),
+            daemon=True,
+            name=f"slot{slot_id}-gpu{gpu}",
         )
         t.start()
         threads.append(t)

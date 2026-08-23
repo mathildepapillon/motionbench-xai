@@ -6,6 +6,7 @@ Verifies:
 3. conditional_sample preserves observed entries bit-for-bit.
 4. true_shapley output satisfies the efficiency axiom (Σφ ≈ v(N) − v(∅)).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -13,7 +14,7 @@ import torch
 from torch import Tensor
 
 from motionbench.oracles.base import Oracle
-from tests.conftest import J, F, T, M
+from tests.conftest import F, J, M, T
 
 # ---------------------------------------------------------------------------
 # Minimal mock PlayerSet (avoid importing unfinished module)
@@ -29,14 +30,14 @@ class _MockPlayers:
         mask = torch.zeros(J, F, T, dtype=torch.bool)
         for k in range(M):
             if z[k]:
-                mask[:, :, k * ws:(k + 1) * ws] = True
+                mask[:, :, k * ws : (k + 1) * ws] = True
         return mask
 
     def aggregate(self, phi_coords):
         ws = T // M
         phi = torch.zeros(M)
         for k in range(M):
-            phi[k] = phi_coords[:, :, k * ws:(k + 1) * ws].sum()
+            phi[k] = phi_coords[:, :, k * ws : (k + 1) * ws].sum()
         return phi
 
 

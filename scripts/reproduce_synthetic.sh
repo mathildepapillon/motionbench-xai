@@ -111,10 +111,17 @@ python scripts/run_xor_sweep_multigpu.py --gpus $GPUS_ARG --jobs-per-gpu 2
 # ----------------------------------------------------------------------- #
 # Step 5: Generate paper tables                                            #
 # ----------------------------------------------------------------------- #
-echo "=== [5/5] Generating LaTeX tables ==="
-python scripts/generate_paper_tables.py
+echo "=== [5/5] Results summary ==="
+# LaTeX table/figure generation lives with the paper sources, which are not
+# part of this code release. Raw per-cell results are under results/.
+python - <<'PY'
+from motionbench.pipelines.leaderboard import load_results
+try:
+    df = load_results("results/synthetic")
+    print(df.to_string())
+except Exception as exc:  # pragma: no cover - summary only
+    print(f"(no leaderboard summary: {exc})")
+PY
 
 echo ""
-echo "=== Synthetic pipeline complete. ==="
-echo "Tables written to paper/tables/."
-echo "Run scripts/regenerate_paper.sh to recompile the PDF."
+echo "=== Synthetic pipeline complete. Raw results in results/. ==="

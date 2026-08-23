@@ -38,7 +38,6 @@ NeurIPS 2017.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -50,6 +49,8 @@ from torch import Tensor
 from motionbench.attribution.base import BaseAttributor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from motionbench.imputers.base import BaseImputer
     from motionbench.players.base import PlayerSet
 
@@ -79,6 +80,7 @@ def _make_predict_fn(
     """
 
     def predict_fn(z_batch: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """Evaluate the classifier on imputed sequences for ``(N, M)`` coalition rows."""
         results: list[float] = []
         for z_row in z_batch:
             z_tensor = torch.as_tensor(z_row > 0.5, dtype=torch.bool)
@@ -86,11 +88,7 @@ def _make_predict_fn(
             x_imp = imputer.impute(x, mask, n_samples=1)[0]
             with torch.no_grad():
                 pred = classifier(x_imp.unsqueeze(0))
-            scalar = (
-                float(pred[0, target].item())
-                if pred.ndim > 1
-                else float(pred[0].item())
-            )
+            scalar = float(pred[0, target].item()) if pred.ndim > 1 else float(pred[0].item())
             results.append(scalar)
         return np.array(results, dtype=np.float64)
 
@@ -129,6 +127,7 @@ class KernelSHAPTemporalAttributor(BaseAttributor):
         n_coalitions: int = 100,
         seed: int | None = None,
     ) -> None:
+        """Initialise temporal KernelSHAP with an imputer and coalition budget."""
         super().__init__(classifier)
         self._imputer = imputer
         self._n_coalitions = n_coalitions
@@ -159,9 +158,7 @@ class KernelSHAPTemporalAttributor(BaseAttributor):
         if self._seed is not None:
             np.random.seed(self._seed)
 
-        predict_fn = _make_predict_fn(
-            x, self._classifier, self._imputer, players, target
-        )
+        predict_fn = _make_predict_fn(x, self._classifier, self._imputer, players, target)
 
         # Background: all players absent → reference output when nothing is observed.
         background = np.zeros((1, M), dtype=np.float64)

@@ -52,6 +52,7 @@ motionbench/classifiers/checkpoints/real/
 
 # Results (generated, don't commit raw results) — keep .gitkeep markers only
 results/*
+!results/canonical/
 !results/.gitkeep
 !results/synthetic/.gitkeep
 !results/care_pd/.gitkeep

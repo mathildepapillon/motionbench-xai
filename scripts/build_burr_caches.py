@@ -1,4 +1,4 @@
-"""scripts/build_burr_caches.py — build VAEAC/Flow caches for Burr datasets.
+"""scripts/build_burr_caches.py — Build VAEAC/Flow caches for Burr datasets.
 
 Produces caches at ``$CARE_PD_ROOT/cache/vaeac_synthetic/burr_m{5,10}_jft/``
 matching the (N, T, J, F) layout that ``train_vaeac.py`` / ``train_flow_matching.py``
@@ -11,6 +11,7 @@ Environment variables:
     CARE_PD_ROOT: Root of the CARE-PD codebase (used for cache output).
         Defaults to the sibling directory of this repo.
 """
+
 from __future__ import annotations
 
 import os
@@ -22,8 +23,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from motionbench.data.synthetic.burr_motion import BurrMotionBenchmark
-
+from motionbench.data.synthetic.burr_motion import BurrMotionBenchmark  # noqa: E402
 
 CARE_PD_ROOT = Path(os.environ.get("CARE_PD_ROOT", REPO.parent / "CARE-PD"))
 CARE_PD_CACHE = CARE_PD_ROOT / "cache" / "vaeac_synthetic"
@@ -38,7 +38,7 @@ def _build_one(name: str, J: int, T: int, M: int, n_total: int = 1000) -> Path:
     for i in range(len(ds)):
         x_i, _ = ds[i]
         Xs.append(x_i.numpy())
-    X = np.stack(Xs, axis=0)                         # (N, J, F, T)
+    X = np.stack(Xs, axis=0)  # (N, J, F, T)
     # Transpose to (N, T, J, F) which is what the trainer expects.
     X = np.transpose(X, (0, 3, 1, 2)).astype(np.float32)
     n_train = int(0.85 * n_total)
@@ -46,8 +46,8 @@ def _build_one(name: str, J: int, T: int, M: int, n_total: int = 1000) -> Path:
     x1_val = X[n_train:]
 
     # Stats over training set (per-joint per-coord)
-    stats_mean = x1_train.reshape(-1, J, 3).mean(axis=0)        # (J, 3)
-    stats_std = x1_train.reshape(-1, J, 3).std(axis=0) + 1e-6   # (J, 3)
+    stats_mean = x1_train.reshape(-1, J, 3).mean(axis=0)  # (J, 3)
+    stats_std = x1_train.reshape(-1, J, 3).std(axis=0) + 1e-6  # (J, 3)
 
     # Masks (all valid)
     mask_train = np.ones((x1_train.shape[0], T), dtype=bool)

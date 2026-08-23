@@ -1,0 +1,37 @@
+# @package _global_
+# Quickstart: one complete benchmark cell on CPU in minutes.
+#
+#   python3 scripts/train_synthetic_clf.py --datasets gaussian_k4 \
+#       --classifiers synthetic_mlp --force-cpu
+#   python3 -m motionbench.cli.run experiments=quickstart
+#
+# Attributes gauss_k4 test sequences with two KernelSHAP variants (KS-Zero,
+# KS-Oracle) under spatial players and grades both with EC1/EC3 against the
+# exact deterministic oracle of the game each method plays.
+pipeline: player_eval
+
+datasets:
+  - gaussian_k4
+
+player_sets:
+  - spatial
+
+methods:
+  - kernelshap_zero
+  - kernelshap_oracle
+
+classifiers:
+  - synthetic_mlp
+
+coalition_budget: 1024
+coalition_seed: 7919
+value_fn: f_of_mean
+
+n_sequences: 50
+seed: 42
+results_dir: results/player_eval
+checkpoint_dir: motionbench/classifiers/checkpoints/synthetic
+device: cpu
+
+wandb:
+  mode: disabled

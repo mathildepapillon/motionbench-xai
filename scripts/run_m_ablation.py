@@ -1,4 +1,4 @@
-"""scripts/run_m_ablation.py — sensitivity of EC1 to the number of completion samples M.
+"""scripts/run_m_ablation.py — Sensitivity of EC1 to the number of completion samples M.
 
 For each M in {1, 5, 20, 50}, we run KS--VAEAC on ``gaussian_k4`` with three
 classifiers (synthetic_mlp, synthetic_cnn, synthetic_transformer) and compute
@@ -18,6 +18,7 @@ Usage::
     conda activate motionbench-xai
     CUDA_VISIBLE_DEVICES=7 python scripts/run_m_ablation.py
 """
+
 from __future__ import annotations
 
 import json
@@ -30,6 +31,11 @@ import numpy as np
 import torch
 from omegaconf import OmegaConf
 from torch import Tensor
+
+from motionbench.attribution.enumerated_kernel_shap import (
+    build_coalition_masks,
+    kernel_shap_exact,
+)
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -47,43 +53,8 @@ M_VALUES = [1, 5, 20, 50]
 N_SEQ = 50
 
 
-def build_coalition_masks(K: int, T: int) -> tuple[Tensor, Tensor]:
-    n_coal = 1 << K
-    win_size = T // K
-    z_bin = np.zeros((n_coal, K), dtype=bool)
-    frame_mask = np.zeros((n_coal, T), dtype=bool)
-    for ci in range(n_coal):
-        for k in range(K):
-            if (ci >> k) & 1:
-                z_bin[ci, k] = True
-                t0 = k * win_size
-                t1 = t0 + win_size if k < K - 1 else T
-                frame_mask[ci, t0:t1] = True
-    return torch.from_numpy(z_bin), torch.from_numpy(frame_mask)
-
-
-def shapley_kernel(K: int, s: int) -> float:
-    if s == 0 or s == K:
-        return 1e6
-    from math import comb
-    return (K - 1) / (comb(K, s) * s * (K - s))
-
-
-def kernel_shap_exact(z_bin: Tensor, v_vals: Tensor, K: int) -> Tensor:
-    Z = z_bin.float().numpy()
-    v = v_vals.float().numpy()
-    n = Z.shape[0]
-    sizes = Z.sum(axis=1).astype(int)
-    w = np.array([shapley_kernel(K, int(s)) for s in sizes])
-    Z_ext = np.concatenate([np.ones((n, 1)), Z], axis=1)
-    W = np.diag(w)
-    A = Z_ext.T @ W @ Z_ext + 1e-8 * np.eye(Z_ext.shape[1])
-    b = Z_ext.T @ W @ v
-    sol = np.linalg.solve(A, b)
-    return torch.from_numpy(sol[1:]).float()
-
-
 def ec1(phi_hat: np.ndarray, phi_true: np.ndarray) -> float:
+    """Mean absolute error between Shapley vectors."""
     return float(np.mean(np.abs(phi_hat - phi_true)))
 
 
@@ -102,21 +73,25 @@ def _build_dataset(ds_name: str):
 def _build_clf(clf_name: str, J: int, F: int, T: int, K: int, n_classes: int, device):
     clf_yaml = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
-    from motionbench.pipelines.synthetic_eval import _build_classifier
-    clf = _build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
+    from motionbench.pipelines.synthetic_eval import build_classifier
+
+    clf = build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
     clf.eval()
     return clf
 
 
 def _build_vaeac_for(dataset, device):
     from motionbench.imputers.carepd_imputer import (
-        _load_vaeac, _CARE_PD_ROOT, _VAEAC_REGISTRY,
+        _CARE_PD_ROOT,
+        _VAEAC_REGISTRY,
+        load_vaeac,
     )
+
     cls_key = type(dataset).__name__
     if cls_key not in _VAEAC_REGISTRY:
         raise RuntimeError(f"No VAEAC registry entry for {cls_key}")
     ckpt_rel, cfg_rel = _VAEAC_REGISTRY[cls_key]
-    return _load_vaeac(_CARE_PD_ROOT / ckpt_rel, _CARE_PD_ROOT / cfg_rel, device)
+    return load_vaeac(_CARE_PD_ROOT / ckpt_rel, _CARE_PD_ROOT / cfg_rel, device)
 
 
 def _oracle_phi(dataset, x_i, target_i: int, clf, K: int, T: int, J: int, F: int, device):
@@ -126,6 +101,7 @@ def _oracle_phi(dataset, x_i, target_i: int, clf, K: int, T: int, J: int, F: int
         return None
 
     def clf_fn(arr) -> Tensor:
+        """Softmax probability of the frozen target class: batch → ``(B,)`` CPU tensor."""
         if isinstance(arr, np.ndarray):
             t_arr = torch.from_numpy(arr.astype(np.float32)).to(device)
         elif isinstance(arr, torch.Tensor):
@@ -139,10 +115,15 @@ def _oracle_phi(dataset, x_i, target_i: int, clf, K: int, T: int, J: int, F: int
         return o.float().cpu()
 
     from motionbench.players.temporal_windows import TemporalWindows
+
     players_ts = TemporalWindows(K=K, T=T, J=J, F=F)
     try:
         phi_true = oracle.true_shapley(
-            x_i, clf_fn, players_ts, n_mc=20, n_coalitions=1 << K,
+            x_i,
+            clf_fn,
+            players_ts,
+            n_mc=20,
+            n_coalitions=1 << K,
         )
     except TypeError:
         phi_true = oracle.true_shapley(x_i, clf_fn, players_ts, n_mc=20)
@@ -150,8 +131,16 @@ def _oracle_phi(dataset, x_i, target_i: int, clf, K: int, T: int, J: int, F: int
 
 
 def run_one_combo(
-    dataset, clf, imp, K: int, T: int, J: int, F: int,
-    n_seq: int, M: int, device,
+    dataset,
+    clf,
+    imp,
+    K: int,
+    T: int,
+    J: int,
+    F: int,
+    n_seq: int,
+    M: int,
+    device,
 ) -> list[float]:
     """Return per-sequence EC1 for one (classifier, M) combo."""
     z_bin, frame_mask = build_coalition_masks(K, T)
@@ -165,9 +154,7 @@ def run_one_combo(
     X = torch.stack(seqs).to(device)
     with torch.no_grad():
         logits = clf(X)
-    targets = (
-        logits.argmax(dim=-1).cpu().numpy() if logits.ndim == 2 else np.array(ys)
-    )
+    targets = logits.argmax(dim=-1).cpu().numpy() if logits.ndim == 2 else np.array(ys)
 
     ec1_per_seq: list[float] = []
     for i in range(n_seq):
@@ -189,21 +176,14 @@ def run_one_combo(
                 out = out.unsqueeze(1)  # (n_coal, 1, J, F, T) safety net
             comps = out.contiguous()  # (n_coal, M, J, F, T)
 
-            obs = (
-                frame_mask.to(device)
-                .view(n_coal, 1, 1, 1, T)
-                .expand(n_coal, M, J, F, T)
-            )
+            obs = frame_mask.to(device).view(n_coal, 1, 1, 1, T).expand(n_coal, M, J, F, T)
             x_exp = x_i.to(device).view(1, 1, J, F, T).expand(n_coal, M, J, F, T)
             comps = torch.where(obs, x_exp, comps).contiguous()
 
             comps_flat = comps.view(n_coal * M, J, F, T)
             with torch.no_grad():
                 logits_b = clf(comps_flat)
-            if logits_b.ndim == 2:
-                p = torch.softmax(logits_b, dim=-1)[:, target_i]
-            else:
-                p = logits_b
+            p = torch.softmax(logits_b, dim=-1)[:, target_i] if logits_b.ndim == 2 else logits_b
             p = p.view(n_coal, M).mean(dim=1)  # average over M completions
         except Exception as exc:
             log.warning("    seq %d (M=%d): imputer/clf error %s", i, M, exc)
@@ -219,6 +199,7 @@ def run_one_combo(
 
 
 def main() -> None:
+    """Run the M-sensitivity sweep and write summary + LaTeX table."""
     t_total = time.time()
     device = torch.device(DEVICE)
 
@@ -244,18 +225,22 @@ def main() -> None:
             ec1_per_clf[clf_name].append(mean_ec1)
             log.info(
                 "  [%s | M=%d]  mean EC1 = %.5f  over %d seqs  (%.1fs)",
-                clf_name, M, mean_ec1, len(ec1s), time.time() - t0,
+                clf_name,
+                M,
+                mean_ec1,
+                len(ec1s),
+                time.time() - t0,
             )
         del clf
         torch.cuda.empty_cache()
 
     ec1_avg = [
-        float(np.mean([ec1_per_clf[c][i] for c in CLASSIFIERS]))
-        for i in range(len(M_VALUES))
+        float(np.mean([ec1_per_clf[c][i] for c in CLASSIFIERS])) for i in range(len(M_VALUES))
     ]
     ec1_std_across_clfs = [
         float(np.std([ec1_per_clf[c][i] for c in CLASSIFIERS], ddof=1))
-        if len(CLASSIFIERS) > 1 else 0.0
+        if len(CLASSIFIERS) > 1
+        else 0.0
         for i in range(len(M_VALUES))
     ]
 
@@ -275,6 +260,7 @@ def main() -> None:
 
 
 def write_latex_table(summary: dict) -> None:
+    """Render the EC1-vs-M table as LaTeX and write it next to the summary."""
     M_VALS = summary["M"]
     ec1_avg = summary["ec1_avg"]
     ec1_std = summary["ec1_std_across_classifiers"]
@@ -304,7 +290,7 @@ def write_latex_table(summary: dict) -> None:
     rows.append("$M$ & " + " & ".join(f"${m}$" for m in M_VALS) + r" \\")
     rows.append(r"\midrule")
     cells = []
-    for m_avg, m_std in zip(ec1_avg, ec1_std):
+    for m_avg, m_std in zip(ec1_avg, ec1_std, strict=False):
         cells.append(f"${m_avg:.4f}\\!\\pm\\!{m_std:.4f}$")
     rows.append("EC1 & " + " & ".join(cells) + r" \\")
     rows.append(r"\bottomrule")

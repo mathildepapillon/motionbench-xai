@@ -74,6 +74,7 @@ _H36M_CONNECTIONS: dict[int, list[int]] = {
 class _MLP(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None,
                  act_layer=nn.GELU, drop=0.):
+        """Initialise the two-layer MLP."""
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -83,6 +84,7 @@ class _MLP(nn.Module):
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
+        """Apply fc1 → activation → dropout → fc2 → dropout."""
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop(x)
@@ -96,6 +98,7 @@ class _Attention(nn.Module):
 
     def __init__(self, dim_in, dim_out, num_heads=8, qkv_bias=False,
                  qk_scale=None, attn_drop=0., proj_drop=0., mode='spatial'):
+        """Initialise the attention block for ``mode`` ('spatial' or 'temporal')."""
         super().__init__()
         self.num_heads = num_heads
         head_dim = dim_in // num_heads
@@ -107,6 +110,7 @@ class _Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(self, x):
+        """Apply self-attention over joints (spatial) or frames (temporal) on ``(B, T, J, C)``."""
         B, T, J, C = x.shape
         qkv = (self.qkv(x)
                .reshape(B, T, J, 3, self.num_heads, C // self.num_heads)
@@ -139,6 +143,7 @@ class _GCN(nn.Module):
     def __init__(self, dim_in, dim_out, num_nodes, neighbour_num=4,
                  mode='spatial', use_temporal_similarity=True,
                  temporal_connection_len=1):
+        """Initialise the adaptive GCN with ``num_nodes`` nodes in ``mode``."""
         super().__init__()
         assert mode in ('spatial', 'temporal')
         self.mode = mode
@@ -237,6 +242,7 @@ class _AGFormerBlock(nn.Module):
                  mode='spatial', mixer_type='attention',
                  use_temporal_similarity=True, temporal_connection_len=1,
                  neighbour_num=4, n_frames=81):
+        """Initialise the block with an attention or graph mixer."""
         super().__init__()
         self.norm1 = nn.LayerNorm(dim)
         if mixer_type == 'attention':
@@ -258,6 +264,7 @@ class _AGFormerBlock(nn.Module):
             self.ls2 = nn.Parameter(layer_scale_init_value * torch.ones(dim))
 
     def forward(self, x: Tensor) -> Tensor:
+        """Apply the mixer and MLP residual branches; preserves ``(B, T, J, C)``."""
         if self.use_layer_scale:
             x = x + self.drop_path(self.ls1 * self.mixer(self.norm1(x)))
             x = x + self.drop_path(self.ls2 * self.mlp(self.norm2(x)))
@@ -280,6 +287,7 @@ class _MotionAGFormerBlock(nn.Module):
                  qk_scale=None, layer_scale_init_value=1e-5, use_adaptive_fusion=True,
                  use_temporal_similarity=True, temporal_connection_len=1,
                  neighbour_num=4, n_frames=81):
+        """Initialise the parallel attention and graph streams."""
         super().__init__()
         kw = dict(dim=dim, mlp_ratio=mlp_ratio, act_layer=act_layer,
                   attn_drop=attn_drop, drop=drop, drop_path=drop_path,
@@ -301,6 +309,7 @@ class _MotionAGFormerBlock(nn.Module):
             self.fusion.bias.data.fill_(0.5)
 
     def forward(self, x: Tensor) -> Tensor:
+        """Fuse the attention and graph streams; preserves ``(B, T, J, C)``."""
         x_attn = self.att_temporal(self.att_spatial(x))
         x_graph = self.graph_temporal(self.graph_spatial(x))
         if self.use_adaptive_fusion:
@@ -344,6 +353,7 @@ class _MotionAGFormerBackbone(nn.Module):
         num_joints: int = 17,
         n_frames: int = 81,
     ) -> None:
+        """Initialise the encoder with ``n_layers`` dual-stream blocks."""
         super().__init__()
         self.joints_embed = nn.Linear(dim_in, dim_feat)
         self.pos_embed = nn.Parameter(torch.zeros(1, num_joints, dim_feat))
@@ -423,6 +433,7 @@ class MotionAGFormerClassifier(Classifier):
         n_frames: int = 81,
         merge_joints: bool = False,
     ) -> None:
+        """Initialise the backbone and classification head, optionally loading a checkpoint."""
         super().__init__(checkpoint_path=checkpoint_path, n_classes=n_classes)
         self._merge_joints = merge_joints
 

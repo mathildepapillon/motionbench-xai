@@ -1,0 +1,4 @@
+name: temporal
+# K equal-width temporal windows spanning all joints/features (M = K).
+# J, F, T, K are injected at runtime from the dataset config.
+_target_: motionbench.players.temporal_windows.TemporalWindows

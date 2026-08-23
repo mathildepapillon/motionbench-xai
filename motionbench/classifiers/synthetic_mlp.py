@@ -8,6 +8,7 @@ Supports two feature-extraction modes:
 References:
     Olsen et al. (JMLR 2022) — temporal feature aggregation design.
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -60,11 +61,10 @@ class SyntheticMLPClassifier(Classifier):
         hidden: int = 64,
         player_mode: PlayerMode = "temporal",
     ) -> None:
+        """Initialise the MLP and pre-compute temporal window boundaries."""
         super().__init__()
         if player_mode not in ("temporal", "spatial"):
-            raise ValueError(
-                f"player_mode must be 'temporal' or 'spatial'; got {player_mode!r}"
-            )
+            raise ValueError(f"player_mode must be 'temporal' or 'spatial'; got {player_mode!r}")
         self.J = J
         self.F = F
         self.T = T
@@ -75,9 +75,7 @@ class SyntheticMLPClassifier(Classifier):
         if player_mode == "temporal":
             quarter = T // K
             self.window_starts: list[int] = [k * quarter for k in range(K)]
-            self.window_ends: list[int] = [
-                (k + 1) * quarter if k < K - 1 else T for k in range(K)
-            ]
+            self.window_ends: list[int] = [(k + 1) * quarter if k < K - 1 else T for k in range(K)]
             input_dim = K
         else:
             self.window_starts = []

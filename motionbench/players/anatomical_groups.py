@@ -16,8 +16,6 @@ Predefined group schemas
 
 from __future__ import annotations
 
-from typing import ClassVar
-
 import torch
 from torch import Tensor
 
@@ -32,19 +30,19 @@ __all__ = ["AnatomicalGroups", "H36M_GROUPS", "CARE_PD_GROUPS"]
 
 H36M_GROUPS: dict[str, list[int]] = {
     "root": [0],
-    "spine": [7, 8],          # spine-mid, neck/nose
-    "head": [9, 10],          # head, head-top
-    "left_leg": [1, 2, 3],    # left hip, knee, ankle
-    "right_leg": [4, 5, 6],   # right hip, knee, ankle
-    "left_arm": [11, 12, 13], # left shoulder, elbow, wrist
-    "right_arm": [14, 15, 16],# right shoulder, elbow, wrist
+    "spine": [7, 8],  # spine-mid, neck/nose
+    "head": [9, 10],  # head, head-top
+    "left_leg": [1, 2, 3],  # left hip, knee, ankle
+    "right_leg": [4, 5, 6],  # right hip, knee, ankle
+    "left_arm": [11, 12, 13],  # left shoulder, elbow, wrist
+    "right_arm": [14, 15, 16],  # right shoulder, elbow, wrist
 }
 
 CARE_PD_GROUPS: dict[str, list[int]] = {
-    "lower_body": [1, 2, 3, 4, 5, 6],       # hips, knees, ankles
+    "lower_body": [1, 2, 3, 4, 5, 6],  # hips, knees, ankles
     "upper_body": [11, 12, 13, 14, 15, 16],  # shoulders, elbows, wrists
-    "spine": [0, 7, 8],                       # root, spine-mid, neck
-    "head": [9, 10],                          # head, head-top
+    "spine": [0, 7, 8],  # root, spine-mid, neck
+    "head": [9, 10],  # head, head-top
 }
 
 
@@ -78,6 +76,7 @@ class AnatomicalGroups(PlayerSet):
         F: int,
         T: int,
     ) -> None:
+        """Initialise and validate the joint-group partition over ``(J, F, T)``."""
         self._group_names = list(groups.keys())
         self._group_indices = [list(v) for v in groups.values()]
         self._J = J
@@ -96,10 +95,12 @@ class AnatomicalGroups(PlayerSet):
 
     @property
     def n_players(self) -> int:
+        """Number of players M (= number of groups)."""
         return len(self._group_names)
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) element-space shape this player set operates over."""
         return self._J, self._F, self._T
 
     @property

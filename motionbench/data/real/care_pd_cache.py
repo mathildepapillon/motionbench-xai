@@ -56,6 +56,15 @@ class BMCLabCacheDataset:
         max_sequences: int | None = None,
         drop_missing_labels: bool = True,
     ) -> None:
+        """Initialise the dataset from a CARE-PD imputer ``cache.npz``.
+
+        Args:
+            cache_path: Path to the ``cache.npz`` archive.
+            split: ``"val"`` (default) or ``"train"``.
+            max_sequences: Optional head-cap on the number of sequences.
+            drop_missing_labels: Drop samples with UPDRS label ``< 0``.
+                Defaults to ``True``.
+        """
         self._cache_path = Path(cache_path)
         if not self._cache_path.exists():
             raise FileNotFoundError(f"BMCLab cache not found: {self._cache_path}")
@@ -89,7 +98,12 @@ class BMCLabCacheDataset:
 
         logger.info(
             "BMCLabCacheDataset: %d sequences (J=%d, F=%d, T=%d) from %s split=%s",
-            self._N, self._J, self._F, self._T, self._cache_path, split,
+            self._N,
+            self._J,
+            self._F,
+            self._T,
+            self._cache_path,
+            split,
         )
 
     def __len__(self) -> int:
@@ -100,10 +114,12 @@ class BMCLabCacheDataset:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) per-sample coordinate shape."""
         return (self._J, self._F, self._T)
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Free-form dataset metadata (skeleton name, frame rate, ...)."""
         # CARE-PD BMCLab fold1 contains UPDRS-gait labels {0, 1, 2}; no 3 in this fold.
         return {
             "skeleton": "h36m_17",

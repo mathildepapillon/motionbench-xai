@@ -59,9 +59,7 @@ __all__ = ["GaitPeriodicDataset", "gait_stddev_label_fn"]
 LabelFunction = Callable[[npt.NDArray[Any], int], npt.NDArray[np.int64]]
 
 
-def _default_label_fn(
-    x_np: npt.NDArray[Any], n_classes: int
-) -> npt.NDArray[np.int64]:
+def _default_label_fn(x_np: npt.NDArray[Any], n_classes: int) -> npt.NDArray[np.int64]:
     """Quantile-split on joint-0 grand mean (proxy label until Task 1D).
 
     Args:
@@ -77,9 +75,7 @@ def _default_label_fn(
     return labels
 
 
-def gait_stddev_label_fn(
-    x_np: npt.NDArray[Any], n_classes: int
-) -> npt.NDArray[np.int64]:
+def gait_stddev_label_fn(x_np: npt.NDArray[Any], n_classes: int) -> npt.NDArray[np.int64]:
     """Quantile-split on temporal standard deviation of joint-0 signal.
 
     More learnable than the grand-mean default when the cosine temporal kernel
@@ -152,6 +148,21 @@ class GaitPeriodicDataset:
         label_fn: LabelFunction | None = None,
         seed: int = 0,
     ) -> None:
+        """Initialise the gait-periodic benchmark and pre-generate ``N`` sequences.
+
+        Args:
+            J: Number of joints.
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            N: Number of sequences to pre-generate.
+            period_mean: Gait cycle period in frames for the cosine kernel.
+            period_std: Documented stride-period variability (metadata only).
+            n_harmonics: Cosine harmonics in the temporal kernel.
+            n_classes: Number of label classes.
+            label_fn: Optional label callable; defaults to quantile-split on
+                the joint-0 grand mean.
+            seed: Random seed for sequence generation.
+        """
         self._J = J
         self._F = F
         self._T = T

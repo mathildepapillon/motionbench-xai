@@ -170,6 +170,7 @@ class KNNConditionalImputer(BaseImputer):
     """
 
     def __init__(self, k: int = 20, eps: float = 1e-8) -> None:
+        """Initialise with neighbour count ``k`` and distance stabiliser ``eps``."""
         self.k = k
         self.eps = eps
         self._pool_raw: _F64 | None = None  # (N, J, F, T) float64
@@ -232,9 +233,7 @@ class KNNConditionalImputer(BaseImputer):
         if self._pool_raw is None or self._pool_flat is None or self._shape is None:
             raise RuntimeError("KNNConditionalImputer: call fit() before impute().")
         if x_obs.shape != mask.shape:
-            raise ValueError(
-                f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}."
-            )
+            raise ValueError(f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}.")
 
         rng = np.random.default_rng(seed)
         J, F, T = self._shape
@@ -341,6 +340,7 @@ class EmpiricalConditionalImputer(BaseImputer):
         bandwidth: float | str = "auto",
         eta: float = 0.95,
     ) -> None:
+        """Initialise with kernel bandwidth and η-truncation fraction."""
         if not isinstance(bandwidth, str) and bandwidth <= 0:
             raise ValueError(f"bandwidth must be positive or 'auto'; got {bandwidth!r}.")
         if not (0.0 < eta <= 1.0):
@@ -348,10 +348,10 @@ class EmpiricalConditionalImputer(BaseImputer):
         self.bandwidth = bandwidth
         self.eta = eta
 
-        self._pool_raw: _F64 | None = None   # (N, J, F, T) float64
-        self._pool_z: _F64 | None = None     # (N, D) z-scored float64
-        self._mean_d: _F64 | None = None     # (D,) per-feature mean
-        self._std_d: _F64 | None = None      # (D,) per-feature std
+        self._pool_raw: _F64 | None = None  # (N, J, F, T) float64
+        self._pool_z: _F64 | None = None  # (N, D) z-scored float64
+        self._mean_d: _F64 | None = None  # (D,) per-feature mean
+        self._std_d: _F64 | None = None  # (D,) per-feature std
         self._shape: tuple[int, int, int] | None = None
         # Cache Cholesky factors keyed by observed index fingerprint.
         self._chol_cache: dict[bytes, _F64] = {}
@@ -365,9 +365,7 @@ class EmpiricalConditionalImputer(BaseImputer):
         """
         return True
 
-    def fit(
-        self, train_data: BaseDataset
-    ) -> EmpiricalConditionalImputer:
+    def fit(self, train_data: BaseDataset) -> EmpiricalConditionalImputer:
         """Fit the imputer: collect pool, z-score, pre-fit Ledoit-Wolf.
 
         The Ledoit-Wolf covariance is computed lazily per coalition (cached
@@ -421,9 +419,9 @@ class EmpiricalConditionalImputer(BaseImputer):
         L: _F64 | None = None
         for _ in range(6):
             try:
-                L = np.linalg.cholesky(
-                    sigma_ss + jitter * np.eye(sigma_ss.shape[0])
-                ).astype(np.float64, copy=False)
+                L = np.linalg.cholesky(sigma_ss + jitter * np.eye(sigma_ss.shape[0])).astype(
+                    np.float64, copy=False
+                )
                 break
             except np.linalg.LinAlgError:
                 jitter *= 10.0
@@ -436,9 +434,7 @@ class EmpiricalConditionalImputer(BaseImputer):
         self._chol_cache[key] = L
         return L
 
-    def _kernel_weights(
-        self, x_star_z: _F64, obs_idx: npt.NDArray[np.intp]
-    ) -> _F64:
+    def _kernel_weights(self, x_star_z: _F64, obs_idx: npt.NDArray[np.intp]) -> _F64:
         """Compute normalised (N,) Gaussian kernel weights (Aas 2021 Eq. 7).
 
         Mahalanobis distance on the observed sub-block (Eq. 6):
@@ -461,6 +457,7 @@ class EmpiricalConditionalImputer(BaseImputer):
         # Solve L Z = V.T  =>  Z = L^{-1} V.T, shape (|S|, N).
         try:
             from scipy.linalg import solve_triangular
+
             Z = solve_triangular(L, V.T, lower=True)
         except Exception:
             Z = np.linalg.solve(L, V.T)
@@ -491,7 +488,7 @@ class EmpiricalConditionalImputer(BaseImputer):
 
         # Numerically stable: subtract minimum d² before exponentiating.
         d2_min = float(d2_eff[np.isfinite(d2_eff)].min()) if np.any(np.isfinite(d2_eff)) else 0.0
-        logits = -(d2_eff - d2_min) / (2.0 * sigma ** 2)
+        logits = -(d2_eff - d2_min) / (2.0 * sigma**2)
         # Donors masked by LOO get logits=-inf → weight 0.
         w = np.exp(logits)
         total = float(w.sum())
@@ -538,13 +535,9 @@ class EmpiricalConditionalImputer(BaseImputer):
             or self._std_d is None
             or self._shape is None
         ):
-            raise RuntimeError(
-                "EmpiricalConditionalImputer: call fit() before impute()."
-            )
+            raise RuntimeError("EmpiricalConditionalImputer: call fit() before impute().")
         if x_obs.shape != mask.shape:
-            raise ValueError(
-                f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}."
-            )
+            raise ValueError(f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}.")
 
         rng = np.random.default_rng(seed)
         J, F, T = self._shape
@@ -571,11 +564,11 @@ class EmpiricalConditionalImputer(BaseImputer):
         x_star_z = (x_flat - self._mean_d) / self._std_d
 
         # Steps 2–4 of Aas 2021 Algorithm 2.
-        w = self._kernel_weights(x_star_z, obs_idx)       # Eq. (7)
-        w = _eta_truncate(w, self.eta)                      # Eq. (8)
+        w = self._kernel_weights(x_star_z, obs_idx)  # Eq. (7)
+        w = _eta_truncate(w, self.eta)  # Eq. (8)
 
         chosen = rng.choice(N, size=n_samples, replace=True, p=w)
-        out_np = self._pool_raw[chosen].copy()              # (n_samples, J, F, T)
+        out_np = self._pool_raw[chosen].copy()  # (n_samples, J, F, T)
         # Step 6: overwrite observed entries bit-for-bit.
         out_flat = out_np.reshape(n_samples, D)
         out_flat[:, obs_idx] = x_flat[obs_idx][None, :]
@@ -632,12 +625,13 @@ class VineCopulaImputer(BaseImputer):
     """
 
     def __init__(self, max_vine_dim: int = 20) -> None:
+        """Initialise with the maximum dimension for pyvinecopulib fitting."""
         self.max_vine_dim = max_vine_dim
 
-        self._pool_raw: _F64 | None = None    # (N, J, F, T) float64
-        self._pool_flat: _F64 | None = None   # (N, D) float64
+        self._pool_raw: _F64 | None = None  # (N, J, F, T) float64
+        self._pool_flat: _F64 | None = None  # (N, D) float64
         self._sorted_cols: _F64 | None = None  # (N, D) sorted per col
-        self._corr: _F64 | None = None         # (D, D) LW correlation
+        self._corr: _F64 | None = None  # (D, D) LW correlation
         self._shape: tuple[int, int, int] | None = None
         self._used_pyvine: bool = False
 
@@ -675,9 +669,8 @@ class VineCopulaImputer(BaseImputer):
 
         # Pseudo-observations: u_{n,j} = rank(x_{n,j}) / (N + 1) ∈ (0, 1).
         from scipy.stats import rankdata
-        u = np.column_stack(
-            [rankdata(self._pool_flat[:, j]) / (N + 1) for j in range(D)]
-        )  # (N, D)
+
+        u = np.column_stack([rankdata(self._pool_flat[:, j]) / (N + 1) for j in range(D)])  # (N, D)
 
         # Normal scores: z = Φ⁻¹(u), shape (N, D).
         z = sp_norm.ppf(u)
@@ -790,13 +783,9 @@ class VineCopulaImputer(BaseImputer):
             or self._corr is None
             or self._shape is None
         ):
-            raise RuntimeError(
-                "VineCopulaImputer: call fit() before impute()."
-            )
+            raise RuntimeError("VineCopulaImputer: call fit() before impute().")
         if x_obs.shape != mask.shape:
-            raise ValueError(
-                f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}."
-            )
+            raise ValueError(f"x_obs.shape {x_obs.shape} != mask.shape {mask.shape}.")
 
         rng = np.random.default_rng(seed)
         J, F, T = self._shape

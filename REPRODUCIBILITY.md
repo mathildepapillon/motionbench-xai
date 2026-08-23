@@ -13,7 +13,18 @@ independently.
 
 ## 1. Environments
 
-Two conda environments are used:
+For the synthetic half (including the quickstart and the deterministic
+player-set evaluation) a plain pip install is enough:
+
+```bash
+python3 -m pip install -e .        # Python >= 3.10; verified on 3.10
+python3 -m pip install -e ".[dev]" # + pytest / ruff / mypy
+```
+
+The optional WindowSHAP baselines additionally need
+`pip install git+https://github.com/vsubbian/WindowSHAP` (not on PyPI).
+
+For the full multi-GPU reproduction two conda environments are used:
 
 | Environment       | Purpose | File |
 |-------------------|---------|------|
@@ -192,18 +203,58 @@ PTB-XL classifier checkpoints land at
 `motionbench/classifiers/checkpoints/real/ptbxl_fold{1,2,3}.pt`; PTB-XL
 SHAP results land at `results/ptbxl_leads/<fold>/<method>/result.json`.
 
-### 2.4 Summary
+### 2.4 ESC-50
+
+ESC-50 is a public dataset of 2,000 five-second environmental audio clips
+in 50 classes.
+
+**Canonical source:** <https://github.com/karolpiczak/ESC-50>
+(citation: Piczak, 2015; **CC BY-NC** — non-commercial only, and the
+license carries through to any model trained on it).
+
+**Step-by-step acquisition:**
+
+```bash
+# 1. Download and unpack the dataset (~600 MB).
+curl -L https://github.com/karolpiczak/ESC-50/archive/master.zip -o /tmp/esc50.zip
+unzip /tmp/esc50.zip -d "${REPO_ROOT}/data/esc50/"
+
+# 2. Build the per-fold mel-spectrogram caches
+#    (ASTFeatureExtractor, (N, J=128, F=1, T=1024) format; ~10 min on CPU).
+cd "${REPO_ROOT}"
+conda activate "${MOTIONBENCH_ENV}"
+python scripts/preprocess_esc50.py \
+    --esc50_dir data/esc50/ESC-50-master --output_dir data/esc50
+
+# 3. Fine-tune the per-fold AST classifiers (~25 min/fold on 1× A100),
+#    OR download the reference fine-tunes instead (CC BY-NC archive):
+#      bash scripts/download_checkpoints.sh esc50
+for FOLD in 1 2 3; do
+    PYTHONPATH=. python scripts/train_esc50_ast.py --fold "${FOLD}" \
+        --data-dir data/esc50
+done
+```
+
+ESC-50 classifier checkpoints land at
+`motionbench/classifiers/checkpoints/real/esc50_ast_fold{1,2,3}.pt`
+(retraining vs downloading is a license choice as much as a compute one:
+the reference archive is CC BY-NC either way, since ESC-50's license
+carries through).
+
+### 2.5 Summary
 
 | Artifact | Required for | Acquisition |
 |---|---|---|
 | Synthetic data | All synthetic benchmark results | Generated on the fly — no download |
-| Synthetic classifiers (3 archs × 11 datasets) | Synthetic benchmark results | `python scripts/train_synthetic_clf.py` (~2 min on 8 GPUs) |
+| Synthetic classifiers (3 archs × 11 datasets) | Synthetic benchmark results | `python scripts/train_synthetic_clf.py` (~2 min on 8 GPUs); the reference archive ships only the five paper datasets' classifiers (21 files incl. 6 MLP seed replicas — see `checkpoints/README.md`) |
 | Synthetic VAEAC + Flow imputers | KS-VAEAC / KS-Flow rows | Trained inside `$CARE_PD_ROOT` (orchestrated by `scripts/reproduce_synthetic.sh`); requires the CARE-PD codebase but not the CARE-PD data |
 | CARE-PD code + BMCLab data | CARE-PD benchmark results | <https://github.com/TaatiTeam/CARE-PD> + <https://huggingface.co/datasets/vida-adl/CARE-PD> |
 | Real-data classifiers (MotionBERT, POTR, MotionAGFormer; 3 folds each) | CARE-PD benchmark results | Pre-trained checkpoints shipped with the CARE-PD release |
 | BMCLab VAEAC + Flow imputers | KS-VAEAC / KS-Flow on real data | Pre-trained checkpoints shipped with the CARE-PD release, or retrain via the CARE-PD `train_vaeac.py` / `train_flow_matching.py` |
 | PTB-XL waveform records | PTB-XL benchmark results | <https://physionet.org/content/ptb-xl/1.0.3/> (free, requires PhysioNet account) |
 | PTB-XL classifier (1-D ResNet, 3 folds) | PTB-XL benchmark results | `python scripts/train_ptbxl_classifier.py --fold {1,2,3}` |
+| ESC-50 audio (CC BY-NC) | ESC-50 benchmark results | <https://github.com/karolpiczak/ESC-50> + `python scripts/preprocess_esc50.py` |
+| ESC-50 classifier (AST fine-tune, 3 folds) | ESC-50 benchmark results | `python scripts/train_esc50_ast.py --fold {1,2,3}`, or `bash scripts/download_checkpoints.sh esc50` (CC BY-NC) |
 
 ---
 
@@ -220,12 +271,40 @@ source ./scripts/configure_paths.sh
 
 # PTB-XL benchmark — requires PTB-XL data
 ./scripts/reproduce_ptbxl.sh
+
+# ESC-50 benchmark — requires ESC-50 data (CC BY-NC)
+./scripts/reproduce_esc50.sh
 ```
 
 Each script is idempotent: cached results are detected and skipped, so you can
 safely interrupt and resume.  Per-method results land under
 `results/<benchmark>/<dataset_or_fold>/<classifier>/<method>/result.json`
 and can be aggregated programmatically (see `motionbench/pipelines/leaderboard.py`).
+
+LaTeX table/figure generation lives with the paper sources, which are not
+part of this code release; the scripts above stop at the raw `results/`
+tree.  Pre-trained checkpoint digests and download locations are documented
+in [`checkpoints/README.md`](checkpoints/README.md).
+
+### 3.1 Deterministic player-set evaluation (CPU-friendly)
+
+The `player_eval` pipeline grades any player set × any imputer against
+**deterministic** oracles (exact conditional-mean fills — zero grading
+noise) on a shared fixed coalition design:
+
+```bash
+# quickstart cell (gauss_k4 × spatial × MLP × {KS-Zero, KS-Oracle}, CPU):
+python3 scripts/train_synthetic_clf.py --datasets gaussian_k4 \
+    --classifiers synthetic_mlp --force-cpu          # ~2 min
+python3 -m motionbench.cli.run experiments=quickstart # ~10 s
+
+# full sweep over temporal / spatial / cell players:
+python3 -m motionbench.cli.run experiments=player_set_eval
+```
+
+Coalition designs are exact enumerations for M <= 12 players and
+importance-corrected samples (seed 7919, budget 1024) above; see
+`motionbench/attribution/sampled_coalitions.py` and RESOLUTIONS.md §6/§8.
 
 ---
 
@@ -238,6 +317,10 @@ PYTHONPATH=. python scripts/train_synthetic_clf.py
 ```
 
 Produces `motionbench/classifiers/checkpoints/synthetic/<dataset>/<arch>.pt`.
+The trainer covers all 11 synthetic dataset configs (33 dataset ×
+architecture combinations); the downloadable reference archive ships only
+the five paper datasets' classifiers — 21 files including 6 MLP seed
+replicas (see `checkpoints/README.md`).
 Validation accuracies range from roughly 0.26 to 0.99 across the 33
 combinations (11 datasets × 3 architectures).  A handful of cells land
 below 0.55 — these are deliberately hard tasks (non-smooth XOR labels,
@@ -338,6 +421,90 @@ done
 ./scripts/reproduce_ptbxl.sh
 ```
 
+### 4.7 ESC-50 sweep
+
+```bash
+# Preprocess, fine-tune the per-fold AST classifiers, and run all three
+# attribution tracks in one go (see Section 2.4 for data acquisition):
+./scripts/reproduce_esc50.sh
+```
+
+Stage-by-stage equivalent:
+
+```bash
+# Mel caches (once).
+PYTHONPATH=. python scripts/preprocess_esc50.py \
+    --esc50_dir data/esc50/ESC-50-master --output_dir data/esc50
+
+# Per-fold AST classifiers (skip if downloaded — Section 2.4).
+for FOLD in 1 2 3; do
+    PYTHONPATH=. python scripts/train_esc50_ast.py --fold "$FOLD" --data-dir data/esc50
+done
+
+# Temporal track (K=4 windows), frequency-band track (4 mel-bin quartiles),
+# and band×window cells track (M=16; see Section 4.8).
+for FOLD in 1 2 3; do
+    PYTHONPATH=. python scripts/run_esc50_shap.py --fold "$FOLD"
+    PYTHONPATH=. python scripts/run_esc50_freq_shap.py --fold "$FOLD"
+    PYTHONPATH=. python scripts/run_esc50_cells_shap.py --fold "$FOLD" --n_seq 200
+done
+```
+
+Expected outputs: `results/esc50/fold{f}/{method}/result.json` (temporal),
+`results/esc50_freq/fold{f}/{method}/result.json` (frequency bands), and
+`results/esc50_cells/fold{f}/{method}/result.json` (cells), each carrying
+per-sequence faithfulness and PlayerAOPC.  The learned-imputer rows
+(`kernelshap_vaeac` / `kernelshap_flow`) of the temporal and frequency
+tracks are skipped with a warning unless release-format imputers exist
+under `results/esc50_imputers/` (train with `scripts/train_vaeac.py` /
+`scripts/train_flow.py` on `data/esc50/fold{f}_train.npz` with
+`--J 128 --F 1 --T 1024`); the cells track loads the validation-study
+format `checkpoints/imputers/esc50_{vaeac,flow}.pt` from the esc50
+checkpoint archive.
+
+<!-- BEGIN player-set sweeps subsection (added with the real-data player-set entry points) -->
+### 4.8 Real-data player-set sweeps (spatial + cell granularity)
+
+Sampled-coalition KernelSHAP (fixed design ``sampled_coalition_set(M,
+B=2048, seed=7919)``, shared across methods and folds) on the finer
+player sets; protocol details in RESOLUTIONS.md §12.  Default methods are
+the deterministic imputers (Zero/Mean/Marginal); pass
+``--methods ... kernelshap_vaeac kernelshap_flow`` to add the on-manifold
+imputers (checkpoints under ``checkpoints/imputers/``, see
+``checkpoints/README.md``).
+
+```bash
+# CARE-PD, per-joint players (M=17) and joint×window cells (M=68),
+# MotionBERT + MotionAGFormer (POTR is excluded: fails the accuracy gate).
+for PS in joint cell; do
+  for CLF in motionbert motionagformer; do
+    for FOLD in 1 2 3; do
+      PYTHONPATH=. python scripts/run_carepd_players_shap.py \
+          --playerset "$PS" --classifier "$CLF" --fold "$FOLD" --n_seq 200
+    done
+  done
+done
+
+# ESC-50, mel-band × window cells (M=16 = 4 bin-quartiles × 4 windows).
+for FOLD in 1 2 3; do
+  PYTHONPATH=. python scripts/run_esc50_cells_shap.py --fold "$FOLD" --n_seq 200
+done
+
+# PTB-XL, lead × window cells (M=48 = 12 leads × 4 windows).
+for FOLD in 1 2 3; do
+  PYTHONPATH=. python scripts/run_ptbxl_cells_shap.py --fold "$FOLD" --n_seq 200 \
+      --data_path "$PTBXL_DATA_ROOT"
+done
+```
+
+Data resolution: CARE-PD uses ``$CARE_PD_ROOT`` (or a prepared cache dir via
+``--cache_dir`` / ``$CAREPD_CACHE_DIR``); ESC-50 uses ``data/esc50`` (or
+``--data_dir`` / ``$ESC50_DATA_DIR``); PTB-XL uses the raw download plus the
+training stats from ``train_ptbxl_classifier.py`` (or ``--cache_dir`` /
+``$PTBXL_CACHE_DIR``).  Results land in
+``results/{carepd_players,esc50_cells,ptbxl_cells}/``.
+<!-- END player-set sweeps subsection -->
+
 ---
 
 ## 5. Determinism notes
@@ -346,13 +513,14 @@ done
   pinned inside the dataset classes themselves and surfaced through
   `scripts/train_synthetic_clf.py` (`DATASET_CONFIGS`) and
   `configs/data/<dataset>.yaml`.
-* Classifier training enables `torch.use_deterministic_algorithms(True)` where
-  the underlying ops permit it, and pins `torch.manual_seed`,
-  `numpy.random.seed`, and `random.seed` to the value in
-  `configs/training/synthetic_clf.yaml`.  CUDA non-determinism in cuDNN
-  convolutions and a few CUDA reduction kernels means classifier-training
-  numbers can drift by ≤0.5 % across hardware; the synthetic SHAP sweep itself
-  is fully deterministic given a fixed classifier checkpoint.
+* Classifier training pins `torch.manual_seed` (`scripts/train_synthetic_clf.py`,
+  `--seed`, default 42); the imputer trainers (`scripts/train_vaeac.py`,
+  `scripts/train_flow.py`) additionally seed `numpy.random.seed` and
+  `random.seed`.  No cuDNN determinism flags are set, so CUDA
+  non-determinism in cuDNN convolutions and a few CUDA reduction kernels
+  means classifier-training numbers can drift by ≤0.5 % across hardware;
+  the synthetic SHAP sweep itself is fully deterministic given a fixed
+  classifier checkpoint.
 * KernelSHAP coalitions are evaluated under `shap.KernelExplainer`, which
   enumerates exhaustively when the sample budget covers $2^K{-}2$
   coalitions and otherwise samples under the SHAP kernel weighting.  With
@@ -383,7 +551,9 @@ PlayerAOPC) after rerunning a stage, please attach the output of
 | All synthetic ablations (Section 4.4) | ~50 MB | ~60 min |
 | CARE-PD sweep (3 classifiers × 3 folds × 200 seqs) | ~200 MB | ~90 min on 1 GPU |
 | PTB-XL sweep (3 folds × 200 seqs)  | ~150 MB | ~60 min on 1 GPU |
-| **Total** | **~1.5 GB** | **~5 hours on 1 GPU, ~90 min on 8 GPUs** |
+| ESC-50 mel caches + AST fine-tunes (3 folds) | ~3 GB | ~10 min CPU + ~25 min/fold on 1 GPU |
+| ESC-50 sweeps (3 tracks × 3 folds × 200 seqs) | ~50 MB | ~2 hours on 1 GPU |
+| **Total** | **~5 GB** | **~8 hours on 1 GPU (~5 without ESC-50), ~90 min on 8 GPUs for the synthetic half** |
 
 ---
 

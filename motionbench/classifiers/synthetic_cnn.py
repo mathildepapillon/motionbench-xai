@@ -7,6 +7,7 @@ Architecture:
     → Conv1d(32, 64, kernel_size=5, padding=2) → ReLU → BatchNorm1d
     → AdaptiveAvgPool1d(1) → squeeze → Linear(64, n_classes)
 """
+
 from __future__ import annotations
 
 import torch.nn as nn
@@ -38,6 +39,7 @@ class SyntheticCNNClassifier(Classifier):
         F: int = 3,
         n_classes: int = 3,
     ) -> None:
+        """Initialise the convolutional stack and linear head."""
         super().__init__()
         self.J = J
         self.F = F
@@ -68,7 +70,7 @@ class SyntheticCNNClassifier(Classifier):
             (B, n_classes) float32 logit tensor.
         """
         B, J, F, T = x.shape
-        h = x.reshape(B, J * F, T)      # (B, J*F, T)
-        h = self.conv_layers(h)          # (B, 64, T)
-        h = self.pool(h).squeeze(-1)     # (B, 64)
-        return self.classifier(h)        # (B, n_classes)
+        h = x.reshape(B, J * F, T)  # (B, J*F, T)
+        h = self.conv_layers(h)  # (B, 64, T)
+        h = self.pool(h).squeeze(-1)  # (B, 64)
+        return self.classifier(h)  # (B, n_classes)

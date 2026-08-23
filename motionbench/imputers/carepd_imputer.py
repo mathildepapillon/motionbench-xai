@@ -1,9 +1,10 @@
-"""carepd_imputer.py — Bridge adapters that wrap CARE-PD's trained
-VAEACImputer and FlowImputer behind the motionbench-xai BaseImputer API.
+"""motionbench.imputers.carepd_imputer — Bridge adapters for CARE-PD's trained imputers.
 
-These adapters load pre-trained checkpoints from the CARE-PD project and
-expose them as drop-in ``BaseImputer`` implementations that can be wired
-into any motionbench-xai KernelSHAP method config.
+Wraps CARE-PD's trained VAEACImputer and FlowImputer behind the
+motionbench-xai ``BaseImputer`` API: the adapters load pre-trained
+checkpoints from the CARE-PD project and expose them as drop-in
+implementations that can be wired into any motionbench-xai KernelSHAP
+method config.
 
 Mask translation
 ----------------
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # CARE-PD root — all checkpoint paths are relative to this.
@@ -165,7 +167,7 @@ def _ensure_carepd_on_path() -> None:
         sys.path.insert(0, carepd)
 
 
-def _mask_to_coalition(mask: Tensor) -> tuple[Tensor, str]:
+def mask_to_coalition(mask: Tensor) -> tuple[Tensor, str]:
     """Convert element-wise ``(J, F, T)`` mask → CARE-PD coalition format.
 
     Returns:
@@ -174,34 +176,34 @@ def _mask_to_coalition(mask: Tensor) -> tuple[Tensor, str]:
     """
     J, F, T = mask.shape
     # Check temporal structure: for every t, are all (j, f) identical?
-    mask_t = mask[:, :, :]          # (J, F, T)
-    per_t = mask_t[0, 0, :]        # (T,) — sample from first (j=0, f=0)
+    mask_t = mask[:, :, :]  # (J, F, T)
+    per_t = mask_t[0, 0, :]  # (T,) — sample from first (j=0, f=0)
     is_temporal = (mask_t == per_t.view(1, 1, T)).all()
 
     if is_temporal:
-        return per_t.unsqueeze(0).contiguous(), "temporal"   # (1, T)
+        return per_t.unsqueeze(0).contiguous(), "temporal"  # (1, T)
 
     # Check spatial structure: for every j, are all (f, t) identical?
-    per_j = mask_t[:, 0, 0]        # (J,)
+    per_j = mask_t[:, 0, 0]  # (J,)
     is_spatial = (mask_t == per_j.view(J, 1, 1)).all()
 
     if is_spatial:
-        return per_j.unsqueeze(0).contiguous(), "spatial"    # (1, J)
+        return per_j.unsqueeze(0).contiguous(), "spatial"  # (1, J)
 
     # Fallback: reduce to temporal by OR-across-joints
     log.warning(
         "Mask is neither purely temporal nor purely spatial; "
         "falling back to temporal heuristic for CARE-PD imputer."
     )
-    temporal_any = mask_t.any(dim=0).any(dim=0)              # (T,)
+    temporal_any = mask_t.any(dim=0).any(dim=0)  # (T,)
     return temporal_any.unsqueeze(0).contiguous(), "temporal"
 
 
-def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device):
+def load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
     """Load a CARE-PD VAEAC checkpoint and return a VAEACImputer."""
     _ensure_carepd_on_path()
-    from model.vaeac import VAEAC                        # type: ignore[import]
-    from model.vaeac.imputer import VAEACImputer          # type: ignore[import]
+    from model.vaeac import VAEAC  # type: ignore[import]
+    from model.vaeac.imputer import VAEACImputer  # type: ignore[import]
 
     cfg = json.loads(cfg_path.read_text())
 
@@ -219,9 +221,10 @@ def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device):
     raw = ckpt.get("state_dict", ckpt)
     # Strip "model." prefix if present (Lightning checkpoints), else use as-is.
     if any(k.startswith("model.") for k in raw):
-        clean = {k[len("model."):]: v for k, v in raw.items() if k.startswith("model.")}
+        clean = {k[len("model.") :]: v for k, v in raw.items() if k.startswith("model.")}
     else:
         clean = dict(raw)
+
     # Remap keys saved by older VAEAC versions:
     #   trunk.encoder.layers.X  →  trunk.layers.X  (TransformerEncoder wrapper rename)
     #   head.log_sigma           →  head.log_sigma_x
@@ -229,10 +232,12 @@ def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device):
         k = k.replace(".trunk.encoder.layers.", ".trunk.layers.")
         k = k.replace("head.log_sigma", "head.log_sigma_x")
         return k
+
     clean = {_remap_vaeac(k): v for k, v in clean.items()}
 
     # Infer num_layers from the checkpoint itself (overrides config if mismatched).
     import re as _re
+
     layer_idxs = set()
     for k in clean:
         m = _re.search(r"\.trunk\.layers\.(\d+)\.", k)
@@ -244,9 +249,10 @@ def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device):
             log.warning(
                 "[_load_vaeac] num_layers in config (%s) does not match checkpoint (%d); "
                 "using checkpoint value.",
-                cfg.get("num_layers"), inferred_layers,
+                cfg.get("num_layers"),
+                inferred_layers,
             )
-        cfg = dict(cfg)   # don't mutate the caller's dict
+        cfg = dict(cfg)  # don't mutate the caller's dict
         cfg["num_layers"] = inferred_layers
 
     model = VAEAC(
@@ -274,11 +280,11 @@ def _load_vaeac(ckpt_dir: Path, cfg_path: Path, device: torch.device):
     return VAEACImputer(model, device, stats_mean=None, stats_std=None, temperature=1.0)
 
 
-def _load_flow(ckpt_dir: Path, cfg_path: Path, device: torch.device):
+def load_flow(ckpt_dir: Path, cfg_path: Path, device: torch.device) -> object:
     """Load a CARE-PD flow-matching checkpoint and return a FlowImputer."""
     _ensure_carepd_on_path()
-    from model.flow_matching import VelocityNet               # type: ignore[import]
-    from model.flow_shap.imputer import FlowImputer           # type: ignore[import]
+    from model.flow_matching import VelocityNet  # type: ignore[import]
+    from model.flow_shap.imputer import FlowImputer  # type: ignore[import]
 
     cfg = json.loads(cfg_path.read_text())
 
@@ -301,7 +307,7 @@ def _load_flow(ckpt_dir: Path, cfg_path: Path, device: torch.device):
     raw = ckpt.get("state_dict", ckpt)
     # Strip "model." prefix if present (Lightning checkpoints), else use as-is.
     if any(k.startswith("model.") for k in raw):
-        clean = {k[len("model."):]: v for k, v in raw.items() if k.startswith("model.")}
+        clean = {k[len("model.") :]: v for k, v in raw.items() if k.startswith("model.")}
     else:
         clean = dict(raw)
 
@@ -331,14 +337,17 @@ def _load_flow(ckpt_dir: Path, cfg_path: Path, device: torch.device):
     wpath = ckpt_dir / "whitening_stats.npz"
     if wpath.exists():
         import numpy as np
+
         ws = np.load(wpath)
         stats_mean = torch.from_numpy(ws["mean"])
         stats_std = torch.from_numpy(ws["std"])
 
     log.info("[CarepdFlow] loaded from %s (obs_cond=%s)", ckpt_path, obs_cfg)
     return FlowImputer(
-        net, device,
-        stats_mean=stats_mean, stats_std=stats_std,
+        net,
+        device,
+        stats_mean=stats_mean,
+        stats_std=stats_std,
         num_steps=int(cfg.get("num_steps", 50)),
         solver="midpoint",
         cfg_scale=float(cfg.get("cfg_scale", 0.0)),
@@ -366,13 +375,15 @@ class CarepdVAEACImputer(BaseImputer):
         device: str = "cpu",
         **_kwargs: object,  # absorb extra pipeline kwargs (J, F, T, etc.)
     ) -> None:
+        """Initialise the VAEAC wrapper; the checkpoint is resolved in :meth:`fit`."""
         self._n_completion_samples = int(n_completion_samples)
         self._device_str = device
-        self._imputer = None   # set in fit()
+        self._imputer = None  # set in fit()
         self._fitted = False
         self._skip = False
 
-    def fit(self, train_data: "BaseDataset") -> "CarepdVAEACImputer":
+    def fit(self, train_data: BaseDataset) -> CarepdVAEACImputer:
+        """Resolve the pretrained checkpoint for this dataset family; returns self."""
         cls_name = type(train_data).__name__
         if cls_name not in _VAEAC_REGISTRY:
             log.warning(
@@ -391,7 +402,8 @@ class CarepdVAEACImputer(BaseImputer):
         if not ckpt_dir.exists():
             log.warning(
                 "CarepdVAEACImputer: checkpoint dir %s not found — skipping %s.",
-                ckpt_dir, cls_name,
+                ckpt_dir,
+                cls_name,
             )
             self._skip = True
             self._fitted = True
@@ -399,7 +411,7 @@ class CarepdVAEACImputer(BaseImputer):
 
         device = torch.device(self._device_str)
         try:
-            self._imputer = _load_vaeac(ckpt_dir, cfg_path, device)
+            self._imputer = load_vaeac(ckpt_dir, cfg_path, device)
             # Validate J/T compatibility with dataset
             J_data, _, T_data = train_data.shape
             cfg = json.loads(cfg_path.read_text())
@@ -409,7 +421,11 @@ class CarepdVAEACImputer(BaseImputer):
                 log.warning(
                     "CarepdVAEACImputer: dimension mismatch for %s — "
                     "data (J=%d, T=%d) vs model (J=%d, T=%d). Skipping.",
-                    cls_name, J_data, T_data, J_model, T_model,
+                    cls_name,
+                    J_data,
+                    T_data,
+                    J_model,
+                    T_model,
                 )
                 self._skip = True
                 self._imputer = None
@@ -427,12 +443,11 @@ class CarepdVAEACImputer(BaseImputer):
         n_samples: int,
         seed: int | None = None,
     ) -> Tensor:
+        """Draw n_samples completions; observed entries preserved bit-for-bit."""
         if not self._fitted:
             raise RuntimeError("CarepdVAEACImputer.fit() must be called first.")
         if self._skip or self._imputer is None:
-            raise NotImplementedError(
-                "No CARE-PD VAEAC checkpoint available for this dataset."
-            )
+            raise NotImplementedError("No CARE-PD VAEAC checkpoint available for this dataset.")
 
         J, F, T = x_obs.shape
         device = self._imputer._device
@@ -441,7 +456,7 @@ class CarepdVAEACImputer(BaseImputer):
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
 
-        coalition_mask, kind = _mask_to_coalition(mask)
+        coalition_mask, kind = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
 
         completions = self._imputer.sample_completions(
@@ -451,10 +466,10 @@ class CarepdVAEACImputer(BaseImputer):
             lengths=None,
             coalition_mask=coalition_mask,
             n_samples=n_samples,
-        )                              # list of n_samples × (1, J, F, T)
+        )  # list of n_samples × (1, J, F, T)
 
         # Stack and enforce observed-entry preservation bit-for-bit
-        out = torch.cat(completions, dim=0)                   # (n_samples, J, F, T)
+        out = torch.cat(completions, dim=0)  # (n_samples, J, F, T)
         out_dev = out.device
         x_dev = x_obs.to(out_dev)
         mask_dev = mask.to(out_dev)
@@ -464,10 +479,12 @@ class CarepdVAEACImputer(BaseImputer):
 
     @property
     def is_on_manifold(self) -> bool:
+        """True: VAEAC samples approximate the data manifold."""
         return True
 
     @property
     def name(self) -> str:
+        """Short identifier for logging and leaderboard tables."""
         return "vaeac"
 
 
@@ -489,13 +506,15 @@ class CarepdFlowImputer(BaseImputer):
         device: str = "cpu",
         **_kwargs: object,  # absorb extra pipeline kwargs (J, F, T, etc.)
     ) -> None:
+        """Initialise the flow wrapper; the checkpoint is resolved in :meth:`fit`."""
         self._num_steps = int(num_steps)
         self._device_str = device
         self._imputer = None
         self._fitted = False
         self._skip = False
 
-    def fit(self, train_data: "BaseDataset") -> "CarepdFlowImputer":
+    def fit(self, train_data: BaseDataset) -> CarepdFlowImputer:
+        """Resolve the pretrained checkpoint for this dataset family; returns self."""
         cls_name = type(train_data).__name__
         if cls_name not in _FLOW_REGISTRY:
             log.warning(
@@ -513,7 +532,8 @@ class CarepdFlowImputer(BaseImputer):
         if not ckpt_dir.exists():
             log.warning(
                 "CarepdFlowImputer: checkpoint dir %s not found — skipping %s.",
-                ckpt_dir, cls_name,
+                ckpt_dir,
+                cls_name,
             )
             self._skip = True
             self._fitted = True
@@ -524,14 +544,14 @@ class CarepdFlowImputer(BaseImputer):
             # Override num_steps with our requested value
             cfg = json.loads(cfg_path.read_text())
             cfg["num_steps"] = self._num_steps
-            import tempfile, os
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".json", delete=False
-            ) as f:
+            import os
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                 json.dump(cfg, f)
                 tmp_cfg = Path(f.name)
             try:
-                self._imputer = _load_flow(ckpt_dir, tmp_cfg, device)
+                self._imputer = load_flow(ckpt_dir, tmp_cfg, device)
             finally:
                 os.unlink(tmp_cfg)
 
@@ -543,7 +563,11 @@ class CarepdFlowImputer(BaseImputer):
                 log.warning(
                     "CarepdFlowImputer: dimension mismatch for %s — "
                     "data (J=%d, T=%d) vs model (J=%d, T=%d). Skipping.",
-                    cls_name, J_data, T_data, J_model, T_model,
+                    cls_name,
+                    J_data,
+                    T_data,
+                    J_model,
+                    T_model,
                 )
                 self._skip = True
                 self._imputer = None
@@ -576,10 +600,9 @@ class CarepdFlowImputer(BaseImputer):
 
         J, F, T = x_obs.shape
         T_win = T // K  # frames per window
-        device = self._imputer._device
 
         # Build all 2^K coalition masks (B, T) — each row is a binary temporal mask
-        n_coal = 2 ** K
+        n_coal = 2**K
         all_coal_masks = torch.zeros(n_coal, T, dtype=torch.bool)
         for coal_idx in range(n_coal):
             for win in range(K):
@@ -588,7 +611,7 @@ class CarepdFlowImputer(BaseImputer):
                     end = start + T_win if win < K - 1 else T
                     all_coal_masks[coal_idx, start:end] = True
 
-        x_in = x_obs.unsqueeze(0)           # (1, J, F, T)
+        x_in = x_obs.unsqueeze(0)  # (1, J, F, T)
         pad = torch.ones(1, T, dtype=torch.bool)
 
         # Run all 2^K coalitions in one batched ODE integration
@@ -598,14 +621,14 @@ class CarepdFlowImputer(BaseImputer):
             mask=pad,
             coalition_masks=all_coal_masks,
             n_samples=n_samples,
-        )                                    # (B, n_samples, J, F, T)
+        )  # (B, n_samples, J, F, T)
         batched_out = batched_out.cpu()
 
         # Store in cache keyed by tuple of T-length 0/1 strings
         self._completion_cache: dict[tuple, Tensor] = {}
         for coal_idx in range(n_coal):
             key = tuple(all_coal_masks[coal_idx].tolist())
-            completions = batched_out[coal_idx]               # (n_samples, J, F, T)
+            completions = batched_out[coal_idx]  # (n_samples, J, F, T)
             # Overwrite observed entries bit-for-bit
             m_key = all_coal_masks[coal_idx].view(1, 1, 1, T).expand(n_samples, J, F, T)
             completions = torch.where(
@@ -618,10 +641,13 @@ class CarepdFlowImputer(BaseImputer):
         self._cached_x_obs = x_obs.cpu()
         log.debug(
             "CarepdFlowImputer: pre-computed %d temporal coalitions (K=%d, T=%d)",
-            n_coal, K, T,
+            n_coal,
+            K,
+            T,
         )
 
     def clear_cache(self) -> None:
+        """Drop the memoised per-mask completions."""
         self._completion_cache = {}
 
     def impute(
@@ -631,23 +657,22 @@ class CarepdFlowImputer(BaseImputer):
         n_samples: int,
         seed: int | None = None,
     ) -> Tensor:
+        """Draw n_samples completions; observed entries preserved bit-for-bit."""
         if not self._fitted:
             raise RuntimeError("CarepdFlowImputer.fit() must be called first.")
         if self._skip or self._imputer is None:
-            raise NotImplementedError(
-                "No CARE-PD Flow checkpoint available for this dataset."
-            )
+            raise NotImplementedError("No CARE-PD Flow checkpoint available for this dataset.")
 
         # Fast path: use pre-computed coalition cache if available
         cache = getattr(self, "_completion_cache", {})
         if cache:
             J, F, T = x_obs.shape
-            coalition_mask_1d, kind = _mask_to_coalition(mask)
+            coalition_mask_1d, kind = mask_to_coalition(mask)
             # coalition_mask_1d shape: (1, T) or (1, J)
             if kind == "temporal" and coalition_mask_1d.shape[-1] == T:
                 key = tuple(coalition_mask_1d[0].tolist())
                 if key in cache:
-                    out = cache[key]   # (n_cached_samples, J, F, T)
+                    out = cache[key]  # (n_cached_samples, J, F, T)
                     if n_samples <= out.shape[0]:
                         out = out[:n_samples]
                     return out.float().cpu()
@@ -659,7 +684,7 @@ class CarepdFlowImputer(BaseImputer):
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
 
-        coalition_mask, kind = _mask_to_coalition(mask)
+        coalition_mask, kind = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
 
         completions = self._imputer.sample_completions(
@@ -669,9 +694,9 @@ class CarepdFlowImputer(BaseImputer):
             lengths=None,
             coalition_mask=coalition_mask,
             n_samples=n_samples,
-        )                              # list of n_samples × (1, J, F, T)
+        )  # list of n_samples × (1, J, F, T)
 
-        out = torch.cat(completions, dim=0)                   # (n_samples, J, F, T)
+        out = torch.cat(completions, dim=0)  # (n_samples, J, F, T)
         out_dev = out.device
         x_dev = x_obs.to(out_dev)
         mask_dev = mask.to(out_dev)
@@ -681,8 +706,17 @@ class CarepdFlowImputer(BaseImputer):
 
     @property
     def is_on_manifold(self) -> bool:
+        """True: flow-matching samples approximate the data manifold."""
         return True
 
     @property
     def name(self) -> str:
+        """Short identifier for logging and leaderboard tables."""
         return "flow_matching"
+
+
+_load_vaeac = load_vaeac  # backwards-compat alias (pre-2.0 private name)
+
+_load_flow = load_flow  # backwards-compat alias (pre-2.0 private name)
+
+_mask_to_coalition = mask_to_coalition  # backwards-compat alias (pre-2.0 private name)

@@ -28,22 +28,54 @@ for NLP Interpretability." (WindowSHAP extended from SHAP KernelExplainer.)
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 import torch
 from torch import Tensor
-from windowshap.windowshap import (  # type: ignore[import-untyped]
-    DynamicWindowSHAP,
-    SlidingWindowSHAP,
-    StationaryWindowSHAP,
-)
+
+try:
+    from windowshap.windowshap import (  # type: ignore[import-untyped]
+        DynamicWindowSHAP,
+        SlidingWindowSHAP,
+        StationaryWindowSHAP,
+    )
+
+    _HAS_WINDOWSHAP = True
+except ImportError:  # pragma: no cover - exercised only without the extra
+    _HAS_WINDOWSHAP = False
+
+    class _MissingWindowSHAP:
+        """Placeholder that fails at construction with install instructions.
+
+        ``windowshap`` is not on PyPI; it is an optional dependency vendored
+        from the official repository.  Install it with::
+
+            pip install git+https://github.com/vsubbian/WindowSHAP
+
+        Importing this module without it succeeds (so the rest of
+        ``motionbench.attribution`` stays usable); instantiating any
+        WindowSHAP attributor raises ``ImportError``.
+        """
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            """Raise ImportError with install instructions for ``windowshap``."""
+            raise ImportError(
+                "The optional 'windowshap' package is required for WindowSHAP "
+                "attributors but is not installed.  Install it with:\n"
+                "    pip install git+https://github.com/vsubbian/WindowSHAP"
+            )
+
+    DynamicWindowSHAP = _MissingWindowSHAP  # type: ignore[assignment,misc]
+    SlidingWindowSHAP = _MissingWindowSHAP  # type: ignore[assignment,misc]
+    StationaryWindowSHAP = _MissingWindowSHAP  # type: ignore[assignment,misc]
 
 from motionbench.attribution.base import BaseAttributor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from motionbench.players.base import PlayerSet
 
 
@@ -69,13 +101,21 @@ class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
         num_output: int = 1,
         nsamples: int | str = "auto",
     ) -> npt.NDArray[np.float32]:
+        """Compute sliding-window SHAP values with SHAP ≥0.46 output normalisation.
+
+        Args:
+            num_output: Number of model outputs (only ``1`` is supported).
+            nsamples: KernelSHAP coalition budget per window, or ``"auto"``.
+
+        Returns:
+            ``(N, T, F_flat)`` float32 per-timestep SHAP values, or a
+            ``(dem_phi, ts_phi)`` tuple when demographic features are present.
+        """
         import shap as _shap  # noqa: PLC0415
 
         seq_len: int = self.background_ts.shape[1]
         num_sw: int = int(np.ceil((seq_len - self.window_len) / self.stride)) + 1
-        ts_phi = np.zeros(
-            (self.num_test, num_sw, 2, self.background_ts.shape[2]), dtype=np.float64
-        )
+        ts_phi = np.zeros((self.num_test, num_sw, 2, self.background_ts.shape[2]), dtype=np.float64)
         dem_phi = np.zeros((self.num_test, num_sw, self.num_dem_ftr), dtype=np.float64)
 
         if nsamples == "auto":
@@ -96,9 +136,9 @@ class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
             #   new SHAP scalar: returns (N,F) (2D) → add leading dim
             #   new SHAP multi:  returns (N,F,C) → transpose to (C,N,F)
             if sv_np.ndim == 2:
-                sv_np = sv_np[np.newaxis]                    # (1, N, F)
+                sv_np = sv_np[np.newaxis]  # (1, N, F)
             elif sv_np.ndim == 3 and sv_np.shape[-1] < sv_np.shape[-2]:
-                sv_np = sv_np.transpose(2, 0, 1)             # (N,F,C) → (C,N,F)
+                sv_np = sv_np.transpose(2, 0, 1)  # (N,F,C) → (C,N,F)
 
             dem_sv = sv_np[:, :, : self.num_dem_ftr]
             ts_sv = sv_np[:, :, self.num_dem_ftr :]
@@ -108,13 +148,11 @@ class _Compat049SlidingWindowSHAP(SlidingWindowSHAP):
             if self.num_dem_ftr > 0:
                 dem_phi[:, stride_cnt, :] = dem_sv[0]
 
-        ts_phi_agg = np.full(
-            (self.num_test, num_sw, self.num_ts_step, self.num_ts_ftr), np.nan
-        )
+        ts_phi_agg = np.full((self.num_test, num_sw, self.num_ts_step, self.num_ts_ftr), np.nan)
         for k in range(num_sw):
-            ts_phi_agg[
-                :, k, k * self.stride : k * self.stride + self.window_len, :
-            ] = ts_phi[:, k, 0, :][:, np.newaxis, :]
+            ts_phi_agg[:, k, k * self.stride : k * self.stride + self.window_len, :] = ts_phi[
+                :, k, 0, :
+            ][:, np.newaxis, :]
         ts_phi_agg = np.nanmean(ts_phi_agg, axis=1).astype(np.float32)
         dem_phi = np.nanmean(dem_phi, axis=1).astype(np.float32)
 
@@ -147,6 +185,7 @@ class _ClassifierAdapter:
         T: int,
         target: int,
     ) -> None:
+        """Initialise the adapter with the classifier, input dims, and target class."""
         self._classifier = classifier
         self._J = J
         self._F = F_coords
@@ -226,6 +265,7 @@ class WindowSHAPAttributor(BaseAttributor):
         stride: int | None = None,
         seed: int | None = None,
     ) -> None:
+        """Initialise sliding-window SHAP with a window length and stride."""
         super().__init__(classifier)
         self._window_len = window_len
         self._stride = stride  # resolved to window_len at attribute time if None
@@ -256,9 +296,7 @@ class WindowSHAPAttributor(BaseAttributor):
         """
         J, F_coords, T = x.shape
         if self._window_len >= T:
-            raise ValueError(
-                f"window_len={self._window_len} must be less than T={T}."
-            )
+            raise ValueError(f"window_len={self._window_len} must be less than T={T}.")
 
         stride = self._stride if self._stride is not None else self._window_len
 
@@ -272,9 +310,7 @@ class WindowSHAPAttributor(BaseAttributor):
         # All-zeros background (one sample).
         bg_np = np.zeros_like(x_np)  # (1, T, J*F)
 
-        model_adapter = _ClassifierAdapter(
-            self._classifier, J, F_coords, T, target
-        )
+        model_adapter = _ClassifierAdapter(self._classifier, J, F_coords, T, target)
 
         explainer = _Compat049SlidingWindowSHAP(
             model=model_adapter,
@@ -336,6 +372,7 @@ class _UniformWindowAttributor(BaseAttributor):
         nsamples: int = 256,
         seed: int | None = None,
     ) -> None:
+        """Initialise the uniform-window attributor with a window length and budget."""
         super().__init__(classifier)
         self._window_len = int(window_len)
         self._nsamples = int(nsamples)
@@ -356,6 +393,20 @@ class _UniformWindowAttributor(BaseAttributor):
         players: PlayerSet,
         target: int = 0,
     ) -> Tensor:
+        """Compute per-player SHAP values for one sequence via WindowSHAP.
+
+        Args:
+            x: ``(J, F, T)`` float32 input sequence (no batch dim).
+            players: Player set used to map the per-window SHAP output back
+                to the benchmark's M players (must be temporal-compatible).
+            target: Class index selected from the classifier's output.
+
+        Returns:
+            ``(M,)`` float32 per-player attribution.
+
+        Raises:
+            ValueError: if ``window_len`` does not evenly divide ``T``.
+        """
         J, F_coords, T = x.shape
         if self._window_len >= T:
             raise ValueError(
@@ -371,9 +422,9 @@ class _UniformWindowAttributor(BaseAttributor):
         if self._seed is not None:
             np.random.seed(self._seed)
 
-        x_np = (
-            x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy()
-        )[np.newaxis].astype(np.float32)
+        x_np = (x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy())[np.newaxis].astype(
+            np.float32
+        )
         bg_np = np.zeros_like(x_np)
 
         adapter = _ClassifierAdapter(self._classifier, J, F_coords, T, target)
@@ -420,11 +471,14 @@ class StationaryWindowSHAPAttributor(_UniformWindowAttributor):
         # The package builds an explainer on first call with nsamples='auto';
         # rebuild it with our explicit budget so runs are reproducible.
         explainer.explainer = _shap.KernelExplainer(
-            explainer.wraper_predict, explainer.background_data,
+            explainer.wraper_predict,
+            explainer.background_data,
         )
         sv = np.asarray(
             explainer.explainer.shap_values(
-                explainer.test_data, nsamples=self._nsamples, silent=True,
+                explainer.test_data,
+                nsamples=self._nsamples,
+                silent=True,
             ),
         )
         # Normalise to (1, n_features) regardless of SHAP version.
@@ -494,11 +548,6 @@ class DynamicWindowSHAPAttributor(_UniformWindowAttributor):
             T = x_seq_btf.shape[1]
             F_total = x_seq_btf.shape[2]
             K = T // self._window_len
-            return (
-                phi_full[0]
-                .reshape(K, self._window_len, F_total)
-                .sum(axis=1)
-                .astype(np.float32)
-            )
+            return phi_full[0].reshape(K, self._window_len, F_total).sum(axis=1).astype(np.float32)
         finally:
             _shap.KernelExplainer.shap_values = _orig  # type: ignore[assignment]

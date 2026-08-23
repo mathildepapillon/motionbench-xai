@@ -5,15 +5,13 @@ Verifies that:
 2. Concrete implementations satisfy required method signatures and output shapes.
 3. oracle=None is valid for BaseDataset; oracle≠None is required for GroundTruthDataset.
 """
+
 from __future__ import annotations
 
-import pytest
 import torch
-from torch import Tensor
 
 from motionbench.data.base import BaseDataset, GroundTruthDataset
 from motionbench.oracles.base import Oracle
-
 
 # ---------------------------------------------------------------------------
 # Mock oracle (minimal, used in GroundTruthDataset mock)

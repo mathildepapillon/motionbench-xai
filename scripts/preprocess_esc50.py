@@ -15,19 +15,20 @@ Usage::
         --esc50_dir data/esc50/ESC-50-master \\
         --output_dir data/esc50
 """
+
 from __future__ import annotations
 
 import argparse
 import csv
 import sys
 import time
+from math import gcd
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 import torch
 from scipy.signal import resample_poly
-from math import gcd
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
@@ -35,6 +36,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument(
         "--esc50_dir",
@@ -70,6 +72,7 @@ def resample_audio(waveform: np.ndarray, orig_sr: int, target_sr: int) -> np.nda
 
 
 def main() -> None:
+    """Convert ESC-50 audio into per-fold mel-spectrogram caches."""
     args = parse_args()
     esc50_dir = _REPO_ROOT / args.esc50_dir
     output_dir = _REPO_ROOT / args.output_dir
@@ -90,6 +93,7 @@ def main() -> None:
     # Load ASTFeatureExtractor
     print("[esc50] loading ASTFeatureExtractor...")
     from transformers import ASTFeatureExtractor
+
     fe = ASTFeatureExtractor.from_pretrained("MIT/ast-finetuned-audioset-10-10-0.4593")
     assert fe.sampling_rate == 16000
     assert fe.num_mel_bins == 128
@@ -97,9 +101,9 @@ def main() -> None:
     print(f"[esc50] fe: sr={fe.sampling_rate}, bins={fe.num_mel_bins}, max_len={fe.max_length}")
 
     TARGET_SR = 16000
-    all_specs = []   # list of (128, 1, 1024) float32 np arrays
+    all_specs = []  # list of (128, 1, 1024) float32 np arrays
     all_labels = []  # list of int
-    all_folds = []   # list of int (ESC fold 1-5)
+    all_folds = []  # list of int (ESC fold 1-5)
 
     t0 = time.time()
     for idx, row in enumerate(rows):
@@ -125,8 +129,8 @@ def main() -> None:
 
         # Permute to (128, 1024), then unsqueeze to (128, 1, 1024)
         spec = input_values.squeeze(0)  # (1024, 128)
-        spec = spec.permute(1, 0)       # (128, 1024)
-        spec = spec.unsqueeze(1)        # (128, 1, 1024)
+        spec = spec.permute(1, 0)  # (128, 1024)
+        spec = spec.unsqueeze(1)  # (128, 1, 1024)
         spec_np = spec.numpy().astype(np.float32)  # (128, 1, 1024)
 
         all_specs.append(spec_np)
@@ -135,21 +139,25 @@ def main() -> None:
 
         if (idx + 1) % 200 == 0:
             elapsed = time.time() - t0
-            print(f"  [{idx+1}/2000] {elapsed:.1f}s elapsed ({elapsed/(idx+1)*2000:.0f}s est. total)")
+            print(
+                f"  [{idx + 1}/2000] {elapsed:.1f}s elapsed ({elapsed / (idx + 1) * 2000:.0f}s est. total)"
+            )
 
-    print(f"[esc50] all {len(all_specs)} clips processed in {time.time()-t0:.1f}s")
+    print(f"[esc50] all {len(all_specs)} clips processed in {time.time() - t0:.1f}s")
 
-    all_specs_arr = np.stack(all_specs, axis=0)   # (2000, 128, 1, 1024)
+    all_specs_arr = np.stack(all_specs, axis=0)  # (2000, 128, 1, 1024)
     all_labels_arr = np.array(all_labels, dtype=np.int64)  # (2000,)
-    all_folds_arr = np.array(all_folds, dtype=np.int64)    # (2000,)
+    all_folds_arr = np.array(all_folds, dtype=np.int64)  # (2000,)
 
     print(f"[esc50] stacked array shape: {all_specs_arr.shape}, dtype: {all_specs_arr.dtype}")
-    print(f"[esc50] label range: [{all_labels_arr.min()}, {all_labels_arr.max()}], unique folds: {np.unique(all_folds_arr)}")
+    print(
+        f"[esc50] label range: [{all_labels_arr.min()}, {all_labels_arr.max()}], unique folds: {np.unique(all_folds_arr)}"
+    )
 
     # Save per-fold npz files
     for our_fold, (train_esc_folds, test_esc_fold) in FOLD_SPLITS.items():
         train_mask = np.isin(all_folds_arr, train_esc_folds)
-        test_mask = (all_folds_arr == test_esc_fold)
+        test_mask = all_folds_arr == test_esc_fold
 
         x_train = all_specs_arr[train_mask]
         y_train = all_labels_arr[train_mask]
@@ -162,7 +170,9 @@ def main() -> None:
         np.savez_compressed(train_path, x_train=x_train, y_train=y_train)
         np.savez_compressed(test_path, x_test=x_test, y_test=y_test)
 
-        print(f"[fold{our_fold}] train: {x_train.shape}, test: {x_test.shape} — saved to {output_dir}")
+        print(
+            f"[fold{our_fold}] train: {x_train.shape}, test: {x_test.shape} — saved to {output_dir}"
+        )
 
     # Also save combined tensor for imputer training
     all_tensor = torch.from_numpy(all_specs_arr)  # (2000, 128, 1, 1024)

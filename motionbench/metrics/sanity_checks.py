@@ -1,4 +1,4 @@
-"""motionbench.metrics.sanity_checks -- Sanity-check metrics wrapping Quantus.
+"""motionbench.metrics.sanity_checks — Sanity-check metrics wrapping Quantus.
 
 Implements two sanity-check metrics that validate whether an attribution
 method is actually sensitive to model parameters and not merely computing
@@ -89,6 +89,7 @@ class _QuantusWrapper(nn.Module):
         n_classes: int = 2,
         target: int = 0,
     ) -> None:
+        """Initialise the wrapper with the classifier, input dims, and target class."""
         super().__init__()
         self._J = J
         self._F = F
@@ -120,18 +121,14 @@ class _QuantusWrapper(nn.Module):
         B, _D, T = x.shape
         x_4d = x.reshape(B, self._J, self._F, T)
         clf: Callable[..., Tensor] = (
-            self._module_clf
-            if self._module_clf is not None
-            else self._fn_clf  # type: ignore[assignment]
+            self._module_clf if self._module_clf is not None else self._fn_clf  # type: ignore[assignment]
         )
         raw_out = clf(x_4d)  # (B,) or (B, n_classes)
         if raw_out.ndim == 2:
             scalar_out = torch.softmax(raw_out, dim=-1)[:, self._target]
         else:
             scalar_out = raw_out
-        out = torch.zeros(
-            B, self._n_classes, dtype=scalar_out.dtype, device=scalar_out.device
-        )
+        out = torch.zeros(B, self._n_classes, dtype=scalar_out.dtype, device=scalar_out.device)
         out[:, 0] = scalar_out
         return out
 
@@ -261,6 +258,7 @@ class ModelParameterRandomisationMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.MPRT`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         quantus_kwargs.setdefault("return_average_correlation", True)
         self._quantus: MPRT = MPRT(**quantus_kwargs)
@@ -358,6 +356,7 @@ class RandomLogitMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.RandomLogit`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         self._quantus: RandomLogit = RandomLogit(**quantus_kwargs)
 

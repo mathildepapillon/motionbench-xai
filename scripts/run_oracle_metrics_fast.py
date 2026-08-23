@@ -1,4 +1,4 @@
-"""scripts/run_oracle_metrics_fast.py — evaluate oracle metrics using cached attributions.
+"""scripts/run_oracle_metrics_fast.py — Evaluate oracle metrics using cached attributions.
 
 For kernelshap_oracle cells that already have attributions.npz written (from a
 high n_mc run), but are missing result.json, this script re-runs ONLY the
@@ -29,7 +29,6 @@ import argparse
 import json
 import logging
 import os
-import sys
 import time
 import warnings
 from pathlib import Path
@@ -60,6 +59,7 @@ ALL_CLASSIFIERS = ["synthetic_mlp", "synthetic_cnn", "synthetic_transformer"]
 
 
 def has_valid_result(path: Path) -> bool:
+    """True if ``path`` is a result.json carrying at least one metric key."""
     if not path.exists():
         return False
     try:
@@ -70,6 +70,7 @@ def has_valid_result(path: Path) -> bool:
 
 
 def has_valid_attributions(path: Path) -> bool:
+    """True if ``path`` is a loadable, non-empty attributions .npz."""
     if not path.exists():
         return False
     try:
@@ -97,13 +98,15 @@ def build_cfg(metric_n_mc: int = 50, device: str = "cuda") -> object:
 
 
 def main() -> None:
+    """Re-evaluate oracle metrics from cached attributions across the grid."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--datasets", nargs="+", default=DEFAULT_DATASETS)
     parser.add_argument("--classifiers", nargs="+", default=ALL_CLASSIFIERS)
     parser.add_argument("--metric-n-mc", type=int, default=50)
     parser.add_argument("--device", default="cuda")
-    parser.add_argument("--force", action="store_true",
-                        help="Re-run even if result.json already exists")
+    parser.add_argument(
+        "--force", action="store_true", help="Re-run even if result.json already exists"
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -124,11 +127,19 @@ def main() -> None:
                 log.info("[SKIP] %s/%s — result.json already valid", ds, clf)
                 continue
             if not has_valid_attributions(attr_path):
-                log.info("[SKIP] %s/%s — no valid attributions.npz (attr size=%s)",
-                         ds, clf, attr_path.stat().st_size if attr_path.exists() else "missing")
+                log.info(
+                    "[SKIP] %s/%s — no valid attributions.npz (attr size=%s)",
+                    ds,
+                    clf,
+                    attr_path.stat().st_size if attr_path.exists() else "missing",
+                )
                 continue
-            log.info("[TODO] %s/%s — attributions.npz=%d bytes, no valid result.json",
-                     ds, clf, attr_path.stat().st_size)
+            log.info(
+                "[TODO] %s/%s — attributions.npz=%d bytes, no valid result.json",
+                ds,
+                clf,
+                attr_path.stat().st_size,
+            )
             cells.append((ds, clf))
 
     if not cells:
@@ -141,6 +152,7 @@ def main() -> None:
 
     try:
         import torch
+
         device_str = args.device
         if device_str.startswith("cuda") and not torch.cuda.is_available():
             log.warning("CUDA not available — falling back to cpu")
@@ -150,7 +162,7 @@ def main() -> None:
 
     cfg = build_cfg(metric_n_mc=args.metric_n_mc, device=device_str)
 
-    from motionbench.pipelines.synthetic_eval import _run_cell  # noqa: PLC0415
+    from motionbench.pipelines.synthetic_eval import run_cell  # noqa: PLC0415
 
     summary = []
     t_total = time.time()
@@ -158,46 +170,74 @@ def main() -> None:
     for ds, clf in cells:
         result_path = RESULTS_DIR / ds / clf / METHOD / "result.json"
 
-        # Remove invalid/stub result.json so _run_cell doesn't skip
+        # Remove invalid/stub result.json so run_cell doesn't skip
         if result_path.exists() and not has_valid_result(result_path):
             log.info("[STUB] Removing invalid result.json for %s/%s/%s", ds, clf, METHOD)
             result_path.unlink()
 
-        log.info("==> RUN %s/%s/%s (metric_n_mc=%d, device=%s)",
-                 ds, clf, METHOD, args.metric_n_mc, device_str)
+        log.info(
+            "==> RUN %s/%s/%s (metric_n_mc=%d, device=%s)",
+            ds,
+            clf,
+            METHOD,
+            args.metric_n_mc,
+            device_str,
+        )
         t0 = time.time()
         try:
-            result = _run_cell(ds, clf, METHOD, cfg)
+            result = run_cell(ds, clf, METHOD, cfg)
             wall = time.time() - t0
             ec1 = result.get("ec1", float("nan"))
             sp = result.get("spearman", float("nan"))
-            log.info("    DONE %s/%s in %.1fs  ec1=%.4f  spearman=%.3f  keys=%d",
-                     ds, clf, wall, ec1, sp, len(result))
-            summary.append({
-                "dataset": ds, "classifier": clf,
-                "ec1": ec1, "spearman": sp,
-                "status": "ok" if "error" not in result else "error",
-                "wall": wall,
-            })
+            log.info(
+                "    DONE %s/%s in %.1fs  ec1=%.4f  spearman=%.3f  keys=%d",
+                ds,
+                clf,
+                wall,
+                ec1,
+                sp,
+                len(result),
+            )
+            summary.append(
+                {
+                    "dataset": ds,
+                    "classifier": clf,
+                    "ec1": ec1,
+                    "spearman": sp,
+                    "status": "ok" if "error" not in result else "error",
+                    "wall": wall,
+                }
+            )
         except Exception as exc:
             wall = time.time() - t0
             log.error("[FAIL] %s/%s in %.1fs: %s", ds, clf, wall, exc)
             import traceback
+
             traceback.print_exc()
-            summary.append({
-                "dataset": ds, "classifier": clf,
-                "ec1": None, "spearman": None,
-                "status": f"error:{type(exc).__name__}",
-                "wall": wall,
-            })
+            summary.append(
+                {
+                    "dataset": ds,
+                    "classifier": clf,
+                    "ec1": None,
+                    "spearman": None,
+                    "status": f"error:{type(exc).__name__}",
+                    "wall": wall,
+                }
+            )
 
     log.info("Total wall-clock: %.1fs", time.time() - t_total)
     log.info("=== Summary ===")
     for row in summary:
         ec1_str = f"{row['ec1']:.4f}" if row["ec1"] is not None else "  N/A"
         sp_str = f"{row['spearman']:.3f}" if row.get("spearman") is not None else "  N/A"
-        log.info("  %-30s  %-22s  ec1=%-8s  spearman=%-6s  %s",
-                 row["dataset"], row["classifier"], ec1_str, sp_str, row["status"])
+        log.info(
+            "  %-30s  %-22s  ec1=%-8s  spearman=%-6s  %s",
+            row["dataset"],
+            row["classifier"],
+            ec1_str,
+            sp_str,
+            row["status"],
+        )
 
     n_ok = sum(1 for r in summary if r["status"] in ("ok",))
     log.info("Cells OK: %d / %d", n_ok, len(summary))

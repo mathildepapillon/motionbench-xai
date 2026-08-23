@@ -52,9 +52,7 @@ __all__ = ["SkeletonStructuredDataset"]
 LabelFunction = Callable[[npt.NDArray[Any], int], npt.NDArray[np.int64]]
 
 
-def _default_label_fn(
-    x_np: npt.NDArray[Any], n_classes: int
-) -> npt.NDArray[np.int64]:
+def _default_label_fn(x_np: npt.NDArray[Any], n_classes: int) -> npt.NDArray[np.int64]:
     """Quantile-split on joint-0 grand mean (proxy label until Task 1D).
 
     Args:
@@ -119,6 +117,20 @@ class SkeletonStructuredDataset:
         label_fn: LabelFunction | None = None,
         seed: int = 0,
     ) -> None:
+        """Initialise the skeleton-structured benchmark and pre-generate ``N`` sequences.
+
+        Args:
+            J: Number of joints (17 for ``"h36m_17"``).
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            N: Number of sequences to pre-generate.
+            alpha_time: AR(1) coefficient for ``Sigma_time``.
+            decay: Correlation decay per kinematic-tree hop.
+            n_classes: Number of label classes.
+            label_fn: Optional label callable; defaults to quantile-split on
+                the joint-0 grand mean.
+            seed: Random seed for sequence generation.
+        """
         self._J = J
         self._F = F
         self._T = T

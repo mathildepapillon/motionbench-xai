@@ -37,10 +37,9 @@ class TemporalWindows(PlayerSet):
     """
 
     def __init__(self, K: int, T: int, J: int, F: int) -> None:
+        """Initialise ``K`` equal-width windows over ``T`` frames."""
         if T % K != 0:
-            raise ValueError(
-                f"T={T} must be divisible by K={K} for equal-width windows."
-            )
+            raise ValueError(f"T={T} must be divisible by K={K} for equal-width windows.")
         self._K = K
         self._T = T
         self._J = J
@@ -49,10 +48,12 @@ class TemporalWindows(PlayerSet):
 
     @property
     def n_players(self) -> int:
+        """Number of players M = K."""
         return self._K
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) element-space shape this player set operates over."""
         return self._J, self._F, self._T
 
     def coalition_mask(self, z: Tensor) -> Tensor:
@@ -68,9 +69,7 @@ class TemporalWindows(PlayerSet):
             ValueError: if ``z.shape != (K,)``.
         """
         if z.shape != (self._K,):
-            raise ValueError(
-                f"Expected z.shape==({self._K},); got {tuple(z.shape)}."
-            )
+            raise ValueError(f"Expected z.shape==({self._K},); got {tuple(z.shape)}.")
         mask = torch.zeros(self._J, self._F, self._T, dtype=torch.bool)
         for k in range(self._K):
             if z[k]:

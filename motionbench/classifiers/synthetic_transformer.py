@@ -3,9 +3,16 @@
 Architecture:
     Input (B, J, F, T) → reshape to (B, T, J*F) → project to (B, T, d_model)
     → positional encoding (sinusoidal, fixed)
-    → 4-layer TransformerEncoder (d_model=64, nhead=4, dim_feedforward=128, dropout=0.1)
+    → num_layers-layer TransformerEncoder (nhead=4, dim_feedforward=128, dropout=0.1)
     → mean pool over T → Linear(d_model, n_classes)
+
+The benchmark's executed configuration is **d_model=32, num_layers=2**
+(``configs/classifiers/synthetic_transformer.yaml``) — the configuration the
+released tables and checkpoints were produced with.  The constructor defaults
+(64/4) match the paper text's description; pass the config values to
+reproduce the benchmark classifiers (see RESOLUTIONS.md §9).
 """
+
 from __future__ import annotations
 
 import math
@@ -27,13 +34,12 @@ class _SinusoidalPositionalEncoding(nn.Module):
     """
 
     def __init__(self, d_model: int, max_len: int = 512, dropout: float = 0.1) -> None:
+        """Initialise and pre-compute the sinusoidal encoding table."""
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
         position = torch.arange(max_len).unsqueeze(1).float()
-        div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
-        )
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe = torch.zeros(max_len, d_model)
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
@@ -60,16 +66,19 @@ class SyntheticTransformerClassifier(Classifier):
 
         (B, J, F, T) → reshape (B, T, J*F) → Linear → (B, T, d_model)
         → sinusoidal positional encoding
-        → 4-layer TransformerEncoder (d_model, nhead, dim_ff=128, dropout=0.1)
+        → num_layers-layer TransformerEncoder (d_model, nhead, dim_ff=128, dropout=0.1)
         → mean pool over T → Linear(d_model, n_classes)
 
     Args:
         J: Number of joints.
         F: Features per joint.
         n_classes: Number of output classes.
-        d_model: Transformer hidden dimension.
+        d_model: Transformer hidden dimension.  The benchmark's executed
+            configuration is 32 (``configs/classifiers/synthetic_transformer.yaml``);
+            the constructor default 64 matches the paper text.
         nhead: Number of attention heads.
-        num_layers: Number of transformer encoder layers.
+        num_layers: Number of transformer encoder layers.  Executed
+            configuration: 2; constructor default 4 matches the paper text.
     """
 
     def __init__(
@@ -81,6 +90,7 @@ class SyntheticTransformerClassifier(Classifier):
         nhead: int = 4,
         num_layers: int = 4,
     ) -> None:
+        """Initialise the input projection, encoder stack, and linear head."""
         super().__init__()
         self.J = J
         self.F = F
@@ -111,8 +121,8 @@ class SyntheticTransformerClassifier(Classifier):
         """
         B, J, F, T = x.shape
         h = x.permute(0, 3, 1, 2).reshape(B, T, J * F)  # (B, T, J*F)
-        h = self.input_proj(h)                            # (B, T, d_model)
-        h = self.pos_enc(h)                               # (B, T, d_model)
-        h = self.transformer(h)                           # (B, T, d_model)
-        h = h.mean(dim=1)                                 # (B, d_model)
-        return self.classifier(h)                         # (B, n_classes)
+        h = self.input_proj(h)  # (B, T, d_model)
+        h = self.pos_enc(h)  # (B, T, d_model)
+        h = self.transformer(h)  # (B, T, d_model)
+        h = h.mean(dim=1)  # (B, d_model)
+        return self.classifier(h)  # (B, n_classes)

@@ -40,6 +40,7 @@ Usage::
             --data_path /data/ptb-xl --fold $fold
     done
 """
+
 from __future__ import annotations
 
 import argparse
@@ -62,12 +63,13 @@ SCRIPTS_DIR = Path(__file__).parent
 # ------------------------------------------------------------------- helpers
 # Import shared KernelSHAP utilities from run_care_pd_multiclf — no duplication.
 sys.path.insert(0, str(SCRIPTS_DIR))
-from run_care_pd_multiclf import (   # noqa: E402 (import after sys.path manipulation)
+from motionbench.attribution.enumerated_kernel_shap import (  # noqa: E402
     build_coalition_masks,
-    faithfulness_correlation,
     kernel_shap_exact,
-    player_aopc,
-    shapley_kernel,
+)
+from motionbench.metrics.coalition_table import (  # noqa: E402
+    faithfulness_enumerated,
+    player_aopc_enumerated,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -77,9 +79,9 @@ log = logging.getLogger(__name__)
 RESULTS_ROOT = REPO_ROOT / "results" / "ptbxl"
 CKPT_DIR = REPO_ROOT / "motionbench" / "classifiers" / "checkpoints" / "real"
 STATS_TEMPLATE = "ptbxl_fold{fold}_stats.npz"
-CKPT_TEMPLATE  = "ptbxl_fold{fold}.pt"
+CKPT_TEMPLATE = "ptbxl_fold{fold}.pt"
 
-K = 4       # temporal windows; each window = T//K = 250 time-steps
+K = 4  # temporal windows; each window = T//K = 250 time-steps
 DEVICE = "cuda:0"
 
 ALL_METHODS = [
@@ -92,6 +94,7 @@ ALL_METHODS = [
 
 
 # ---------------------------------------------------------------------- helpers
+
 
 def build_completions_offmanifold(
     x: Tensor,
@@ -121,32 +124,48 @@ def build_completions_offmanifold(
     elif kind == "mean":
         fill = mean_per_jf.view(J, F, 1).expand(J, F, T)
     elif kind == "marginal":
-        fill = mean_per_jf   # (J, F, T) donor
+        fill = mean_per_jf  # (J, F, T) donor
     else:
         raise ValueError(f"unknown kind {kind!r}")
-    x_b    = x.view(1, J, F, T).expand(n_coal, J, F, T)
+    x_b = x.view(1, J, F, T).expand(n_coal, J, F, T)
     fill_b = fill.view(1, J, F, T).expand(n_coal, J, F, T)
     return torch.where(obs, x_b, fill_b).contiguous()
 
 
 # ------------------------------------------------------------------- main
 
+
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--data_path", type=str, required=True,
-                    help="Root directory of the downloaded PTB-XL dataset.")
-    ap.add_argument("--fold", type=int, default=2, choices=[1, 2, 3],
-                    help="Script fold index (1–3); matches train_ptbxl_classifier.py.")
-    ap.add_argument("--n_seq", type=int, default=200,
-                    help="Number of test sequences to evaluate.")
-    ap.add_argument("--methods", type=str, nargs="+", default=None,
-                    help="Subset of methods to run (default: all five).")
+    ap.add_argument(
+        "--data_path",
+        type=str,
+        required=True,
+        help="Root directory of the downloaded PTB-XL dataset.",
+    )
+    ap.add_argument(
+        "--fold",
+        type=int,
+        default=2,
+        choices=[1, 2, 3],
+        help="Script fold index (1–3); matches train_ptbxl_classifier.py.",
+    )
+    ap.add_argument("--n_seq", type=int, default=200, help="Number of test sequences to evaluate.")
+    ap.add_argument(
+        "--methods",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Subset of methods to run (default: all five).",
+    )
     ap.add_argument("--results_dir", type=str, default=str(RESULTS_ROOT))
     ap.add_argument("--device", type=str, default=DEVICE)
     return ap.parse_args()
 
 
 def main() -> None:
+    """Run the temporal-window sweep for one fold."""
     args = parse_args()
     fold = args.fold
     N_SEQ = int(args.n_seq)
@@ -163,19 +182,20 @@ def main() -> None:
     if stats_path.exists():
         stats = np.load(stats_path)
         train_stats = (stats["mean"].astype(np.float32), stats["std"].astype(np.float32))
-        test_folds  = stats["test_folds"].tolist()
+        test_folds = stats["test_folds"].tolist()
         log.info("[fold%d] loaded stats from %s; test_folds=%s", fold, stats_path, test_folds)
     else:
         log.warning(
             "[fold%d] stats file %s not found — using raw (unnormalized) data. "
             "Run train_ptbxl_classifier.py first.",
-            fold, stats_path,
+            fold,
+            stats_path,
         )
         train_stats = None
         test_folds = [10]  # default to standard held-out fold
 
     # Import here to avoid circular issues
-    from motionbench.data.real.ptbxl import PTBXLDataset, _FOLD_SPLITS
+    from motionbench.data.real.ptbxl import _FOLD_SPLITS, PTBXLDataset
 
     # Build a dataset for the test fold(s)
     _FOLD_SPLITS["_test_folds"] = (test_folds,)
@@ -189,19 +209,14 @@ def main() -> None:
     del _FOLD_SPLITS["_test_folds"]
 
     # Extract raw arrays for efficient batch processing
-    x_val = np.stack(
-        [s[0] for s in test_ds._samples[:N_SEQ]], axis=0
-    )  # (N, T=1000, J=12)
+    x_val = np.stack([s[0] for s in test_ds._samples[:N_SEQ]], axis=0)  # (N, T=1000, J=12)
     # Transpose to (N, J=12, F=1, T=1000)
     x_val = x_val.transpose(0, 2, 1)[:, :, np.newaxis, :]  # (N, 12, 1, 1000)
     N, J, F, T = x_val.shape
     log.info("[fold%d] N=%d J=%d F=%d T=%d", fold, N, J, F, T)
 
     # Train pool for marginal donor sampling: use training folds
-    if stats_path.exists():
-        train_fold_ids = stats["train_folds"].tolist()
-    else:
-        train_fold_ids = list(range(1, 9))
+    train_fold_ids = stats["train_folds"].tolist() if stats_path.exists() else list(range(1, 9))
 
     _FOLD_SPLITS["_train_folds"] = (train_fold_ids,)
     train_ds = PTBXLDataset(
@@ -212,9 +227,7 @@ def main() -> None:
         train_stats=train_stats,
     )
     del _FOLD_SPLITS["_train_folds"]
-    x_train = np.stack(
-        [s[0] for s in train_ds._samples], axis=0
-    )  # (N_tr, T, J)
+    x_train = np.stack([s[0] for s in train_ds._samples], axis=0)  # (N_tr, T, J)
     x_train = x_train.transpose(0, 2, 1)[:, :, np.newaxis, :]  # (N_tr, J, 1, T)
     log.info("[fold%d] train pool: %d records", fold, x_train.shape[0])
 
@@ -230,6 +243,7 @@ def main() -> None:
             f"Run: python scripts/train_ptbxl_classifier.py --data_path {args.data_path} --fold {fold}"
         )
     from motionbench.classifiers.ported_ptbxl.resnet1d import ECGResNet1dClassifier
+
     clf = ECGResNet1dClassifier(n_classes=2, checkpoint_path=str(ckpt_path)).to(device)
     clf.eval()
     log.info("[fold%d] classifier loaded from %s", fold, ckpt_path.name)
@@ -238,8 +252,7 @@ def main() -> None:
     with torch.no_grad():
         logits_all = clf(torch.from_numpy(x_val).to(device))
     targets = logits_all.cpu().argmax(dim=-1).numpy()
-    log.info("[fold%d] target distribution: %s",
-             fold, np.bincount(targets, minlength=2).tolist())
+    log.info("[fold%d] target distribution: %s", fold, np.bincount(targets, minlength=2).tolist())
 
     # --------------------------------------------------------- imputer setup
     mean_jf = torch.from_numpy(x_train.mean(axis=(0, 3))).float()  # (J, F)
@@ -248,44 +261,45 @@ def main() -> None:
     donors = torch.from_numpy(x_train[donor_idx]).float()
 
     vaeac_imputer = None
-    flow_imputer  = None
+    flow_imputer = None
 
     def get_vaeac():
+        """Lazily load the PTB-XL VAEAC imputer (cached)."""
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
             from motionbench.imputers.ptbxl_imputer import (
-                PTBXLVAEACImputer,
                 _VAEAC_CKPT_DIR,
-                _resolve_cfg,
                 _VAEAC_DEFAULT_CFG,
+                _resolve_cfg,
             )
-            cfg_path = _resolve_cfg(
-                _VAEAC_CKPT_DIR, "ptbxl_vaeac_cfg.json", _VAEAC_DEFAULT_CFG
-            )
-            from motionbench.imputers.carepd_imputer import _load_vaeac
-            vaeac_imputer = _load_vaeac(_VAEAC_CKPT_DIR, cfg_path, device)
+
+            cfg_path = _resolve_cfg(_VAEAC_CKPT_DIR, "ptbxl_vaeac_cfg.json", _VAEAC_DEFAULT_CFG)
+            from motionbench.imputers.carepd_imputer import load_vaeac
+
+            vaeac_imputer = load_vaeac(_VAEAC_CKPT_DIR, cfg_path, device)
         return vaeac_imputer
 
     def get_flow():
+        """Lazily load the PTB-XL Flow imputer (cached)."""
         nonlocal flow_imputer
         if flow_imputer is None:
+            from motionbench.imputers.carepd_imputer import load_flow
             from motionbench.imputers.ptbxl_imputer import (
                 _FLOW_CKPT_DIR,
-                _resolve_cfg,
                 _FLOW_DEFAULT_CFG,
+                _resolve_cfg,
             )
-            from motionbench.imputers.carepd_imputer import _load_flow
-            cfg_path = _resolve_cfg(
-                _FLOW_CKPT_DIR, "ptbxl_flow_cfg.json", _FLOW_DEFAULT_CFG
-            )
+
+            cfg_path = _resolve_cfg(_FLOW_CKPT_DIR, "ptbxl_flow_cfg.json", _FLOW_DEFAULT_CFG)
             cfg = json.loads(cfg_path.read_text())
-            cfg["num_steps"] = 20   # speed-up for sweep
+            cfg["num_steps"] = 20  # speed-up for sweep
             import tempfile
-            tf = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+
+            tf = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)  # noqa: SIM115
             json.dump(cfg, tf)
             tf.close()
             try:
-                flow_imputer = _load_flow(_FLOW_CKPT_DIR, Path(tf.name), device)
+                flow_imputer = load_flow(_FLOW_CKPT_DIR, Path(tf.name), device)
             finally:
                 Path(tf.name).unlink(missing_ok=True)
         return flow_imputer
@@ -310,7 +324,7 @@ def main() -> None:
         log.info("[fold%d] Method: %s", fold, method)
         t_method = time.time()
 
-        phis  = np.zeros((N, K), dtype=np.float32)
+        phis = np.zeros((N, K), dtype=np.float32)
         v_all = np.zeros((N, n_coal), dtype=np.float32)
 
         imp = None
@@ -358,33 +372,37 @@ def main() -> None:
                 logits_b = clf(comps.to(device))
             v_b = torch.softmax(logits_b, dim=-1)[:, target_i].cpu()
             v_all[i] = v_b.numpy()
-            phis[i]  = kernel_shap_exact(z_bin, v_b, K).numpy()
+            phis[i] = kernel_shap_exact(z_bin, v_b, K).numpy()
 
             if (i + 1) % 25 == 0 or i == N - 1:
                 elapsed = time.time() - t_method
-                log.info("  [fold%d] %s  %d/%d  (%.2fs/seq)",
-                         fold, method, i + 1, N, elapsed / (i + 1))
+                log.info(
+                    "  [fold%d] %s  %d/%d  (%.2fs/seq)", fold, method, i + 1, N, elapsed / (i + 1)
+                )
 
         # ------------------------------------------------------ metrics
         faiths, aopcs = [], []
         for i in range(N):
-            v_i   = torch.from_numpy(v_all[i])
+            v_i = torch.from_numpy(v_all[i])
             phi_i = torch.from_numpy(phis[i])
-            faiths.append(faithfulness_correlation(z_bin, v_i, phi_i))
-            aopcs.append(player_aopc(v_i, z_bin, phi_i, K))
+            faiths.append(faithfulness_enumerated(z_bin, v_i, phi_i))
+            aopcs.append(player_aopc_enumerated(v_i, z_bin, phi_i, K))
 
         faiths_arr = np.asarray(faiths, dtype=np.float64)
-        aopcs_arr  = np.asarray(aopcs,  dtype=np.float64)
-        n_finite   = int(np.isfinite(faiths_arr).sum())
+        aopcs_arr = np.asarray(aopcs, dtype=np.float64)
+        n_finite = int(np.isfinite(faiths_arr).sum())
 
         faith_mean = float(np.nanmean(faiths_arr))
-        faith_std  = float(np.nanstd(faiths_arr, ddof=1)) if n_finite > 1 else float("nan")
-        aopc_mean  = float(np.mean(aopcs_arr))
-        aopc_std   = float(np.std(aopcs_arr, ddof=1)) if N > 1 else float("nan")
+        faith_std = float(np.nanstd(faiths_arr, ddof=1)) if n_finite > 1 else float("nan")
+        aopc_mean = float(np.mean(aopcs_arr))
+        aopc_std = float(np.std(aopcs_arr, ddof=1)) if N > 1 else float("nan")
 
         np.savez_compressed(
             method_dir / "attributions.npz",
-            phi=phis, x=x_val, target=targets, v=v_all,
+            phi=phis,
+            x=x_val,
+            target=targets,
+            v=v_all,
         )
         result = {
             "dataset": "ptbxl",
@@ -398,16 +416,22 @@ def main() -> None:
             "player_aopc": aopc_mean,
             "player_aopc_std": aopc_std,
             "phi_mean": phis.mean(axis=0).tolist(),
-            "phi_std":  phis.std(axis=0).tolist(),
+            "phi_std": phis.std(axis=0).tolist(),
             "faithfulness_per_seq": faiths_arr.tolist(),
-            "player_aopc_per_seq":  aopcs_arr.tolist(),
+            "player_aopc_per_seq": aopcs_arr.tolist(),
             "targets_per_seq": targets.tolist(),
         }
         result_path.write_text(json.dumps(result, indent=2))
         summary_rows.append(result)
-        log.info("  [fold%d] %s done %.1fs — faith=%+.3f aopc=%+.3f (n_fin=%d)",
-                 fold, method, time.time() - t_method,
-                 faith_mean, aopc_mean, n_finite)
+        log.info(
+            "  [fold%d] %s done %.1fs — faith=%+.3f aopc=%+.3f (n_fin=%d)",
+            fold,
+            method,
+            time.time() - t_method,
+            faith_mean,
+            aopc_mean,
+            n_finite,
+        )
 
     (fold_dir / "summary.json").write_text(json.dumps(summary_rows, indent=2))
     log.info("=" * 60)

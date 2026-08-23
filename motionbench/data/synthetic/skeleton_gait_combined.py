@@ -56,9 +56,7 @@ __all__ = ["SkeletonGaitDataset"]
 LabelFunction = Callable[[npt.NDArray[Any], int], npt.NDArray[np.int64]]
 
 
-def _default_label_fn(
-    x_np: npt.NDArray[Any], n_classes: int
-) -> npt.NDArray[np.int64]:
+def _default_label_fn(x_np: npt.NDArray[Any], n_classes: int) -> npt.NDArray[np.int64]:
     """Quantile-split on joint-0 grand mean (matches the other pillar datasets)."""
     score = x_np[:, 0, :, :].mean(axis=(1, 2))
     bounds = np.percentile(score, np.linspace(0.0, 100.0, n_classes + 1)[1:-1])
@@ -113,6 +111,22 @@ class SkeletonGaitDataset:
         label_fn: LabelFunction | None = None,
         seed: int = 0,
     ) -> None:
+        """Initialise the skeleton-gait benchmark and pre-generate ``N`` sequences.
+
+        Args:
+            J: Number of joints (17 for ``"h36m_17"``).
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            N: Number of sequences to pre-generate.
+            decay: Correlation decay per kinematic-tree hop.
+            period_mean: Gait cycle period in frames for the cosine kernel.
+            period_std: Documented stride-period variability (metadata only).
+            n_harmonics: Cosine harmonics in the temporal kernel.
+            n_classes: Number of label classes.
+            label_fn: Optional label callable; defaults to quantile-split on
+                the joint-0 grand mean.
+            seed: Random seed for sequence generation.
+        """
         self._J = J
         self._F = F
         self._T = T
@@ -166,10 +180,12 @@ class SkeletonGaitDataset:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) per-sample coordinate shape."""
         return (self._J, self._F, self._T)
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Free-form dataset metadata."""
         return {
             "skeleton": "h36m_17",
             "frame_rate": 27.0,
@@ -184,4 +200,5 @@ class SkeletonGaitDataset:
 
     @property
     def oracle(self) -> GaussianOracle:
+        """Exact GaussianOracle for this generative model."""
         return self._oracle

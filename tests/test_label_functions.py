@@ -52,8 +52,7 @@ class FakeTemporalPlayerSet(PlayerSet):
         self._K = K
         quarter = T // K
         self._windows = [
-            list(range(k * quarter, (k + 1) * quarter if k < K - 1 else T))
-            for k in range(K)
+            list(range(k * quarter, (k + 1) * quarter if k < K - 1 else T)) for k in range(K)
         ]
 
     @property
@@ -142,9 +141,7 @@ def _assert_label_array(labels: np.ndarray, n_classes: int = 3) -> None:
     assert labels.shape == (N,), f"Expected shape ({N},), got {labels.shape}."
     assert labels.dtype == np.int64, f"Expected int64, got {labels.dtype}."
     assert labels.min() >= 0, f"Negative label found: {labels.min()}"
-    assert labels.max() < n_classes, (
-        f"Label {labels.max()} >= n_classes={n_classes}."
-    )
+    assert labels.max() < n_classes, f"Label {labels.max()} >= n_classes={n_classes}."
 
 
 # ===========================================================================
@@ -328,10 +325,7 @@ class TestThresholdedXOR:
         new_pair0 = (b2[:, 0] != b[:, 1]).astype(np.int64)
         old_pair0 = (b[:, 0] != b[:, 1]).astype(np.int64)
         expected_delta = new_pair0 - old_pair0
-        new_score = (
-            (b2[:, 0] != b[:, 1]).astype(np.int64)
-            + (b[:, 2] != b[:, 3]).astype(np.int64)
-        )
+        new_score = (b2[:, 0] != b[:, 1]).astype(np.int64) + (b[:, 2] != b[:, 3]).astype(np.int64)
         assert (new_score - score == expected_delta).all()
 
 
@@ -406,9 +400,7 @@ class TestLocalizedTemporal:
             LocalizedTemporal(window_idx=4, K=4)
 
     @pytest.mark.slow
-    def test_irrelevant_players_have_low_gradient(
-        self, rng: np.random.Generator
-    ) -> None:
+    def test_irrelevant_players_have_low_gradient(self, rng: np.random.Generator) -> None:
         """Randomising non-window-0 frames must not change labels."""
         lf = LocalizedTemporal(window_idx=0, K=K)
         x = rng.standard_normal((N, J, F, T)).astype(np.float32)
@@ -417,9 +409,9 @@ class TestLocalizedTemporal:
         quarter = T // K
         x_perturbed = x.copy()
         # Replace frames belonging to windows 1, 2, 3 with fresh noise.
-        x_perturbed[:, :, :, quarter:] = rng.standard_normal(
-            (N, J, F, T - quarter)
-        ).astype(np.float32)
+        x_perturbed[:, :, :, quarter:] = rng.standard_normal((N, J, F, T - quarter)).astype(
+            np.float32
+        )
 
         labels_perturbed = lf(x_perturbed)
         # Perfectly localised: labels must be identical.
@@ -456,9 +448,7 @@ class TestLocalizedSpatial:
             LocalizedSpatial(joint_idx=-1)
 
     @pytest.mark.slow
-    def test_irrelevant_players_have_low_gradient(
-        self, rng: np.random.Generator
-    ) -> None:
+    def test_irrelevant_players_have_low_gradient(self, rng: np.random.Generator) -> None:
         """Randomising non-joint-0 data must not change labels."""
         lf = LocalizedSpatial(joint_idx=0)
         x = rng.standard_normal((N, J, F, T)).astype(np.float32)
@@ -466,9 +456,7 @@ class TestLocalizedSpatial:
 
         x_perturbed = x.copy()
         # Replace all joints except joint 0 with fresh noise.
-        x_perturbed[:, 1:, :, :] = rng.standard_normal(
-            (N, J - 1, F, T)
-        ).astype(np.float32)
+        x_perturbed[:, 1:, :, :] = rng.standard_normal((N, J - 1, F, T)).astype(np.float32)
 
         labels_perturbed = lf(x_perturbed)
         np.testing.assert_array_equal(
@@ -515,9 +503,7 @@ class TestLocalizedSpatiotemporal:
             LocalizedSpatiotemporal(joint_idx=0, window_idx=4, K=4)
 
     @pytest.mark.slow
-    def test_irrelevant_players_have_low_gradient(
-        self, rng: np.random.Generator
-    ) -> None:
+    def test_irrelevant_players_have_low_gradient(self, rng: np.random.Generator) -> None:
         """Randomising non-(joint0, window0) cells must not change labels."""
         lf = LocalizedSpatiotemporal(joint_idx=0, window_idx=0, K=K)
         x = rng.standard_normal((N, J, F, T)).astype(np.float32)
@@ -526,13 +512,9 @@ class TestLocalizedSpatiotemporal:
         quarter = T // K
         x_perturbed = x.copy()
         # Replace joint 0 windows 1-3 with noise.
-        x_perturbed[:, 0, :, quarter:] = rng.standard_normal(
-            (N, F, T - quarter)
-        ).astype(np.float32)
+        x_perturbed[:, 0, :, quarter:] = rng.standard_normal((N, F, T - quarter)).astype(np.float32)
         # Replace all other joints entirely.
-        x_perturbed[:, 1:, :, :] = rng.standard_normal(
-            (N, J - 1, F, T)
-        ).astype(np.float32)
+        x_perturbed[:, 1:, :, :] = rng.standard_normal((N, J - 1, F, T)).astype(np.float32)
 
         labels_perturbed = lf(x_perturbed)
         np.testing.assert_array_equal(

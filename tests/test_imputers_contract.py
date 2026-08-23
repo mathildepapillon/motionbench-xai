@@ -7,6 +7,7 @@ Verifies:
 4. fit returns self (method chaining).
 5. n_samples dimension is correctly sized.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -14,8 +15,7 @@ import torch
 from torch import Tensor
 
 from motionbench.imputers.base import BaseImputer
-from tests.conftest import J, F, T
-
+from tests.conftest import F, J, T
 
 # ---------------------------------------------------------------------------
 # Mock BaseDataset (minimal)
@@ -48,7 +48,7 @@ class _MockDataset:
 class MockImputer(BaseImputer):
     """Zero-fill imputer for contract testing."""
 
-    def fit(self, train_data) -> "MockImputer":
+    def fit(self, train_data) -> MockImputer:
         self._fitted = True
         return self
 
@@ -120,9 +120,7 @@ def test_impute_full_mask(x_sample):
     full_mask = torch.ones(J, F, T, dtype=torch.bool)
     out = imp.impute(x_sample, full_mask, n_samples=5)
     for i in range(5):
-        assert torch.allclose(out[i], x_sample), (
-            f"Full mask: sample {i} differs from x_obs"
-        )
+        assert torch.allclose(out[i], x_sample), f"Full mask: sample {i} differs from x_obs"
 
 
 def test_impute_empty_mask(x_sample):

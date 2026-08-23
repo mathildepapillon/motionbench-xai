@@ -7,6 +7,7 @@ Verifies:
   4. BaseImputer interface contract.
   5. NotImplementedError for M > 12.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -69,8 +70,7 @@ class _TemporalPlayers:
         self._T = T
         quarter = T // K
         self._windows: list[list[int]] = [
-            list(range(k * quarter, (k + 1) * quarter if k < K - 1 else T))
-            for k in range(K)
+            list(range(k * quarter, (k + 1) * quarter if k < K - 1 else T)) for k in range(K)
         ]
 
     @property
@@ -250,7 +250,9 @@ def test_conditional_sample_mean_matches_formula() -> None:
         mu_analytic = W @ x_np[j, 0, t_obs_idx].astype(np.float64)
         mu_sample = samps[:, j, 0, t_hid_idx].mean(axis=0)
         np.testing.assert_allclose(
-            mu_sample, mu_analytic, atol=3.0 / np.sqrt(n_samples),
+            mu_sample,
+            mu_analytic,
+            atol=3.0 / np.sqrt(n_samples),
             err_msg=f"Conditional mean mismatch at j={j}.",
         )
 
@@ -404,9 +406,7 @@ def test_true_shapley_large_m_sampling_path() -> None:
     def classifier(xb: Tensor) -> Tensor:
         return xb.mean(dim=(1, 2, 3))
 
-    phi = oracle.true_shapley(
-        x, classifier, players, n_mc=20, n_coalitions=200, seed=42
-    )
+    phi = oracle.true_shapley(x, classifier, players, n_mc=20, n_coalitions=200, seed=42)
     assert phi.shape == (13,), f"Expected shape (13,), got {phi.shape}"
     assert phi.dtype == torch.float32
 

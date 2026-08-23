@@ -69,6 +69,7 @@ def _hydra_main(cfg: DictConfig) -> None:
     Routes to the correct pipeline based on ``cfg.pipeline``:
 
     * ``"real"`` → :func:`~motionbench.pipelines.real_eval.run_real_eval`
+    * ``"player_eval"`` → :func:`~motionbench.pipelines.player_eval.run_player_eval`
     * anything else → :func:`~motionbench.pipelines.synthetic_eval.run_synthetic_eval`
 
     Args:
@@ -80,6 +81,10 @@ def _hydra_main(cfg: DictConfig) -> None:
         from motionbench.pipelines.real_eval import run_real_eval  # noqa: PLC0415
 
         df = run_real_eval(cfg)
+    elif pipeline == "player_eval":
+        from motionbench.pipelines.player_eval import run_player_eval  # noqa: PLC0415
+
+        df = run_player_eval(cfg)
     else:
         from motionbench.pipelines.synthetic_eval import run_synthetic_eval  # noqa: PLC0415
 
@@ -104,3 +109,7 @@ def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "run":
         del sys.argv[1]
     _hydra_main()
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised via subprocess tests
+    main()

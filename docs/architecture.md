@@ -1,6 +1,6 @@
-# Architecture — The Four Base Abstractions
+# Architecture — The Five Base Abstractions
 
-> This document describes the four base abstractions in motionbench-xai
+> This document describes the five base abstractions in motionbench-xai
 > (`PlayerSet`, `BaseDataset`, `Oracle`/`BaseImputer`, `BaseAttributor`,
 > `BaseMetric`). The interfaces are stable; new methods, datasets and
 > metrics are added by subclassing them.
@@ -10,7 +10,7 @@
 ## Overview
 
 MotionBench-XAI evaluates XAI attribution methods on time-series motion data.
-Every evaluation pipeline is built from four composable abstractions:
+Every evaluation pipeline is built from five composable abstractions:
 
 ```
 Dataset ──► PlayerSet ──► Attributor ──► Metric
@@ -55,6 +55,7 @@ class PlayerSet(ABC):
 | `AnatomicalGroups(groups)` | predefined joint groups | (J, F, T) arbitrary |
 | `GaitPhase(n_phases)` | stride-aligned phases | (J, F, T) temporal phases |
 | `JointWindowCells(J, K)` | J × K spatiotemporal cells | (J, F, T) grid |
+| `BandWindowCells(J, n_bands, K)` | n_bands × K spectro-temporal cells (frequency bands × time windows) | (J, F, T) grid |
 
 ---
 
@@ -66,12 +67,14 @@ Structural protocol (no inheritance needed).
 class BaseDataset(Protocol):
     def __getitem__(idx: int) -> tuple[Tensor, Tensor]: ...  # (J,F,T), scalar
     def __len__() -> int: ...
-    shape: tuple[int,int,int]  # (J, F, T)
-    metadata: dict             # {"skeleton": ..., "frame_rate": ...}
-    oracle: Optional[Oracle]   # None for real data
+
+    shape: tuple[int, int, int]  # (J, F, T)
+    metadata: dict  # {"skeleton": ..., "frame_rate": ...}
+    oracle: Optional[Oracle]  # None for real data
+
 
 class GroundTruthDataset(BaseDataset, Protocol):
-    oracle: Oracle             # required, non-Optional
+    oracle: Oracle  # required, non-Optional
 ```
 
 **Synthetic datasets** implement `GroundTruthDataset` and expose a closed-form
@@ -151,7 +154,6 @@ class BaseMetric(ABC):
 | Fidelity | False | True | PixelFlipping, FaithfulnessCorr |
 | Stability | False | False | MaxSensitivity, Continuity |
 | Sanity | False | False | ModelParamRand, RandomLogit |
-| Meta | False | False | RankingAgreement |
 
 ---
 
@@ -180,7 +182,7 @@ All coordinates use `(J, F, T)` layout. No exceptions.
 ```python
 # 1. Dataset provides data and oracle
 dataset = GaussianMotionDataset(K=4, J=5, F=3, T=16)
-x, y = dataset[0]          # (J, F, T), scalar
+x, y = dataset[0]  # (J, F, T), scalar
 
 # 2. PlayerSet defines the game
 players = TemporalWindows(K=4, T=16, J=5, F=3)
@@ -198,3 +200,34 @@ metric = EC1Metric()
 scores = metric.evaluate(phi, x, classifier, players, oracle=dataset.oracle)
 # → {"ec1": 0.034}
 ```
+
+---
+
+## Deterministic grading path (player_eval pipeline)
+
+The `player_eval` pipeline replaces the Monte-Carlo oracle of step 5 with
+**deterministic** targets, removing grading noise entirely:
+
+```python
+from motionbench.attribution.sampled_coalitions import (
+    phi_from_values,
+    sampled_coalition_set,
+)
+from motionbench.oracles.deterministic import DeterministicConditionalOracle
+
+# Shared fixed coalition design: exact for M <= 12, importance-corrected
+# sampling above (seed 7919 by convention).
+Z, w = sampled_coalition_set(players.n_players, budget=1024)
+
+# Per-coalition conditional-mean operators, precomputed once per player set.
+det = DeterministicConditionalOracle.from_oracle(dataset.oracle, players, Z)
+fills = det.fill_all(x.numpy())  # (len(Z), J, F, T), no randomness
+phi_star = phi_from_values(Z, w, prob_fn(fills))  # exact target
+
+# Any method evaluated on the same (Z, w) is graded coalition-noise-free:
+ec1 = float(abs(phi - phi_star).mean())
+```
+
+Both modules are ported from the independent validation study's
+implementation and verified bit-identical against it (see
+`tests/test_sampled_coalitions.py`, `tests/test_deterministic_oracle.py`).

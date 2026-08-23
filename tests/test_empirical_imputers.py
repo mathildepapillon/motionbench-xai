@@ -7,6 +7,7 @@ Covers:
 4. Convergence (slow): EmpiricalConditionalImputer Shapley values converge
    to GaussianOracle within 0.15 on Gaussian data with N=5000 training rows.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -32,9 +33,7 @@ class _MockDataset:
 
     def __init__(self, n: int = N_TRAIN, seed: int = 0) -> None:
         rng = np.random.default_rng(seed)
-        self._data = torch.tensor(
-            rng.standard_normal((n, J, F, T)), dtype=torch.float32
-        )
+        self._data = torch.tensor(rng.standard_normal((n, J, F, T)), dtype=torch.float32)
         self._n = n
 
     def __len__(self) -> int:
@@ -65,9 +64,7 @@ def test_knn_shape(name, imputer, x_sample, mask_half):
     imputer.fit(ds)
     n = 6
     out = imputer.impute(x_sample, mask_half, n_samples=n, seed=0)
-    assert out.shape == (n, J, F, T), (
-        f"{name}: expected ({n}, {J}, {F}, {T}), got {out.shape}"
-    )
+    assert out.shape == (n, J, F, T), f"{name}: expected ({n}, {J}, {F}, {T}), got {out.shape}"
     assert out.dtype == torch.float32, f"{name}: expected float32, got {out.dtype}"
 
 
@@ -121,9 +118,7 @@ def test_empirical_full_mask(x_sample):
     full_mask = torch.ones(J, F, T, dtype=torch.bool)
     out = imp.impute(x_sample, full_mask, n_samples=3, seed=3)
     for i in range(3):
-        assert torch.allclose(out[i], x_sample), (
-            f"Full mask: sample {i} differs from x_obs."
-        )
+        assert torch.allclose(out[i], x_sample), f"Full mask: sample {i} differs from x_obs."
 
 
 def test_knn_deterministic(x_sample, mask_half):
@@ -169,16 +164,16 @@ def test_empirical_convergence():
     rng = np.random.default_rng(42)
 
     # Gaussian data: AR(1) temporal correlation, equicorrelated joints.
-    alpha_t = 0.7   # temporal AR(1)
-    rho_j = 0.5     # joint equicorrelation
+    alpha_t = 0.7  # temporal AR(1)
+    rho_j = 0.5  # joint equicorrelation
     J_c, F_c, T_c = 3, 2, 8
-    M = 4           # temporal players
+    M = 4  # temporal players
     N_train = 5000
-    n_mc = 200      # MC samples per coalition
+    n_mc = 200  # MC samples per coalition
 
     # Build covariance matrices.
     lag = np.abs(np.arange(T_c)[:, None] - np.arange(T_c)[None, :])
-    Sigma_time = alpha_t ** lag
+    Sigma_time = alpha_t**lag
     Sigma_joints = rho_j * np.ones((J_c, J_c)) + (1 - rho_j) * np.eye(J_c)
 
     oracle = GaussianOracle(Sigma_joints=Sigma_joints, Sigma_time=Sigma_time)

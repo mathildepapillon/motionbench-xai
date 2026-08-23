@@ -1,4 +1,4 @@
-"""scripts/run_player_set_ablation.py — cross-player-set ablation sweep.
+"""scripts/run_player_set_ablation.py — Cross-player-set ablation sweep.
 
 Runs two sweeps on GPU 7:
   1. skeleton_structured  × P_joint (M=17 spatial joints)
@@ -23,6 +23,7 @@ Usage::
 Results written to:
     results/synthetic/{dataset}/{clf}/kernelshap_{zero,marginal,vaeac,flow}_{pjoint,pcell}/result.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,12 +36,20 @@ import time
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
+from _ablation_common import (  # noqa: E402
+    batched_oracle_shapley,
+    ec_metrics,
+    topk_metrics,
+)
 from omegaconf import OmegaConf
 from torch import Tensor
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(
@@ -58,12 +67,13 @@ RESULTS_DIR = REPO / "results" / "synthetic"
 # ---------------------------------------------------------------------------
 
 
-class CellTimeout(Exception):
-    pass
+class CellTimeout(Exception):  # noqa: N818
+    """Raised when a cell exceeds its wall-clock budget."""
 
 
 @contextmanager
 def cell_timeout(seconds: int) -> Iterator[None]:
+    """SIGALRM-based wall-clock budget for one cell (no-op if ``seconds <= 0``)."""
     if seconds <= 0:
         yield
         return
@@ -85,40 +95,8 @@ def cell_timeout(seconds: int) -> Iterator[None]:
 # ---------------------------------------------------------------------------
 
 
-def ec_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
-    diff = phi_hat - phi_true
-    ec1 = float(np.mean(np.abs(diff)))
-    denom = float(np.mean(np.abs(phi_true)) + 1e-8)
-    ec1_norm = ec1 / denom
-    ec2 = float(np.mean(diff**2))
-    if np.std(phi_hat) < 1e-10 or np.std(phi_true) < 1e-10:
-        ec3 = float("nan")
-    else:
-        corr = float(np.corrcoef(phi_hat, phi_true)[0, 1])
-        ec3 = 1.0 - corr
-    return {"ec1": ec1, "ec1_norm": ec1_norm, "ec2": ec2, "ec3": ec3}
-
-
-def topk_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
-    abs_h = np.abs(phi_hat)
-    abs_t = np.abs(phi_true)
-    n = phi_hat.shape[0]
-    out: dict[str, float] = {}
-    if n >= 1:
-        out["top1"] = float(int(np.argmax(abs_h) == np.argmax(abs_t)))
-    K_top = max(1, n // 2)
-    top_h = set(np.argsort(-abs_h)[:K_top].tolist())
-    top_t = set(np.argsort(-abs_t)[:K_top].tolist())
-    out["topk_overlap"] = float(len(top_h & top_t) / K_top)
-    from scipy.stats import kendalltau, spearmanr
-    sp, _ = spearmanr(phi_hat, phi_true)
-    kt, _ = kendalltau(phi_hat, phi_true)
-    out["spearman"] = float(sp) if not np.isnan(sp) else 0.0
-    out["kendall"] = float(kt) if not np.isnan(kt) else 0.0
-    return out
-
-
 def efficiency_error(phi: np.ndarray, v_full: float, v_empty: float) -> float:
+    """``|sum(phi) - (v(full) - v(empty))|``."""
     return float(abs(phi.sum() - (v_full - v_empty)))
 
 
@@ -137,20 +115,25 @@ def build_imputer(method_base: str, dataset, device_str: str):
     """
     if method_base == "zero":
         from motionbench.imputers.off_manifold import ZeroImputer
+
         imp = ZeroImputer()
         imp.fit(dataset)
         return imp
 
     if method_base == "marginal":
         from motionbench.imputers.off_manifold import MarginalDonorImputer
+
         imp = MarginalDonorImputer()
         imp.fit(dataset)
         return imp
 
     if method_base == "vaeac":
         from motionbench.imputers.carepd_imputer import (
-            _CARE_PD_ROOT, _VAEAC_REGISTRY, _load_vaeac,
+            _CARE_PD_ROOT,
+            _VAEAC_REGISTRY,
+            load_vaeac,
         )
+
         cls_key = type(dataset).__name__
         if cls_key not in _VAEAC_REGISTRY:
             raise RuntimeError(f"No VAEAC registry entry for {cls_key}")
@@ -159,13 +142,17 @@ def build_imputer(method_base: str, dataset, device_str: str):
         cfg_path = _CARE_PD_ROOT / cfg_rel
         if not ckpt_dir.exists():
             raise FileNotFoundError(f"VAEAC checkpoint dir not found: {ckpt_dir}")
-        return _load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
+        return load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
 
     if method_base == "flow":
-        from motionbench.imputers.carepd_imputer import (
-            _CARE_PD_ROOT, _FLOW_REGISTRY, _load_flow,
-        )
         import tempfile
+
+        from motionbench.imputers.carepd_imputer import (
+            _CARE_PD_ROOT,
+            _FLOW_REGISTRY,
+            load_flow,
+        )
+
         cls_key = type(dataset).__name__
         if cls_key not in _FLOW_REGISTRY:
             raise RuntimeError(f"No Flow registry entry for {cls_key}")
@@ -175,12 +162,12 @@ def build_imputer(method_base: str, dataset, device_str: str):
         if not ckpt_dir.exists():
             raise FileNotFoundError(f"Flow checkpoint dir not found: {ckpt_dir}")
         cfg = json.loads(cfg_path.read_text())
-        cfg["num_steps"] = 20   # speed: 20 ODE steps is sufficient for evaluation
+        cfg["num_steps"] = 20  # speed: 20 ODE steps is sufficient for evaluation
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(cfg, f)
             tmp_cfg = Path(f.name)
         try:
-            imp = _load_flow(ckpt_dir, tmp_cfg, torch.device(device_str))
+            imp = load_flow(ckpt_dir, tmp_cfg, torch.device(device_str))
         finally:
             tmp_cfg.unlink(missing_ok=True)
         return imp
@@ -192,197 +179,6 @@ def build_imputer(method_base: str, dataset, device_str: str):
 # Batched oracle Shapley: pre-generate all conditional samples, run one
 # big GPU batch, then solve WLS — avoids per-coalition GPU launch overhead.
 # ---------------------------------------------------------------------------
-
-
-def _build_spatiotemporal_cond_params(
-    oracle,
-    mask_np: np.ndarray,
-    J: int,
-    F: int,
-    T: int,
-) -> tuple | None:
-    """Pre-compute conditional parameters for a spatiotemporal mask.
-
-    Returns ``(j_obs, j_hid, t_obs, t_hid, W, L_cond)`` or ``None`` if the
-    mask is full or empty.  This is the expensive Cholesky step; the result
-    can be cached and reused across sequences since it only depends on the
-    mask, not on ``x``.
-    """
-    jt_mask = mask_np.all(axis=1)         # (J, T)
-    flat = jt_mask.reshape(-1)
-    obs_lin = np.flatnonzero(flat)
-    hid_lin = np.flatnonzero(~flat)
-    n_obs = int(obs_lin.size)
-    n_hid = int(hid_lin.size)
-    if n_hid == 0 or n_obs == 0:
-        return None
-    j_obs = (obs_lin // T).astype(int)
-    t_obs = (obs_lin % T).astype(int)
-    j_hid = (hid_lin // T).astype(int)
-    t_hid = (hid_lin % T).astype(int)
-    Sigma_oo = (
-        oracle.Sigma_joints[j_obs[:, None], j_obs[None, :]]
-        * oracle.Sigma_time[t_obs[:, None], t_obs[None, :]]
-    )
-    Sigma_hh = (
-        oracle.Sigma_joints[j_hid[:, None], j_hid[None, :]]
-        * oracle.Sigma_time[t_hid[:, None], t_hid[None, :]]
-    )
-    Sigma_ho = (
-        oracle.Sigma_joints[j_hid[:, None], j_obs[None, :]]
-        * oracle.Sigma_time[t_hid[:, None], t_obs[None, :]]
-    )
-    W = Sigma_ho @ np.linalg.solve(
-        Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs)
-    )
-    Sigma_cond = Sigma_hh - W @ Sigma_ho.T
-    Sigma_cond = 0.5 * (Sigma_cond + Sigma_cond.T) + 1e-8 * np.eye(n_hid)
-    L_cond = np.linalg.cholesky(Sigma_cond)
-    return (j_obs, j_hid, t_obs, t_hid, W, L_cond)
-
-
-def _sample_with_cached_params(
-    x_np: np.ndarray,
-    params,
-    n_mc: int,
-    J: int,
-    F: int,
-    T: int,
-    rng: np.random.Generator,
-) -> np.ndarray:
-    """Sample from Gaussian conditional using cached (W, L_cond) params."""
-    if params is None:
-        # Full coalition: repeat x
-        return np.tile(x_np[None].astype(np.float32), (n_mc, 1, 1, 1))
-    j_obs, j_hid, t_obs, t_hid, W, L_cond = params
-    n_hid = len(j_hid)
-    out = np.tile(x_np[None], (n_mc, 1, 1, 1)).astype(np.float64)
-    for f in range(F):
-        x_obs_vals = x_np[j_obs, f, t_obs]
-        mu = W @ x_obs_vals
-        z = rng.standard_normal((n_mc, n_hid))
-        z_corr = z @ L_cond.T
-        out[:, j_hid, f, t_hid] = mu[None, :] + z_corr
-    return out.astype(np.float32)
-
-
-def batched_oracle_shapley(
-    oracle,
-    x: Tensor,
-    clf_fn,                  # (B, J, F, T) → (B,) float scalar
-    players,
-    n_mc: int,
-    coalitions: np.ndarray,  # (N_coal, M) pre-sampled coalition matrix
-    weights: np.ndarray,     # (N_coal,) Shapley kernel weights
-    clf_chunk: int = 1024,
-    cholesky_cache: dict | None = None,  # mutable cache passed by caller
-) -> Tensor:
-    """Batched oracle Shapley evaluation with Cholesky caching.
-
-    Pre-generates all Gaussian conditional samples for every coalition in one
-    numpy pass, then calls clf_fn once (chunked) on the stacked batch instead
-    of making N_coal separate GPU calls.
-
-    The ``cholesky_cache`` dict is keyed by coalition index and stores the
-    expensive Cholesky factorization of the conditional covariance. Sharing
-    the same cache across sequences gives a ~n_seq × speedup for the
-    spatiotemporal sampling path (used for P_cell / JointWindowCells).
-
-    Args:
-        oracle: GaussianOracle instance.
-        x: ``(J, F, T)`` float32 Tensor.
-        clf_fn: Callable ``(B, J, F, T) → (B,)`` float scalar.
-        players: PlayerSet used to build coalition masks.
-        n_mc: Monte Carlo samples per coalition (Gaussian conditionals).
-        coalitions: ``(N_coal, M)`` int array including boundary rows.
-        weights: ``(N_coal,)`` Shapley kernel weights.
-        clf_chunk: Maximum batch size per classifier forward pass.
-        cholesky_cache: Optional shared dict for Cholesky factor caching.
-
-    Returns:
-        ``(M,)`` float32 Tensor of Shapley values.
-    """
-    from motionbench.utils.coalitions import solve_shapley_wls
-    M = players.n_players
-    N_coal = coalitions.shape[0]
-    x_np = x.detach().cpu().numpy().astype(np.float64)
-    J, F, T = x_np.shape
-    rng = np.random.default_rng(None)
-
-    # Phase 1: generate all conditional samples in numpy (CPU)
-    all_samples: list[np.ndarray] = []   # each: (n_mc, J, F, T) float32
-    for ci, z_row in enumerate(coalitions):
-        n_obs_players = int(z_row.sum())
-
-        if n_obs_players == M:
-            s = np.tile(x_np[None].astype(np.float32), (n_mc, 1, 1, 1))
-        elif n_obs_players == 0:
-            s = oracle._sample_unconditional(
-                n_mc, J, F, T,
-                np.random.default_rng(int(rng.integers(1 << 31))),
-            )
-        else:
-            # Try cache first; compute and store on miss
-            if cholesky_cache is not None and ci in cholesky_cache:
-                params = cholesky_cache[ci]
-            else:
-                z_t = torch.tensor(z_row, dtype=torch.int32)
-                mask = players.coalition_mask(z_t)
-                mask_np = mask.numpy().astype(bool)
-                # Check if it's a simple spatial/temporal pattern first
-                # (GaussianOracle._conditional_sample_np handles these with
-                # its own cache — only skip to spatiotemporal when needed)
-                from motionbench.oracles.gaussian_oracle import (
-                    _mask_is_temporal, _mask_is_spatial,
-                )
-                if _mask_is_temporal(mask_np) or _mask_is_spatial(mask_np):
-                    # Use oracle's built-in cached path
-                    params = ("oracle", mask_np)
-                else:
-                    # Build and cache spatiotemporal Cholesky
-                    params = _build_spatiotemporal_cond_params(
-                        oracle, mask_np, J, F, T
-                    )
-                if cholesky_cache is not None:
-                    cholesky_cache[ci] = params
-
-            # Sample using cached params.
-            # Sentinel ("oracle", mask_np) has len=2; spatiotemporal params
-            # tuple has len=6 — distinguish by length, not by array equality.
-            if isinstance(params, tuple) and len(params) == 2 and isinstance(params[0], str):
-                # Use oracle's built-in sampler (has its own cache)
-                _, mask_np_cached = params
-                s = oracle._conditional_sample_np(
-                    x_np, mask_np_cached, n_mc,
-                    np.random.default_rng(int(rng.integers(1 << 31))),
-                )
-            else:
-                s = _sample_with_cached_params(
-                    x_np, params, n_mc, J, F, T,
-                    np.random.default_rng(int(rng.integers(1 << 31))),
-                )
-
-        all_samples.append(s.astype(np.float32))   # (n_mc, J, F, T)
-
-    # Phase 2: stack → (N_coal * n_mc, J, F, T) and run classifier once
-    stacked = torch.from_numpy(
-        np.concatenate(all_samples, axis=0)         # (N_coal * n_mc, J, F, T)
-    )
-    vals_flat_list: list[Tensor] = []
-    for s in range(0, len(stacked), clf_chunk):
-        vals_flat_list.append(clf_fn(stacked[s: s + clf_chunk]))
-    vals_flat = torch.cat(vals_flat_list).float()   # (N_coal * n_mc,)
-
-    # Phase 3: reshape and average per coalition
-    vals_mat = vals_flat.view(N_coal, n_mc)         # (N_coal, n_mc)
-    values = vals_mat.mean(dim=1).numpy().astype(np.float64)  # (N_coal,)
-
-    # Boundary values (first row = all-zero coalition, second = all-one)
-    v_empty = float(values[0])
-    v_full = float(values[1])
-
-    phi = solve_shapley_wls(coalitions, values, weights, v_empty, v_full)
-    return torch.tensor(phi, dtype=torch.float32)
 
 
 # ---------------------------------------------------------------------------
@@ -403,12 +199,13 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
             comp = comp[0]
     elif hasattr(imp, "sample_completions"):
         # Raw CARE-PD imputer (VAEACImputer / FlowImputer)
-        from motionbench.imputers.carepd_imputer import _mask_to_coalition
+        from motionbench.imputers.carepd_imputer import mask_to_coalition
+
         J, F, T = x_obs.shape
         device = imp._device
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
-        coalition_mask, _ = _mask_to_coalition(mask)
+        coalition_mask, _ = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
         completions = imp.sample_completions(
             x=x_in,
@@ -417,7 +214,7 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
             lengths=None,
             coalition_mask=coalition_mask,
             n_samples=1,
-        )                                  # list of 1 × (1, J, F, T)
+        )  # list of 1 × (1, J, F, T)
         comp = torch.cat(completions, dim=0)[0].cpu()  # (J, F, T)
     else:
         raise TypeError(f"Imputer {type(imp)} has neither .impute nor .sample_completions")
@@ -449,25 +246,25 @@ def impute_all_batched(
 
     ``coalition_masks`` must be uniformly shaped: all ``(J,)`` spatial or all
     ``(T,)`` temporal.  Mixed-axis coalitions (P_cell spatiotemporal) are
-    reduced to temporal via the ``_mask_to_coalition`` heuristic.
+    reduced to temporal via the ``mask_to_coalition`` heuristic.
     """
     if not hasattr(imp, "sample_completions_batched"):
         return None
 
-    from motionbench.imputers.carepd_imputer import _mask_to_coalition
+    from motionbench.imputers.carepd_imputer import mask_to_coalition
 
     J, F, T = x_obs.shape
     N = len(coal_masks)
 
     # Build 1-D coalition representation for each mask.
-    # _mask_to_coalition returns (1,J) spatial or (1,T) temporal.  Boundary
+    # mask_to_coalition returns (1,J) spatial or (1,T) temporal.  Boundary
     # coalitions (all-True / all-False) are always classified as "temporal"
-    # by _mask_to_coalition even when the player set is spatial.  Normalise
+    # by mask_to_coalition even when the player set is spatial.  Normalise
     # all entries to the most common dimension by converting boundary
     # (all-True / all-False) entries to match the inner coalitions.
     coal_1d_list: list[Tensor] = []
     for mask in coal_masks:
-        c1d, _ = _mask_to_coalition(mask)
+        c1d, _ = mask_to_coalition(mask)
         coal_1d_list.append(c1d.squeeze(0))  # (J,) or (T,)
 
     dims = [c.shape[0] for c in coal_1d_list]
@@ -481,15 +278,17 @@ def impute_all_batched(
         for c in coal_1d_list:
             if c.shape[0] == target_dim:
                 normalised.append(c)
-            elif c.all():          # all-True boundary
+            elif c.all():  # all-True boundary
                 normalised.append(torch.ones(target_dim, dtype=torch.bool))
-            elif not c.any():      # all-False boundary
+            elif not c.any():  # all-False boundary
                 normalised.append(torch.zeros(target_dim, dtype=torch.bool))
             else:
                 # Non-trivial dimension mismatch — fall back to per-coalition
                 log.warning(
                     "impute_all_batched: inconsistent coalition dims (%d vs %d), "
-                    "falling back to per-coalition imputation", c.shape[0], target_dim,
+                    "falling back to per-coalition imputation",
+                    c.shape[0],
+                    target_dim,
                 )
                 return None
         coal_1d_list = normalised
@@ -497,7 +296,7 @@ def impute_all_batched(
     stacked = torch.stack(coal_1d_list, dim=0)  # (N, J) or (N, T)
 
     dev = device
-    x_in = x_obs.unsqueeze(0).to(dev).float()       # (1, J, F, T)
+    x_in = x_obs.unsqueeze(0).to(dev).float()  # (1, J, F, T)
     pad = torch.ones(1, T, dtype=torch.bool, device=dev)
 
     completions = torch.zeros(N, J, F, T, dtype=torch.float32)
@@ -513,7 +312,7 @@ def impute_all_batched(
                     mask=pad,
                     coalition_masks=batch_masks,
                     n_samples=1,
-                )                                      # (B, 1, J, F, T)
+                )  # (B, 1, J, F, T)
                 completions[start:end] = out[:, 0].cpu().float()
             break  # success
         except torch.cuda.OutOfMemoryError:
@@ -540,19 +339,20 @@ def impute_all_batched(
 def run_one_cell(
     ds_name: str,
     dataset,
-    players,               # SpatialJoints or JointWindowCells instance
-    player_set_tag: str,   # "pjoint" or "pcell"
+    players,  # SpatialJoints or JointWindowCells instance
+    player_set_tag: str,  # "pjoint" or "pcell"
     clf_name: str,
-    method_base: str,      # "zero" | "marginal" | "vaeac" | "flow"
+    method_base: str,  # "zero" | "marginal" | "vaeac" | "flow"
     device: torch.device,
     n_seq: int,
     n_coalitions: int,
     cell_timeout_s: int,
 ) -> dict:
+    """Run one dataset × player-set × classifier × method cell and write its result.json."""
     M = players.n_players
     J, F, T = dataset.shape
     n_classes = int(dataset.metadata.get("n_classes", 3))
-    K_ds = 4   # temporal windows for dataset (from YAML)
+    K_ds = 4  # temporal windows for dataset (from YAML)
 
     method_name = f"kernelshap_{method_base}_{player_set_tag}"
     method_dir = RESULTS_DIR / ds_name / clf_name / method_name
@@ -562,13 +362,19 @@ def run_one_cell(
     # Load classifier
     clf_yaml = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
-    from motionbench.pipelines.synthetic_eval import _build_classifier
-    clf = _build_classifier(clf_cfg, J, F, T, K_ds, n_classes).to(device)
+    from motionbench.pipelines.synthetic_eval import build_classifier
+
+    clf = build_classifier(clf_cfg, J, F, T, K_ds, n_classes).to(device)
     clf.eval()
 
     ckpt_path = (
-        REPO / "motionbench" / "classifiers" / "checkpoints" / "synthetic"
-        / ds_name / f"{clf_name}.pt"
+        REPO
+        / "motionbench"
+        / "classifiers"
+        / "checkpoints"
+        / "synthetic"
+        / ds_name
+        / f"{clf_name}.pt"
     )
     if ckpt_path.exists():
         ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
@@ -597,12 +403,13 @@ def run_one_cell(
 
     # Sample KernelSHAP coalitions (shared across sequences)
     from motionbench.utils.coalitions import sample_kernelshap_coalitions, solve_shapley_wls
+
     rng_coal = np.random.default_rng(42)
     n_pairs = max(1, n_coalitions // 2)
     inner_coalitions, inner_weights = sample_kernelshap_coalitions(M, n_pairs, rng_coal)
     boundary_z = np.array([[0] * M, [1] * M], dtype=np.intp)
     boundary_w = np.zeros(2, dtype=np.float64)
-    coalitions = np.vstack([boundary_z, inner_coalitions])   # (2+2*n_pairs, M)
+    coalitions = np.vstack([boundary_z, inner_coalitions])  # (2+2*n_pairs, M)
     weights = np.concatenate([boundary_w, inner_weights])
     n_coal_total = coalitions.shape[0]
     log.info("    M=%d players, %d coalitions sampled", M, n_coal_total)
@@ -611,7 +418,7 @@ def run_one_cell(
     coal_masks: list[Tensor] = []
     for ci in range(n_coal_total):
         z_t = torch.tensor(coalitions[ci], dtype=torch.int32)
-        coal_masks.append(players.coalition_mask(z_t))   # (J, F, T) bool
+        coal_masks.append(players.coalition_mask(z_t))  # (J, F, T) bool
 
     # Per-sequence loop
     phis = np.zeros((n_seq_actual, M), dtype=np.float32)
@@ -623,18 +430,21 @@ def run_one_cell(
     cholesky_cache: dict = {}
 
     # Try batched imputation once to verify it works (and record the chunk size).
-    _batched_chunk: int | None = None   # None means "not yet tried"
+    _batched_chunk: int | None = None  # None means "not yet tried"
     _batched_ok: bool | None = None
 
     for i in range(n_seq_actual):
-        x_i = seqs[i]   # (J, F, T) cpu
+        x_i = seqs[i]  # (J, F, T) cpu
         target_i = int(targets[i])
 
         # Impute all coalitions — try batched API first (huge speedup for Flow/VAEAC)
         comps: Tensor | None = None
         if _batched_ok is not False:
             comps = impute_all_batched(
-                imp, x_i, coal_masks, device,
+                imp,
+                x_i,
+                coal_masks,
+                device,
                 initial_chunk=(_batched_chunk or 64),
             )
             if comps is not None:
@@ -681,16 +491,17 @@ def run_one_cell(
             coalitions,
             v_b.cpu().numpy().astype(np.float64),
             weights,
-            float(v_all[i, 0]),   # v_empty = first row (all-zero coalition)
-            float(v_all[i, 1]),   # v_full  = second row (all-one coalition)
+            float(v_all[i, 0]),  # v_empty = first row (all-zero coalition)
+            float(v_all[i, 1]),  # v_full  = second row (all-one coalition)
         )
         phis[i] = phi.astype(np.float32)
 
         # Oracle true Shapley values for this player set (batched for speed)
         try:
-            _target_i = target_i   # capture for closure
+            _target_i = target_i  # capture for closure
 
-            def clf_fn(arr) -> Tensor:
+            def clf_fn(arr, _target_i: int = _target_i) -> Tensor:  # noqa: ANN001
+                """Softmax probability of the frozen target class: batch → ``(B,)`` CPU tensor."""
                 if isinstance(arr, np.ndarray):
                     t_arr = torch.from_numpy(arr.astype(np.float32)).to(device)
                 elif isinstance(arr, Tensor):
@@ -718,13 +529,19 @@ def run_one_cell(
             if i == 0:
                 log.warning("    batched_oracle_shapley failed: %s", exc)
                 import traceback
+
                 traceback.print_exc()
 
         if (i + 1) % 10 == 0:
             elapsed = time.time() - t_cell
             log.info(
                 "    %s/%s/%s seq %d/%d (%.1fs)",
-                ds_name, clf_name, method_name, i + 1, n_seq_actual, elapsed,
+                ds_name,
+                clf_name,
+                method_name,
+                i + 1,
+                n_seq_actual,
+                elapsed,
             )
 
     # Aggregate metrics
@@ -749,7 +566,9 @@ def run_one_cell(
     # Save
     np.savez_compressed(
         method_dir / "attributions.npz",
-        phi=phis, phi_true=phi_true_all, v=v_all,
+        phi=phis,
+        phi_true=phi_true_all,
+        v=v_all,
     )
     (method_dir / "result.json").write_text(json.dumps(out_dict, indent=2))
 
@@ -757,7 +576,10 @@ def run_one_cell(
     out_dict["_wall_seconds"] = wall
     log.info(
         "    DONE %s/%s/%s in %.1fs  EC1=%.4f  spearman=%.3f",
-        ds_name, clf_name, method_name, wall,
+        ds_name,
+        clf_name,
+        method_name,
+        wall,
         out_dict.get("ec1", float("nan")),
         out_dict.get("spearman", float("nan")),
     )
@@ -770,8 +592,8 @@ def run_one_cell(
 
 SWEEP_CONFIGS = [
     # (dataset_name, player_set_tag, player_factory)
-    ("skeleton_structured",   "pjoint", "spatial_joints"),
-    ("skeleton_gait_combined", "pcell",  "joint_window_cells"),
+    ("skeleton_structured", "pjoint", "spatial_joints"),
+    ("skeleton_gait_combined", "pcell", "joint_window_cells"),
 ]
 
 METHODS_BASE = ["zero", "marginal", "vaeac", "flow"]
@@ -779,10 +601,11 @@ CLASSIFIERS_DEFAULT = ["synthetic_mlp", "synthetic_cnn", "synthetic_transformer"
 
 
 def load_dataset(ds_name: str):
+    """Instantiate the dataset from ``configs/data/{ds_name}.yaml`` (``K`` stripped — pipeline-only)."""
     ds_yaml = REPO / "configs" / "data" / f"{ds_name}.yaml"
     ds_cfg = OmegaConf.load(ds_yaml)
     ds_cfg_d = OmegaConf.to_container(ds_cfg, resolve=True)
-    ds_cfg_d.pop("K", None)           # K is pipeline-only
+    ds_cfg_d.pop("K", None)  # K is pipeline-only
     target = ds_cfg_d.pop("_target_")
     mod_path, cls_name = target.rsplit(".", 1)
     mod = __import__(mod_path, fromlist=[cls_name])
@@ -791,49 +614,76 @@ def load_dataset(ds_name: str):
 
 
 def make_players(player_factory: str, J: int, F: int, T: int, K: int):
+    """Instantiate ``spatial_joints`` (SpatialJoints) or ``joint_window_cells`` (JointWindowCells)."""
     if player_factory == "spatial_joints":
         from motionbench.players.spatial_joints import SpatialJoints
+
         return SpatialJoints(J=J, F=F, T=T)
     if player_factory == "joint_window_cells":
         from motionbench.players.joint_window_cells import JointWindowCells
+
         return JointWindowCells(J=J, K=K, F=F, T=T)
     raise ValueError(f"Unknown player_factory: {player_factory!r}")
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--sweeps", nargs="+",
-                   default=["skeleton_structured_pjoint", "skeleton_gait_combined_pcell"],
-                   help="Which sweep combos to run. Format: <dataset>_<pset>.")
+    p.add_argument(
+        "--sweeps",
+        nargs="+",
+        default=["skeleton_structured_pjoint", "skeleton_gait_combined_pcell"],
+        help="Which sweep combos to run. Format: <dataset>_<pset>.",
+    )
     p.add_argument("--classifiers", nargs="+", default=CLASSIFIERS_DEFAULT)
-    p.add_argument("--methods", nargs="+", default=METHODS_BASE,
-                   choices=METHODS_BASE)
+    p.add_argument("--methods", nargs="+", default=METHODS_BASE, choices=METHODS_BASE)
     p.add_argument("--n-seq", type=int, default=50)
     p.add_argument("--n-coalitions", type=int, default=2000)
-    p.add_argument("--cell-timeout", type=int, default=3600,
-                   help="Per-cell wall-clock timeout in seconds (0=unlimited).")
-    p.add_argument("--device", default="cuda:0",
-                   help="Torch device. CUDA_VISIBLE_DEVICES already restricts GPUs.")
-    p.add_argument("--force", action="store_true",
-                   help="Recompute even if result.json already exists.")
+    p.add_argument(
+        "--cell-timeout",
+        type=int,
+        default=3600,
+        help="Per-cell wall-clock timeout in seconds (0=unlimited).",
+    )
+    p.add_argument(
+        "--device",
+        default="cuda:0",
+        help="Torch device. CUDA_VISIBLE_DEVICES already restricts GPUs.",
+    )
+    p.add_argument(
+        "--force", action="store_true", help="Recompute even if result.json already exists."
+    )
     return p.parse_args()
 
 
 def main() -> None:
+    """Run the requested player-set × classifier × method sweep."""
     args = parse_args()
     t_total = time.time()
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
     log.info("Repo root: %s", REPO)
-    log.info("Device: %s  (CUDA_VISIBLE_DEVICES=%s)",
-             device, os.environ.get("CUDA_VISIBLE_DEVICES", "<unset>"))
-    log.info("n_seq=%d  n_coalitions=%d  cell_timeout=%ds",
-             args.n_seq, args.n_coalitions, args.cell_timeout)
+    log.info(
+        "Device: %s  (CUDA_VISIBLE_DEVICES=%s)",
+        device,
+        os.environ.get("CUDA_VISIBLE_DEVICES", "<unset>"),
+    )
+    log.info(
+        "n_seq=%d  n_coalitions=%d  cell_timeout=%ds",
+        args.n_seq,
+        args.n_coalitions,
+        args.cell_timeout,
+    )
 
     # Resolve requested sweeps
     sweep_map = {
-        "skeleton_structured_pjoint":    ("skeleton_structured",   "pjoint", "spatial_joints",     4),
-        "skeleton_gait_combined_pcell":  ("skeleton_gait_combined", "pcell", "joint_window_cells",  4),
+        "skeleton_structured_pjoint": ("skeleton_structured", "pjoint", "spatial_joints", 4),
+        "skeleton_gait_combined_pcell": (
+            "skeleton_gait_combined",
+            "pcell",
+            "joint_window_cells",
+            4,
+        ),
     }
     requested_sweeps = [sweep_map[s] for s in args.sweeps if s in sweep_map]
     if not requested_sweeps:
@@ -850,8 +700,9 @@ def main() -> None:
         J, F, T = dataset.shape
         players = make_players(player_factory, J, F, T, K_ds)
         M = players.n_players
-        log.info("  Dataset %s: J=%d F=%d T=%d  Players M=%d (%s)",
-                 ds_name, J, F, T, M, player_set_tag)
+        log.info(
+            "  Dataset %s: J=%d F=%d T=%d  Players M=%d (%s)", ds_name, J, F, T, M, player_set_tag
+        )
 
         plan = [(clf, meth) for clf in args.classifiers for meth in args.methods]
         log.info("  Planning %d cells", len(plan))
@@ -864,12 +715,17 @@ def main() -> None:
                 log.info("  [SKIP cached] %s/%s/%s", ds_name, clf_name, method_name)
                 try:
                     cached = json.loads(result_path.read_text())
-                    summary.append({
-                        "dataset": ds_name, "classifier": clf_name,
-                        "method": method_name,
-                        "ec1": cached.get("ec1"), "spearman": cached.get("spearman"),
-                        "wall_seconds": None, "status": "cached",
-                    })
+                    summary.append(
+                        {
+                            "dataset": ds_name,
+                            "classifier": clf_name,
+                            "method": method_name,
+                            "ec1": cached.get("ec1"),
+                            "spearman": cached.get("spearman"),
+                            "wall_seconds": None,
+                            "status": "cached",
+                        }
+                    )
                 except Exception:
                     pass
                 continue
@@ -889,30 +745,46 @@ def main() -> None:
                         n_coalitions=args.n_coalitions,
                         cell_timeout_s=args.cell_timeout,
                     )
-                summary.append({
-                    "dataset": ds_name, "classifier": clf_name,
-                    "method": method_name,
-                    "ec1": out.get("ec1"), "spearman": out.get("spearman"),
-                    "wall_seconds": out.get("_wall_seconds"), "status": "ok",
-                })
+                summary.append(
+                    {
+                        "dataset": ds_name,
+                        "classifier": clf_name,
+                        "method": method_name,
+                        "ec1": out.get("ec1"),
+                        "spearman": out.get("spearman"),
+                        "wall_seconds": out.get("_wall_seconds"),
+                        "status": "ok",
+                    }
+                )
             except CellTimeout as exc:
                 log.warning("[TIMEOUT] %s/%s/%s: %s", ds_name, clf_name, method_name, exc)
-                summary.append({
-                    "dataset": ds_name, "classifier": clf_name,
-                    "method": method_name,
-                    "ec1": None, "spearman": None,
-                    "wall_seconds": args.cell_timeout, "status": "timeout",
-                })
+                summary.append(
+                    {
+                        "dataset": ds_name,
+                        "classifier": clf_name,
+                        "method": method_name,
+                        "ec1": None,
+                        "spearman": None,
+                        "wall_seconds": args.cell_timeout,
+                        "status": "timeout",
+                    }
+                )
             except Exception as exc:
                 log.warning("[FAIL] %s/%s/%s: %s", ds_name, clf_name, method_name, exc)
                 import traceback
+
                 traceback.print_exc()
-                summary.append({
-                    "dataset": ds_name, "classifier": clf_name,
-                    "method": method_name,
-                    "ec1": None, "spearman": None,
-                    "wall_seconds": None, "status": f"error:{type(exc).__name__}",
-                })
+                summary.append(
+                    {
+                        "dataset": ds_name,
+                        "classifier": clf_name,
+                        "method": method_name,
+                        "ec1": None,
+                        "spearman": None,
+                        "wall_seconds": None,
+                        "status": f"error:{type(exc).__name__}",
+                    }
+                )
 
     log.info("=" * 70)
     log.info("Total wall-clock: %.1fs", time.time() - t_total)

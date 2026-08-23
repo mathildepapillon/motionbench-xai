@@ -34,6 +34,7 @@ import collections
 import logging
 import math
 import warnings
+from functools import partial
 from pathlib import Path
 from typing import Any, Union
 
@@ -55,6 +56,7 @@ __all__ = ["MotionBERTClassifier"]
 
 def _no_grad_trunc_normal_(tensor, mean, std, a, b):
     def norm_cdf(x):
+        """Standard normal CDF."""
         return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
     with torch.no_grad():
@@ -90,10 +92,12 @@ def _drop_path(x, drop_prob: float = 0.0, training: bool = False):
 
 class _DropPath(nn.Module):
     def __init__(self, drop_prob: float = 0.0) -> None:
+        """Initialise with drop probability ``drop_prob``."""
         super().__init__()
         self.drop_prob = drop_prob
 
     def forward(self, x: Tensor) -> Tensor:
+        """Apply stochastic depth."""
         return _drop_path(x, self.drop_prob, self.training)
 
 
@@ -105,6 +109,7 @@ class _DropPath(nn.Module):
 class _MLP(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None,
                  act_layer=nn.GELU, drop=0.0):
+        """Initialise the two-layer MLP."""
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -114,6 +119,7 @@ class _MLP(nn.Module):
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
+        """Apply fc1 → activation → dropout → fc2 → dropout."""
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop(x)
@@ -130,6 +136,7 @@ class _MLP(nn.Module):
 class _Attention(nn.Module):
     def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None,
                  attn_drop=0.0, proj_drop=0.0, st_mode="vanilla"):
+        """Initialise the attention block for ``st_mode`` ('vanilla', 'spatial', or 'temporal')."""
         super().__init__()
         self.num_heads = num_heads
         head_dim = dim // num_heads
@@ -141,6 +148,7 @@ class _Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(self, x, seqlen=1):
+        """Apply spatial or temporal self-attention; preserves ``(B, N, C)``."""
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
@@ -194,6 +202,7 @@ class _Block(nn.Module):
                  qkv_bias=True, qk_scale=None, drop=0.0, attn_drop=0.0,
                  drop_path=0.0, act_layer=nn.GELU, norm_layer=nn.LayerNorm,
                  st_mode="stage_st", att_fuse=False):
+        """Initialise the block."""
         super().__init__()
         self.st_mode = st_mode
         self.norm1_s = norm_layer(dim)
@@ -218,6 +227,7 @@ class _Block(nn.Module):
             self.ts_attn = nn.Linear(dim * 2, dim * 2)
 
     def forward(self, x, seqlen=1):
+        """Apply the spatial and temporal streams in the order given by ``st_mode``."""
         if self.st_mode == "stage_st":
             x = x + self.drop_path(self.attn_s(self.norm1_s(x), seqlen))
             x = x + self.drop_path(self.mlp_s(self.norm2_s(x)))
@@ -276,9 +286,13 @@ class _DSTformerBackbone(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
-        norm_layer=nn.LayerNorm,
+        # CARE-PD builds the DSTformer with LayerNorm(eps=1e-6)
+        # (CARE-PD/model/backbone_loader.py), not the nn.LayerNorm default
+        # eps=1e-5; keep that so fine-tuned checkpoints reproduce exactly.
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
         att_fuse: bool = True,
     ) -> None:
+        """Initialise the DSTformer with ``depth`` dual-stream layers."""
         super().__init__()
         self.dim_feat = dim_feat
         self.joints_embed = nn.Linear(dim_in, dim_feat)
@@ -430,6 +444,7 @@ class MotionBERTClassifier(Classifier):
         num_joints: int = 17,
         merge_joints: bool = False,
     ) -> None:
+        """Initialise the backbone and classification head, optionally loading a checkpoint."""
         super().__init__(checkpoint_path=checkpoint_path, n_classes=n_classes)
         self._merge_joints = merge_joints
 

@@ -74,6 +74,22 @@ class GaussianNKDataset:
         seed: int = 42,
         label_fn: object | None = None,
     ) -> None:
+        """Initialise the perturbed covariance and pre-sample ``N`` labelled sequences.
+
+        Args:
+            J: Number of joints.
+            F: Coordinates per joint.
+            T: Frames per sequence.
+            N: Number of sequences to pre-generate.
+            K: Number of temporal windows (stored as metadata).
+            rho: Equicorrelation for ``Sigma_joints``.
+            alpha: AR(1) coefficient for ``Sigma_time``.
+            r: Rank of the low-rank perturbation.
+            lam_frac: Perturbation scale as a fraction of ``trace(Sigma_kron)``.
+            seed: Random seed for the perturbation and sampling.
+            label_fn: Optional callable ``(N, J, F, T) → (N,)`` int64; defaults
+                to quantile-bin labels on the joint-0 grand mean.
+        """
         self._J = J
         self._F = F
         self._T = T
@@ -121,15 +137,11 @@ class GaussianNKDataset:
         if label_fn is not None:
             y_np = np.asarray(label_fn(x_np), dtype=np.int64)
             if y_np.shape != (N,):
-                raise ValueError(
-                    f"label_fn returned shape {y_np.shape}; expected ({N},)."
-                )
+                raise ValueError(f"label_fn returned shape {y_np.shape}; expected ({N},).")
         else:
             score = x_np[:, 0, :, :].mean(axis=(1, 2))
             q33, q67 = np.percentile(score, [33.0, 67.0])
-            y_np = np.where(
-                score < q33, 0, np.where(score < q67, 1, 2)
-            ).astype(np.int64)
+            y_np = np.where(score < q33, 0, np.where(score < q67, 1, 2)).astype(np.int64)
 
         self._x: Tensor = torch.tensor(x_np, dtype=torch.float32)
         self._y: Tensor = torch.tensor(y_np, dtype=torch.int64)
@@ -155,10 +167,12 @@ class GaussianNKDataset:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) per-sample coordinate shape."""
         return (self._J, self._F, self._T)
 
     @property
     def metadata(self) -> dict[str, object]:
+        """Free-form dataset metadata (rho, alpha, K, ...)."""
         return {
             "skeleton": "synthetic_gaussian_nk",
             "frame_rate": 27.0,
@@ -172,6 +186,7 @@ class GaussianNKDataset:
     def oracle(self) -> object:
         """Ground-truth :class:`~motionbench.oracles.full_gaussian_oracle.FullGaussianOracle`."""
         from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle  # noqa: PLC0415
+
         return FullGaussianOracle(
             Sigma_full=self.Sigma_full_nk,
             J=self._J,

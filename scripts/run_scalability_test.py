@@ -28,6 +28,7 @@ Results::
     results/scalability/{player_type}/{budget}/seed{s}/{method}/result.json
     results/scalability/summary.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -54,6 +55,10 @@ log = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+from _ablation_common import (  # noqa: E402
+    batched_oracle_shapley,
+    ec_metrics,
+)
 
 RESULTS_DIR = REPO / "results" / "scalability"
 
@@ -66,8 +71,8 @@ J, F, T = 5, 3, 16
 N_CLASSES = 3
 
 PLAYER_CONFIGS = [
-    ("window", 4),    # M=4 temporal windows (baseline)
-    ("frame",  16),   # M=T=16 individual frames (high-n)
+    ("window", 4),  # M=4 temporal windows (baseline)
+    ("frame", 16),  # M=T=16 individual frames (high-n)
 ]
 
 BUDGETS = [64, 256, 1024]
@@ -76,26 +81,12 @@ METHODS = ["vaeac", "marginal"]
 
 # Oracle evaluation budget: use 1000 pairs → 2002 coalitions
 N_ORACLE_PAIRS = 1000
-N_ORACLE_MC = 50   # Gaussian conditional MC samples per coalition
+N_ORACLE_MC = 50  # Gaussian conditional MC samples per coalition
 
 
 # ---------------------------------------------------------------------------
 # Metric helpers
 # ---------------------------------------------------------------------------
-
-
-def ec_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
-    diff = phi_hat - phi_true
-    ec1 = float(np.mean(np.abs(diff)))
-    denom = float(np.mean(np.abs(phi_true)) + 1e-8)
-    ec1_norm = ec1 / denom
-    ec2 = float(np.mean(diff ** 2))
-    if np.std(phi_hat) < 1e-10 or np.std(phi_true) < 1e-10:
-        ec3 = float("nan")
-    else:
-        corr = float(np.corrcoef(phi_hat, phi_true)[0, 1])
-        ec3 = 1.0 - corr
-    return {"ec1": ec1, "ec1_norm": ec1_norm, "ec2": ec2, "ec3": ec3}
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +95,9 @@ def ec_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
 
 
 def load_dataset():
+    """Instantiate the scalability dataset from its Hydra config."""
     from omegaconf import OmegaConf
+
     ds_yaml = REPO / "configs" / "data" / f"{DATASET_NAME}.yaml"
     ds_cfg = OmegaConf.to_container(OmegaConf.load(ds_yaml), resolve=True)
     ds_cfg.pop("K", None)
@@ -121,14 +114,22 @@ def load_dataset():
 
 
 def load_classifier(device: torch.device):
+    """Build the synthetic classifier and load its checkpoint onto ``device``."""
     from omegaconf import OmegaConf
+
     clf_yaml = REPO / "configs" / "classifiers" / f"{CLF_NAME}.yaml"
     clf_cfg = OmegaConf.load(clf_yaml)
-    from motionbench.pipelines.synthetic_eval import _build_classifier
-    clf = _build_classifier(clf_cfg, J, F, T, 4, N_CLASSES).to(device)
+    from motionbench.pipelines.synthetic_eval import build_classifier
+
+    clf = build_classifier(clf_cfg, J, F, T, 4, N_CLASSES).to(device)
     ckpt_path = (
-        REPO / "motionbench" / "classifiers" / "checkpoints" / "synthetic"
-        / DATASET_NAME / f"{CLF_NAME}.pt"
+        REPO
+        / "motionbench"
+        / "classifiers"
+        / "checkpoints"
+        / "synthetic"
+        / DATASET_NAME
+        / f"{CLF_NAME}.pt"
     )
     if ckpt_path.exists():
         ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
@@ -146,7 +147,9 @@ def load_classifier(device: torch.device):
 
 
 def build_marginal_imputer(dataset):
+    """Fit a ``MarginalDonorImputer`` on ``dataset``."""
     from motionbench.imputers.off_manifold import MarginalDonorImputer
+
     imp = MarginalDonorImputer()
     imp.fit(dataset)
     return imp
@@ -155,8 +158,11 @@ def build_marginal_imputer(dataset):
 def build_vaeac_imputer(dataset, device_str: str):
     """Load raw CARE-PD VAEAC for GaussianMotionDataset."""
     from motionbench.imputers.carepd_imputer import (
-        _CARE_PD_ROOT, _VAEAC_REGISTRY, _load_vaeac,
+        _CARE_PD_ROOT,
+        _VAEAC_REGISTRY,
+        load_vaeac,
     )
+
     cls_key = type(dataset).__name__
     if cls_key not in _VAEAC_REGISTRY:
         raise RuntimeError(f"No VAEAC registry entry for {cls_key}")
@@ -165,7 +171,7 @@ def build_vaeac_imputer(dataset, device_str: str):
     cfg_path = _CARE_PD_ROOT / cfg_rel
     if not ckpt_dir.exists():
         raise FileNotFoundError(f"VAEAC checkpoint dir not found: {ckpt_dir}")
-    return _load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
+    return load_vaeac(ckpt_dir, cfg_path, torch.device(device_str))
 
 
 # ---------------------------------------------------------------------------
@@ -180,15 +186,20 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
         if comp.ndim == 4:
             comp = comp[0]
     elif hasattr(imp, "sample_completions"):
-        from motionbench.imputers.carepd_imputer import _mask_to_coalition
+        from motionbench.imputers.carepd_imputer import mask_to_coalition
+
         device = imp._device
         x_in = x_obs.unsqueeze(0).to(device)
         pad = torch.ones(1, T, dtype=torch.bool, device=device)
-        coalition_mask, _ = _mask_to_coalition(mask)
+        coalition_mask, _ = mask_to_coalition(mask)
         coalition_mask = coalition_mask.to(device)
         completions = imp.sample_completions(
-            x=x_in, y=None, mask=pad, lengths=None,
-            coalition_mask=coalition_mask, n_samples=1,
+            x=x_in,
+            y=None,
+            mask=pad,
+            lengths=None,
+            coalition_mask=coalition_mask,
+            n_samples=1,
         )
         comp = torch.cat(completions, dim=0)[0].cpu()
     else:
@@ -204,144 +215,22 @@ def impute_one(imp, x_obs: Tensor, mask: Tensor) -> Tensor:
 # ---------------------------------------------------------------------------
 
 
-def _build_spatiotemporal_cond_params(oracle, mask_np, rng=None):
-    """Pre-compute conditional covariance Cholesky for a given mask."""
-    jt_mask = mask_np.all(axis=1)         # (J, T)
-    flat = jt_mask.reshape(-1)
-    obs_lin = np.flatnonzero(flat)
-    hid_lin = np.flatnonzero(~flat)
-    n_obs = int(obs_lin.size)
-    n_hid = int(hid_lin.size)
-    if n_hid == 0 or n_obs == 0:
-        return None
-    j_obs = (obs_lin // T).astype(int)
-    t_obs = (obs_lin % T).astype(int)
-    j_hid = (hid_lin // T).astype(int)
-    t_hid = (hid_lin % T).astype(int)
-    Sigma_oo = (
-        oracle.Sigma_joints[j_obs[:, None], j_obs[None, :]]
-        * oracle.Sigma_time[t_obs[:, None], t_obs[None, :]]
-    )
-    Sigma_hh = (
-        oracle.Sigma_joints[j_hid[:, None], j_hid[None, :]]
-        * oracle.Sigma_time[t_hid[:, None], t_hid[None, :]]
-    )
-    Sigma_ho = (
-        oracle.Sigma_joints[j_hid[:, None], j_obs[None, :]]
-        * oracle.Sigma_time[t_hid[:, None], t_obs[None, :]]
-    )
-    W = Sigma_ho @ np.linalg.solve(
-        Sigma_oo + 1e-10 * np.eye(n_obs), np.eye(n_obs)
-    )
-    Sigma_cond = Sigma_hh - W @ Sigma_ho.T
-    Sigma_cond = 0.5 * (Sigma_cond + Sigma_cond.T) + 1e-8 * np.eye(n_hid)
-    L_cond = np.linalg.cholesky(Sigma_cond)
-    return (j_obs, j_hid, t_obs, t_hid, W, L_cond)
-
-
-def batched_oracle_shapley(
-    oracle,
-    x: Tensor,
-    clf_fn,
-    players,
-    n_mc: int,
-    coalitions: np.ndarray,
-    weights: np.ndarray,
-    clf_chunk: int = 512,
-    cholesky_cache: dict | None = None,
-) -> Tensor:
-    """Batched oracle Shapley with Cholesky caching.
-
-    Uses exact Gaussian conditionals; caches Cholesky factors across
-    sequences for significant speedup.
-    """
-    from motionbench.utils.coalitions import solve_shapley_wls
-    from motionbench.oracles.gaussian_oracle import _mask_is_temporal, _mask_is_spatial
-
-    M = players.n_players
-    N_coal = coalitions.shape[0]
-    x_np = x.detach().cpu().numpy().astype(np.float64)
-    rng = np.random.default_rng(None)
-
-    # Phase 1: generate all conditional samples (CPU numpy)
-    all_samples: list[np.ndarray] = []
-    for ci, z_row in enumerate(coalitions):
-        n_obs_players = int(z_row.sum())
-        if n_obs_players == M:
-            s = np.tile(x_np[None].astype(np.float32), (n_mc, 1, 1, 1))
-        elif n_obs_players == 0:
-            s = oracle._sample_unconditional(
-                n_mc, J, F, T,
-                np.random.default_rng(int(rng.integers(1 << 31))),
-            )
-        else:
-            if cholesky_cache is not None and ci in cholesky_cache:
-                params = cholesky_cache[ci]
-            else:
-                z_t = torch.tensor(z_row, dtype=torch.int32)
-                mask = players.coalition_mask(z_t)
-                mask_np = mask.numpy().astype(bool)
-                if _mask_is_temporal(mask_np) or _mask_is_spatial(mask_np):
-                    params = ("oracle", mask_np)
-                else:
-                    params = _build_spatiotemporal_cond_params(oracle, mask_np)
-                if cholesky_cache is not None:
-                    cholesky_cache[ci] = params
-
-            if isinstance(params, tuple) and params[0] == "oracle":
-                _, mask_np_cached = params
-                s = oracle._conditional_sample_np(
-                    x_np, mask_np_cached, n_mc,
-                    np.random.default_rng(int(rng.integers(1 << 31))),
-                )
-            elif params is None:
-                s = np.tile(x_np[None].astype(np.float32), (n_mc, 1, 1, 1))
-            else:
-                j_obs, j_hid, t_obs, t_hid, W, L_cond = params
-                n_hid = len(j_hid)
-                out_np = np.tile(x_np[None], (n_mc, 1, 1, 1)).astype(np.float64)
-                sample_rng = np.random.default_rng(int(rng.integers(1 << 31)))
-                for f in range(F):
-                    x_obs_vals = x_np[j_obs, f, t_obs]
-                    mu = W @ x_obs_vals
-                    z_noise = sample_rng.standard_normal((n_mc, n_hid))
-                    z_corr = z_noise @ L_cond.T
-                    out_np[:, j_hid, f, t_hid] = mu[None, :] + z_corr
-                s = out_np.astype(np.float32)
-        all_samples.append(s)
-
-    # Phase 2: batch classifier
-    stacked = torch.from_numpy(np.concatenate(all_samples, axis=0))
-    vals_list: list[Tensor] = []
-    for start in range(0, len(stacked), clf_chunk):
-        vals_list.append(clf_fn(stacked[start: start + clf_chunk]))
-    vals_flat = torch.cat(vals_list).float()
-
-    vals_mat = vals_flat.view(N_coal, n_mc)
-    values = vals_mat.mean(dim=1).numpy().astype(np.float64)
-    v_empty = float(values[0])
-    v_full = float(values[1])
-
-    phi = solve_shapley_wls(coalitions, values, weights, v_empty, v_full)
-    return torch.tensor(phi, dtype=torch.float32)
-
-
 # ---------------------------------------------------------------------------
 # Run one scalability cell
 # ---------------------------------------------------------------------------
 
 
 def run_cell(
-    method: str,        # "vaeac" or "marginal"
-    player_type: str,   # "window" or "frame"
+    method: str,  # "vaeac" or "marginal"
+    player_type: str,  # "window" or "frame"
     M: int,
     n_coalitions: int,
     seed: int,
     players,
     seqs: list[Tensor],
     targets: np.ndarray,
-    oracle_phis: np.ndarray,   # (n_seq, M) precomputed oracle Shapley
-    imp,                       # pre-built imputer
+    oracle_phis: np.ndarray,  # (n_seq, M) precomputed oracle Shapley
+    imp,  # pre-built imputer
     clf,
     device: torch.device,
 ) -> dict[str, Any]:
@@ -411,16 +300,19 @@ def run_cell(
             elapsed = time.time() - t_start
             log.info(
                 "    %s/%s/budget%d/seed%d  seq %d/%d  %.1fs",
-                method, player_type, n_coalitions, seed, i + 1, n_seq, elapsed,
+                method,
+                player_type,
+                n_coalitions,
+                seed,
+                i + 1,
+                n_seq,
+                elapsed,
             )
 
     wall_time = time.time() - t_start
 
     # Per-sequence EC1 vs oracle
-    ec1_per_seq = [
-        float(np.mean(np.abs(phis[i] - oracle_phis[i])))
-        for i in range(n_seq)
-    ]
+    ec1_per_seq = [float(np.mean(np.abs(phis[i] - oracle_phis[i]))) for i in range(n_seq)]
     ec1_mean = float(np.mean(ec1_per_seq))
     ec1_std = float(np.std(ec1_per_seq))
 
@@ -452,28 +344,39 @@ def run_cell(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--n-seq", type=int, default=30,
-                   help="Number of sequences to evaluate per cell.")
-    p.add_argument("--device", default="cuda:0",
-                   help="Torch device string.")
-    p.add_argument("--player-types", nargs="+", default=["window", "frame"],
-                   choices=["window", "frame"],
-                   help="Which player configurations to run.")
-    p.add_argument("--methods", nargs="+", default=["vaeac", "marginal"],
-                   choices=["vaeac", "marginal"])
+    p.add_argument(
+        "--n-seq", type=int, default=30, help="Number of sequences to evaluate per cell."
+    )
+    p.add_argument("--device", default="cuda:0", help="Torch device string.")
+    p.add_argument(
+        "--player-types",
+        nargs="+",
+        default=["window", "frame"],
+        choices=["window", "frame"],
+        help="Which player configurations to run.",
+    )
+    p.add_argument(
+        "--methods", nargs="+", default=["vaeac", "marginal"], choices=["vaeac", "marginal"]
+    )
     p.add_argument("--budgets", type=int, nargs="+", default=BUDGETS)
     p.add_argument("--seeds", type=int, nargs="+", default=SEEDS)
-    p.add_argument("--force", action="store_true",
-                   help="Re-run even if result.json already exists.")
+    p.add_argument(
+        "--force", action="store_true", help="Re-run even if result.json already exists."
+    )
     return p.parse_args()
 
 
 def main() -> None:
+    """Run the wall-clock scalability grid and write timings."""
     args = parse_args()
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
-    log.info("Device: %s  (CUDA_VISIBLE_DEVICES=%s)",
-             device, os.environ.get("CUDA_VISIBLE_DEVICES", "<unset>"))
+    log.info(
+        "Device: %s  (CUDA_VISIBLE_DEVICES=%s)",
+        device,
+        os.environ.get("CUDA_VISIBLE_DEVICES", "<unset>"),
+    )
 
     # ----- Load dataset and classifier -----
     log.info("Loading dataset %s ...", DATASET_NAME)
@@ -491,14 +394,15 @@ def main() -> None:
     with torch.no_grad():
         logits_X = clf(X)
     targets = (
-        logits_X.argmax(dim=-1).cpu().numpy()
-        if logits_X.ndim == 2
-        else np.zeros(n_seq, dtype=int)
+        logits_X.argmax(dim=-1).cpu().numpy() if logits_X.ndim == 2 else np.zeros(n_seq, dtype=int)
     )
 
     # Build per-sequence classifier function factory
     def make_clf_fn(target_i: int):
+        """Return a ``clf_fn`` closed over ``target_i``."""
+
         def clf_fn(arr) -> Tensor:
+            """Softmax probability of ``target_i``: batch → ``(B,)`` CPU tensor."""
             if isinstance(arr, np.ndarray):
                 t_arr = torch.from_numpy(arr.astype(np.float32)).to(device)
             else:
@@ -508,6 +412,7 @@ def main() -> None:
             if o.ndim == 2:
                 o = torch.softmax(o, dim=-1)[:, target_i]
             return o.float().cpu()
+
         return clf_fn
 
     # ----- Build imputers (once each) -----
@@ -531,29 +436,33 @@ def main() -> None:
     summary: list[dict] = []
 
     # ----- Per-player-type loop -----
-    requested_player_configs = [
-        (pt, K) for (pt, K) in PLAYER_CONFIGS if pt in args.player_types
-    ]
+    requested_player_configs = [(pt, K) for (pt, K) in PLAYER_CONFIGS if pt in args.player_types]
 
     for player_type, K in requested_player_configs:
         from motionbench.players.temporal_windows import TemporalWindows
+
         players = TemporalWindows(K=K, T=T, J=J, F=F)
         M = players.n_players
         log.info("=" * 70)
         log.info(
             "Player config: %s  K=%d  M=%d  (window_size=%d)",
-            player_type, K, M, T // K,
+            player_type,
+            K,
+            M,
+            T // K,
         )
 
         # ----- Pre-compute oracle Shapley values for this player config -----
         log.info(
-            "Pre-computing oracle Shapley values for M=%d "
-            "(n_oracle_pairs=%d, n_mc=%d) ...",
-            M, N_ORACLE_PAIRS, N_ORACLE_MC,
+            "Pre-computing oracle Shapley values for M=%d (n_oracle_pairs=%d, n_mc=%d) ...",
+            M,
+            N_ORACLE_PAIRS,
+            N_ORACLE_MC,
         )
         oracle_phis = np.zeros((n_seq, M), dtype=np.float32)
         oracle_coal_rng = np.random.default_rng(99999)
-        from motionbench.utils.coalitions import sample_kernelshap_coalitions, solve_shapley_wls
+        from motionbench.utils.coalitions import sample_kernelshap_coalitions
+
         oracle_inner_coal, oracle_inner_w = sample_kernelshap_coalitions(
             M, N_ORACLE_PAIRS, oracle_coal_rng
         )
@@ -576,6 +485,7 @@ def main() -> None:
                     n_mc=N_ORACLE_MC,
                     coalitions=oracle_coalitions,
                     weights=oracle_weights,
+                    clf_chunk=512,
                     cholesky_cache=cholesky_cache,
                 )
                 oracle_phis[i] = phi_oracle.numpy()
@@ -585,7 +495,10 @@ def main() -> None:
             if (i + 1) % 10 == 0:
                 log.info(
                     "  Oracle %s: seq %d/%d  %.1fs",
-                    player_type, i + 1, n_seq, time.time() - t_oracle,
+                    player_type,
+                    i + 1,
+                    n_seq,
+                    time.time() - t_oracle,
                 )
 
         log.info(
@@ -605,7 +518,8 @@ def main() -> None:
                 for method in args.methods:
                     # Output path
                     out_dir = (
-                        RESULTS_DIR / player_type
+                        RESULTS_DIR
+                        / player_type
                         / str(n_coalitions)
                         / f"seed{seed}"
                         / f"kernelshap_{method}"
@@ -631,7 +545,10 @@ def main() -> None:
 
                     log.info(
                         "==> %s / %s / budget=%d / seed=%d",
-                        player_type, method, n_coalitions, seed,
+                        player_type,
+                        method,
+                        n_coalitions,
+                        seed,
                     )
 
                     try:
@@ -651,8 +568,10 @@ def main() -> None:
                         )
                     except Exception as exc:
                         import traceback
-                        log.error("FAILED %s/%s/%d/%d: %s", player_type, method,
-                                  n_coalitions, seed, exc)
+
+                        log.error(
+                            "FAILED %s/%s/%d/%d: %s", player_type, method, n_coalitions, seed, exc
+                        )
                         traceback.print_exc()
                         result = {
                             "ec1_mean": float("nan"),
@@ -688,6 +607,7 @@ def main() -> None:
 
     # Group by (player_type, n_coalitions_budget, method) and aggregate over seeds
     from collections import defaultdict
+
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for r in summary:
         if "error" in r:
@@ -702,19 +622,24 @@ def main() -> None:
     agg_rows: list[dict] = []
     for (player_type, budget, method), rows in sorted(groups.items()):
         ec1_vals = [r["ec1_mean"] for r in rows if not np.isnan(r["ec1_mean"])]
-        wall_vals = [r["wall_time_s"] for r in rows
-                     if r.get("wall_time_s") and not np.isnan(r["wall_time_s"])]
+        wall_vals = [
+            r["wall_time_s"]
+            for r in rows
+            if r.get("wall_time_s") and not np.isnan(r["wall_time_s"])
+        ]
         n_players_vals = [r.get("n_players", 0) for r in rows]
-        agg_rows.append({
-            "player_type": player_type,
-            "n_players": int(np.mean(n_players_vals)) if n_players_vals else 0,
-            "n_coalitions_budget": budget,
-            "method": method,
-            "n_seeds": len(rows),
-            "ec1_mean_across_seeds": float(np.mean(ec1_vals)) if ec1_vals else float("nan"),
-            "ec1_std_across_seeds": float(np.std(ec1_vals)) if ec1_vals else float("nan"),
-            "wall_time_mean_s": float(np.mean(wall_vals)) if wall_vals else float("nan"),
-        })
+        agg_rows.append(
+            {
+                "player_type": player_type,
+                "n_players": int(np.mean(n_players_vals)) if n_players_vals else 0,
+                "n_coalitions_budget": budget,
+                "method": method,
+                "n_seeds": len(rows),
+                "ec1_mean_across_seeds": float(np.mean(ec1_vals)) if ec1_vals else float("nan"),
+                "ec1_std_across_seeds": float(np.std(ec1_vals)) if ec1_vals else float("nan"),
+                "wall_time_mean_s": float(np.mean(wall_vals)) if wall_vals else float("nan"),
+            }
+        )
 
     summary_path = RESULTS_DIR / "summary.json"
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -729,7 +654,10 @@ def main() -> None:
     log.info("\n=== Aggregated Results ===")
     log.info(
         "  %-8s  %-4s  %-12s  %-25s  EC1±std (across seeds)  wall(s)",
-        "player", "M", "budget", "method",
+        "player",
+        "M",
+        "budget",
+        "method",
     )
     log.info("-" * 90)
     for row in agg_rows:

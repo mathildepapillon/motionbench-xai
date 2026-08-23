@@ -68,7 +68,7 @@ class ZeroImputer(BaseImputer):
 
     is_on_manifold: bool = False
 
-    def fit(self, train_data: "BaseDataset") -> "ZeroImputer":
+    def fit(self, train_data: BaseDataset) -> ZeroImputer:
         """No-op fit — ZeroImputer requires no training statistics.
 
         Args:
@@ -126,7 +126,7 @@ class MeanImputer(BaseImputer):
 
     is_on_manifold: bool = False
 
-    def fit(self, train_data: "BaseDataset") -> "MeanImputer":
+    def fit(self, train_data: BaseDataset) -> MeanImputer:
         """Compute per-coordinate mean over the training dataset.
 
         Iterates over ``train_data`` once, accumulating a running sum.
@@ -149,10 +149,7 @@ class MeanImputer(BaseImputer):
         for item in train_data:
             x = item[0] if isinstance(item, (tuple, list)) else item
             x = x.to(dtype=torch.float32)
-            if running_sum is None:
-                running_sum = x.clone()
-            else:
-                running_sum = running_sum + x
+            running_sum = x.clone() if running_sum is None else running_sum + x
             n += 1
         if running_sum is None or n == 0:
             raise ValueError("train_data is empty; cannot compute mean.")
@@ -183,8 +180,7 @@ class MeanImputer(BaseImputer):
         """
         if not hasattr(self, "_mean"):
             raise RuntimeError(
-                "MeanImputer.impute() called before fit(). "
-                "Call fit(train_data) first."
+                "MeanImputer.impute() called before fit(). Call fit(train_data) first."
             )
         x_obs = x_obs.to(dtype=torch.float32)
         mask = mask.to(device=x_obs.device)
@@ -216,7 +212,7 @@ class MarginalDonorImputer(BaseImputer):
 
     is_on_manifold: bool = False
 
-    def fit(self, train_data: "BaseDataset") -> "MarginalDonorImputer":
+    def fit(self, train_data: BaseDataset) -> MarginalDonorImputer:
         """Store all training sequences as the donor pool.
 
         Args:
@@ -265,8 +261,7 @@ class MarginalDonorImputer(BaseImputer):
         """
         if not hasattr(self, "_pool"):
             raise RuntimeError(
-                "MarginalDonorImputer.impute() called before fit(). "
-                "Call fit(train_data) first."
+                "MarginalDonorImputer.impute() called before fit(). Call fit(train_data) first."
             )
         x_obs = x_obs.to(dtype=torch.float32)
         n_train = self._pool.shape[0]
@@ -274,9 +269,7 @@ class MarginalDonorImputer(BaseImputer):
         if seed is not None:
             generator = torch.Generator()
             generator.manual_seed(seed)
-        idxs = torch.randint(
-            0, n_train, (n_samples,), generator=generator
-        )
+        idxs = torch.randint(0, n_train, (n_samples,), generator=generator)
         donors = self._pool[idxs].to(device=x_obs.device)
         out = torch.where(mask.to(device=x_obs.device).unsqueeze(0), x_obs.unsqueeze(0), donors)
         return out.contiguous()
@@ -311,7 +304,7 @@ class GaussianNoiseImputer(BaseImputer):
         """
         self.scale = scale
 
-    def fit(self, train_data: "BaseDataset") -> "GaussianNoiseImputer":
+    def fit(self, train_data: BaseDataset) -> GaussianNoiseImputer:
         """Compute per-coordinate mean and standard deviation from training data.
 
         Iterates over ``train_data`` twice (one pass for mean, one for std)
@@ -333,10 +326,7 @@ class GaussianNoiseImputer(BaseImputer):
         for item in train_data:
             x = item[0] if isinstance(item, (tuple, list)) else item
             x = x.to(dtype=torch.float32)
-            if running_sum is None:
-                running_sum = x.clone()
-            else:
-                running_sum = running_sum + x
+            running_sum = x.clone() if running_sum is None else running_sum + x
             n += 1
         if running_sum is None or n == 0:
             raise ValueError("train_data is empty; cannot compute statistics.")
@@ -348,10 +338,7 @@ class GaussianNoiseImputer(BaseImputer):
             x = item[0] if isinstance(item, (tuple, list)) else item
             x = x.to(dtype=torch.float32)
             diff = x - mean
-            if running_sq is None:
-                running_sq = diff * diff
-            else:
-                running_sq = running_sq + diff * diff
+            running_sq = diff * diff if running_sq is None else running_sq + diff * diff
         # running_sq should not be None if first pass succeeded
         assert running_sq is not None
         var = running_sq / n
@@ -388,8 +375,7 @@ class GaussianNoiseImputer(BaseImputer):
         """
         if not hasattr(self, "_mean"):
             raise RuntimeError(
-                "GaussianNoiseImputer.impute() called before fit(). "
-                "Call fit(train_data) first."
+                "GaussianNoiseImputer.impute() called before fit(). Call fit(train_data) first."
             )
         x_obs = x_obs.to(dtype=torch.float32)
         mean = self._mean.to(device=x_obs.device, dtype=torch.float32)
@@ -402,11 +388,16 @@ class GaussianNoiseImputer(BaseImputer):
 
         J, F, T = x_obs.shape
         noise = torch.randn(
-            n_samples, J, F, T,
+            n_samples,
+            J,
+            F,
+            T,
             dtype=torch.float32,
             device=x_obs.device,
             generator=generator,
         )
         hidden_fill = mean.unsqueeze(0) + self.scale * std.unsqueeze(0) * noise
-        out = torch.where(mask.to(device=x_obs.device).unsqueeze(0), x_obs.unsqueeze(0), hidden_fill)
+        out = torch.where(
+            mask.to(device=x_obs.device).unsqueeze(0), x_obs.unsqueeze(0), hidden_fill
+        )
         return out.contiguous()

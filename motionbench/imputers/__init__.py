@@ -7,12 +7,15 @@ from motionbench.imputers.empirical import (
     VineCopulaImputer,
 )
 from motionbench.imputers.flow_matching import FlowMatchingImputer
+from motionbench.imputers.frame_flow import FrameFlowImputer
+from motionbench.imputers.frame_vaeac import FrameVAEACImputer
 from motionbench.imputers.off_manifold import (
     GaussianNoiseImputer,
     MarginalDonorImputer,
     MeanImputer,
     ZeroImputer,
 )
+from motionbench.imputers.shapr_gaussian import ShaprGaussianImputer
 from motionbench.imputers.vaeac import VAEACImputer
 
 __all__ = [
@@ -24,6 +27,9 @@ __all__ = [
     "KNNConditionalImputer",
     "EmpiricalConditionalImputer",
     "VineCopulaImputer",
+    "ShaprGaussianImputer",
     "VAEACImputer",
     "FlowMatchingImputer",
+    "FrameVAEACImputer",
+    "FrameFlowImputer",
 ]

@@ -1,232 +1,209 @@
 # MotionBench-XAI
 
-**A benchmark for manifold-aware Shapley attribution on spatiotemporal data.**
+**A benchmark for oracle-grounded Shapley attribution on spatiotemporal
+data.**
 
-Target venue: NeurIPS 2026 Evaluations & Datasets Track.
+MotionBench-XAI evaluates feature-attribution methods where their answers can
+actually be checked: on generative models whose conditional distributions —
+and therefore whose Shapley values — are known in closed form.  The benchmark
+is the product of four axes:
 
----
+```
+        datasets  ×  player sets  ×  SHAP methods  ×  metrics
+   (synthetic with   (what counts    (which imputer    (EC1/EC3 vs the
+    exact oracles,    as one          defines v(S))     exact target,
+    + real data)      "feature")                        faithfulness, …)
+```
 
-## What is this?
-
-MotionBench-XAI is a benchmark that systematically evaluates Shapley
-attribution methods at the intersection of **manifold-aware** and **temporal**
-XAI.  It pairs a parametric family of synthetic spatiotemporal datasets
-(with closed-form Shapley oracles) against two real-world tasks: skeleton-
-based gait classification for Parkinson's disease severity, and 12-lead
-ECG classification for myocardial infarction.
-
-Key contributions:
-
-- **Synthetic dataset family** with closed-form Shapley oracles spanning
-  four spatiotemporal regimes (low/high spatial coupling × weak/strong
-  temporal structure) and two marginal families (Gaussian, Burr).
-- **Spatiotemporal player-set abstraction**
-  (`TemporalWindows`, `SpatialJoints`, `JointWindowCells`, `AnatomicalGroups`)
-  that lets every attribution method run under the same coalition structure.
-- **Thirteen attribution variants** under a unified interface: six
-  KernelSHAP imputer variants (Zero, Mean, Marginal, Empirical, VAEAC, Flow
-  Matching), two WindowSHAP windowing variants (Stationary, Dynamic), and
-  TimeSHAP, with four gradient baselines (IG, DeepLIFT, GradCAM, LRP)
-  reported as a scale reference in the appendix.
-- **Multi-metric evaluation protocol** (EC1/EC2/EC3 attribution error
-  against the oracle, faithfulness correlation, PlayerAOPC, ranking
-  consistency) designed to surface the faithfulness–realism gap on real
-  data.
-- **Real-world applications**: CARE-PD gait classification (three
-  classifiers: MotionBERT, POTR, MotionAGFormer) and PTB-XL ECG
-  classification (1-D ResNet), each with three folds and bootstrap
-  confidence intervals.
+- **Datasets.** A parametric family of synthetic motion datasets with exact
+  oracles — Gaussian Kronecker fields `x ~ N(0, Σ_J ⊗ I_F ⊗ Σ_T)` spanning
+  spatial coupling (equicorrelated / skeleton-graph) × temporal structure
+  (AR(1) / periodic), plus heavy-tailed Burr XII copula variants — and three
+  real tracks (CARE-PD skeletal gait, PTB-XL 12-lead ECG, ESC-50 audio).
+- **Player sets.** The unit of explanation is configurable and every method
+  runs under the same coalition structure: temporal windows, joints,
+  joint×window cells, anatomical groups, gait phases.
+- **SHAP methods.** KernelSHAP with pluggable completion models — from
+  off-manifold reference fills (zero/mean/marginal) through classical
+  conditional estimators (empirical/kNN/copula) to learned on-manifold
+  imputers (VAEAC, flow matching) — plus WindowSHAP, TimeSHAP, and gradient
+  baselines.
+- **Ground truth, two ways.** Every method is graded against the estimand it
+  targets: the **marginal (interventional) game** `v(S) = f(x_S ⊔ E[x])` or
+  the **conditional (on-manifold) game** `v(S) = f(x_S ⊔ E[x_hid | x_obs])`.
+  Both targets are computed **deterministically** (exact conditional-mean
+  operators; cusp-split quadrature for the copula family), so a perfect
+  attribution scores exactly zero — no Monte-Carlo grading noise.
 
 ---
 
-## Repository status
+## Install
 
-| Half of the benchmark | What you need from outside this repo | Wall-clock |
+```bash
+git clone https://github.com/mathildepapillon/motionbench-xai
+cd motionbench-xai
+python3 -m pip install -e .          # Python >= 3.10
+# optional dev tools (pytest, ruff, mypy):
+python3 -m pip install -e ".[dev]"
+```
+
+One optional dependency is not on PyPI: the WindowSHAP baselines need
+`pip install git+https://github.com/vsubbian/WindowSHAP`.  Everything else —
+including the quickstart below — works without it.
+
+Conda users: `conda env create -f conda-environment.yml` builds the same
+environment (CUDA 12.1 pins included).  The second file,
+`conda-environment-imputer.yml`, is needed **only** for retraining the
+CARE-PD imputers through the external CARE-PD repository
+(REPRODUCIBILITY.md §4); all benchmark runs use the main environment.
+
+## Quickstart — one complete cell, CPU, minutes
+
+The fastest tour is the self-contained example (generate data → train a
+small MLP → attribute with two methods → grade against the exact oracle):
+
+```bash
+python3 examples/minimal_evaluation.py     # ~1 minute on a laptop CPU
+```
+
+The same cell through the benchmark pipeline proper:
+
+```bash
+# 1. Generate gauss_k4 and train its MLP classifier (~2 min on CPU).
+python3 scripts/train_synthetic_clf.py \
+    --datasets gaussian_k4 --classifiers synthetic_mlp --force-cpu
+
+# 2. Attribute with KS-Zero and KS-Oracle under spatial players and grade
+#    both against the exact deterministic oracles (EC1/EC3).
+python3 -m motionbench.cli.run experiments=quickstart
+
+# 3. Inspect results.
+cat results/player_eval/spatial/gaussian_k4/synthetic_mlp/*/result.json
+```
+
+Expected: `kernelshap_zero` scores EC1 ≈ 0 on its marginal game (it *is* the
+marginal target by construction — a built-in sanity check), while stochastic
+conditional methods score their genuine estimation error against the exact
+conditional target.
+
+## Evaluating your own attribution method
+
+Implement a `BaseImputer` (or a full `BaseAttributor`), drop a config in
+`configs/methods/`, and run the same pipeline — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the extension table and
+`examples/minimal_evaluation.py` for the direct API. The key interfaces:
+
+```python
+players = SpatialJoints(J=5, F=3, T=16)  # any PlayerSet: z -> (J,F,T) mask
+completions = imputer.impute(x, mask, n_samples)  # any BaseImputer: q(x_hid | x_obs)
+Z, w = sampled_coalition_set(players.n_players, budget=1024)  # shared design
+det = DeterministicConditionalOracle.from_oracle(dataset.oracle, players, Z)
+phi_star = phi_from_values(Z, w, prob_fn(det.fill_all(x)))  # exact target
+```
+
+Shape conventions everywhere: samples are `(J, F, T)` (joints × features ×
+time), boolean masks are `(J, F, T)` with **`True` = observed**, per-player
+attributions are `(M,)`.
+
+---
+
+## Pipelines
+
+| pipeline | entry | what it does |
 |---|---|---|
-| **Synthetic** (paper §5, Tables 1–3 and appendix) | nothing — data is generated on the fly | ~3 h on 1× A100, ~30 min on 8× A100 |
-| **CARE-PD** (paper §6, Table 4, Figure 1) | the [CARE-PD codebase](https://github.com/TaatiTeam/CARE-PD), the BMCLab data subset, and one of the supplied imputer/classifier checkpoint sets | ~90 min on 1× A100 |
-| **PTB-XL** (paper appendix `tab:ptbxl_leads`) | the [PTB-XL waveform records](https://physionet.org/content/ptb-xl/) | ~60 min on 1× A100 |
+| `synthetic` | `experiments=full_synthetic_sweep` | the paper's synthetic tables: all methods × datasets × classifiers, MC oracle grading + fidelity/stability metrics |
+| `player_eval` | `experiments=player_set_eval` | any player set × any imputer on a **shared fixed coalition design**, graded against the **deterministic** oracles (exact enumeration for M ≤ 12, importance-corrected sampling above) |
+| `real` | `experiments=care_pd_sweep` | CARE-PD real-data evaluation (AOPC/faithfulness; no synthetic oracle) |
 
-The synthetic half is fully self-contained.  The two real-world halves
-require third-party data that we cannot redistribute: see
-[REPRODUCIBILITY.md §2](REPRODUCIBILITY.md#2-paths-and-pretrained-artifacts)
-for step-by-step acquisition instructions.
-
----
-
-## Quickstart (synthetic only)
-
-```bash
-# 1. Create the conda environment.
-conda env create -f conda-environment.yml
-conda activate motionbench-xai
-
-# 2. Set environment paths (auto-detects sibling CARE-PD/ if present).
-source ./scripts/configure_paths.sh
-
-# 3. Reproduce the synthetic half of the paper end-to-end.
-./scripts/reproduce_synthetic.sh
-
-# 4. Regenerate paper tables and the PDF.
-./scripts/regenerate_paper.sh
-```
-
-This trains 33 synthetic classifiers (11 datasets × 3 architectures), runs
-the full Shapley sweep at the paper's evaluation budget (N=200 sequences for
-on-manifold and temporal methods, N=50 for off-manifold methods — see
-`paper/tables/table2_synth_ec1.tex`), runs all the appendix ablations, and
-regenerates Table 2, Table 2b, Table 3, and the synthetic ablation tables.
-
-## Quickstart (full pipeline including real-world)
-
-```bash
-# 1. Both conda envs (motionbench-xai for SHAP, manifoldshap for imputer training).
-conda env create -f conda-environment.yml
-conda env create -f conda-environment-imputer.yml
-
-# 2. Acquire CARE-PD and PTB-XL — see REPRODUCIBILITY.md §2 for details.
-#    The defaults assume CARE-PD is checked out as a sibling of this repo.
-git clone https://github.com/TaatiTeam/CARE-PD ../CARE-PD
-# ... then follow CARE-PD's README to download the BMCLab data, train (or
-#     download) MotionBERT/POTR/MotionAGFormer classifiers per fold, train
-#     (or download) the BMCLab VAEAC + Flow imputers, and produce the
-#     per-fold evaluation caches at $CARE_PD_ROOT/cache/flow_matching/...
-
-# Optional: PTB-XL raw waveform records (~2 GB, requires PhysioNet account).
-mkdir -p data/ptb-xl && cd data/ptb-xl
-wget -r -N -c -np https://physionet.org/files/ptb-xl/1.0.3/
-
-# 3. Set paths.
-export CARE_PD_ROOT=$(pwd)/../CARE-PD
-export PTBXL_DATA_ROOT=$(pwd)/data/ptb-xl
-source ./scripts/configure_paths.sh
-
-# 4. Run the synthetic and the real-world halves.
-./scripts/reproduce_synthetic.sh
-./scripts/reproduce_real.sh
-./scripts/reproduce_ptbxl.sh
-
-# 5. Regenerate tables, figures, and the PDF.
-./scripts/regenerate_paper.sh
-```
-
-For exhaustive reproduction details (per-stage commands, disk and
-wall-clock budgets, expected accuracies, troubleshooting) see
-[REPRODUCIBILITY.md](REPRODUCIBILITY.md).
-
-### Data nomenclature
-
-The CARE-PD benchmark is the union of nine constituent gait datasets and
-includes pre-trained classifiers for gait severity scoring; this paper
-uses the **BMCLab** subset (the multi-trial healthy / PD gait clips) of
-CARE-PD.  Wherever this codebase says `BMCLab`, the underlying data and
-classifiers are the BMCLab portion of CARE-PD.
-
-### Manual / per-method invocations
-
-```bash
-# Off-manifold + temporal + gradient sweeps via Hydra
-python -m motionbench.cli.run experiments=full_synthetic_sweep wandb.mode=disabled
-
-# On-manifold KS-VAEAC + KS-Flow at N=200 across all available GPUs
-python scripts/restore_contaminated_n50.py \
-    --gpus 0 1 2 3 4 5 6 7 --jobs-per-gpu 4 --omp-threads 2 \
-    --metrics-mode full --n-sequences 200
-
-# CARE-PD real-data sweep (single fold)
-python scripts/run_care_pd_multiclf.py --classifier motionbert --fold 1 --n_seq 200
-```
-
----
+All are Hydra-driven: `python3 -m motionbench.cli.run experiments=<name>
+key=value …` (run from the repo root; configs resolve relative to the CWD).
 
 ## Repository structure
 
 ```
 motionbench/
-├── data/           # Datasets (synthetic + CARE-PD + PTB-XL)
-├── oracles/        # Ground-truth closed-form conditionals
-├── players/        # Player-set definitions (temporal, spatial, anatomical)
-├── imputers/       # Completion models (zero/mean/marginal/empirical/VAEAC/Flow)
-├── attribution/    # Attribution methods (KernelSHAP, IG, DeepLIFT, LRP, …)
-├── classifiers/    # Synthetic MLP/CNN/Transformer + ported CARE-PD encoders + PTB-XL ResNet
-├── metrics/        # Evaluation metrics (EC1-3, faithfulness, AOPC, stability, sanity)
-├── pipelines/      # Hydra-driven evaluation pipelines
-└── cli/            # `motionbench` entry point
-configs/            # Hydra config tree (data, methods, classifiers, experiments)
-scripts/            # Reproduce scripts, ablations, table/figure generators
-docs/               # Public-facing architecture docs
-tests/              # Pytest suite (~350 tests, GitHub Actions CI)
-paper/              # LaTeX sources
+├── data/           # Datasets (synthetic generators + CARE-PD + PTB-XL loaders)
+├── oracles/        # Ground truth: exact conditional samplers + deterministic
+│                   #   conditional-mean oracles (oracles/deterministic.py)
+├── players/        # Player sets (temporal, spatial, cells, anatomical, phases)
+├── imputers/       # Completion models (zero/mean/marginal/empirical/VAEAC/flow)
+├── attribution/    # Methods (KernelSHAP + sampled coalition designs, WindowSHAP,
+│                   #   TimeSHAP, IG/DeepLIFT/LRP/GradCAM, …)
+├── classifiers/    # Synthetic MLP/CNN/Transformer + ported CARE-PD + PTB-XL
+├── metrics/        # EC1–EC3, faithfulness, AOPC, stability, sanity
+├── pipelines/      # Hydra pipelines (synthetic_eval, player_eval, real_eval)
+└── cli/            # `motionbench` / `python -m motionbench.cli.run`
+configs/            # Hydra config tree (data, methods, players, classifiers,
+                    #   experiments)
+scripts/            # Training, reproduction, ablations
+tests/              # Pytest suite (incl. oracle gate G1–G6)
+docs/               # Architecture notes
 ```
 
----
+Key documents:
 
-## Classifier checkpoints
+- [`RESOLUTIONS.md`](RESOLUTIONS.md) — the executed conventions of this
+  release (value-function semantics, labels, kernel bandwidths, seeds, …),
+  including every point where the paper's prose and the released code
+  differ.  Adapted from the independent validation study's log.
+- [`checkpoints/README.md`](checkpoints/README.md) — which checkpoint files
+  the pipelines expect, with SHA-256 digests of the reference training runs.
+- [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) — per-stage commands, budgets,
+  data acquisition for the real tracks.
 
-Checkpoints are not committed to this repo (they are excluded via `.gitignore`).
+## Reproducing the paper
 
-### Synthetic classifiers (3 architectures × 11 datasets = 33 checkpoints)
+Two tiers — see [`REPRODUCING_PAPER.md`](REPRODUCING_PAPER.md) for the
+table-by-table map:
+
+- **From shipped results (no GPU):** every paper table regenerates from the
+  canonical result files in [`results/canonical/`](results/canonical/).
+- **From scratch:**
 
 ```bash
-# Train all (~2 min on 8 GPUs, longer on fewer).
-PYTHONPATH=. python scripts/train_synthetic_clf.py
-
-# Target a specific set of GPUs.
-PYTHONPATH=. python scripts/train_synthetic_clf.py --gpus 0 1 2 3
-
-# Train a subset for quick testing.
-PYTHONPATH=. python scripts/train_synthetic_clf.py \
-    --datasets gaussian_k4 burr_m5 --classifiers synthetic_mlp
+./scripts/reproduce_synthetic.sh   # synthetic half: self-contained
+./scripts/reproduce_real.sh        # CARE-PD (needs the CARE-PD checkout + data)
+./scripts/reproduce_ptbxl.sh       # PTB-XL (needs the PhysioNet records)
+./scripts/reproduce_esc50.sh       # ESC-50 (needs the ESC-50 download; CC BY-NC)
 ```
 
-Checkpoints are saved to
-`motionbench/classifiers/checkpoints/synthetic/<dataset>/<arch>.pt`.
-Expected validation accuracy is **70–90%** across the (dataset × architecture)
-grid.  The script prints a warning if any run falls below 65 % and aborts
-with a clear error below 50 %.
-
-### Real-world classifiers
-
-Real-world classifiers are *not* trained from scratch by this repo.  The
-CARE-PD classifiers (MotionBERT, POTR, MotionAGFormer) are reproduced from
-the CARE-PD codebase or downloaded with the CARE-PD release; the PTB-XL 1-D
-ResNet is trained from scratch by `scripts/train_ptbxl_classifier.py`.
-
-| Dataset  | Classifiers                                    | Acquisition |
-|----------|------------------------------------------------|-------------|
-| CARE-PD  | MotionBERT, POTR, MotionAGFormer (3 folds each) | See [REPRODUCIBILITY.md §2.2](REPRODUCIBILITY.md#22-care-pd--bmclab-paper-6-table-4-figure-1) |
-| PTB-XL   | 1-D ResNet (`ECGResNet1dClassifier`)           | `python scripts/train_ptbxl_classifier.py --fold {1,2,3}` |
-
-Place CARE-PD checkpoints under
-`motionbench/classifiers/checkpoints/real/` (filenames follow
-`carepd_bmclab_fold{fold}_{motionbert|potr|motionagformer}.pt`).
-PTB-XL checkpoints follow `ptbxl_fold{fold}.pt`.
-
----
+The synthetic half needs nothing outside this repo (data is generated on the
+fly; classifiers/imputers retrain from fixed seeds).  The real tracks need
+third-party data we cannot redistribute — see
+[REPRODUCIBILITY.md](REPRODUCIBILITY.md) for acquisition steps.  Checkpoint
+download locations and digests are in
+[`checkpoints/README.md`](checkpoints/README.md).
 
 ## Development
 
 ```bash
-# Run all fast tests.
-pytest tests/ -m "not slow and not gpu and not manual"
-
-# Run slow tests (requires patience).
-pytest tests/ -m slow
-
-# Lint and format.
-ruff check .
-ruff format .
-
-# Type check.
-mypy motionbench/
+pytest tests/ -m "not slow and not gpu and not manual"   # fast suite
+ruff check . && ruff format --check .                    # lint / format
+mypy motionbench/                                        # types
 ```
 
-GitHub Actions runs the fast tests, ruff, ruff format check, and mypy on
-every push.  See `.github/workflows/ci.yml`.
+GitHub Actions runs the fast tests, ruff, and mypy on every push
+(`.github/workflows/ci.yml`).
 
----
+## Links
+
+- **Paper:** *MotionBench-XAI: A Benchmark for Manifold-Aware Shapley
+  Attribution on Spatiotemporal Data* (NeurIPS 2026 Evaluations & Datasets
+  Track submission). <!-- MAINTAINER TODO: add arXiv/OpenReview link -->
+- **Independent validation study:** a from-scratch replication of this
+  benchmark whose findings are folded into `RESOLUTIONS.md`, the
+  deterministic oracles, and the oracle gate tests.
+  <!-- MAINTAINER TODO: add link when the study is public -->
+- **Checkpoints:** reference classifier / imputer checkpoints are published
+  at the [`checkpoints-v2` release](https://github.com/mathildepapillon/motionbench-xai/releases/tag/checkpoints-v2)
+  (`bash scripts/download_checkpoints.sh`; manifest and digests in
+  [`checkpoints/README.md`](checkpoints/README.md)).
+- **Upstream data:** [CARE-PD](https://github.com/TaatiTeam/CARE-PD),
+  [PTB-XL](https://physionet.org/content/ptb-xl/).
 
 ## Citation
+
+See [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" button).
 
 ```bibtex
 @inproceedings{motionbench2026,
@@ -238,6 +215,6 @@ every push.  See `.github/workflows/ci.yml`.
 }
 ```
 
-This benchmark consumes data and classifier checkpoints from CARE-PD~\cite{adeli2025multi}
-and PTB-XL~\cite{wagner2020ptbxl}; please cite both upstream sources if you
-use the corresponding parts of this benchmark.
+This benchmark consumes data and classifier checkpoints from CARE-PD and
+PTB-XL; please cite both upstream sources if you use the corresponding
+tracks.  License: [MIT](LICENSE).

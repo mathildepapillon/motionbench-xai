@@ -161,6 +161,7 @@ class Classifier(nn.Module, ABC):
         checkpoint_path: str | Path | None = None,
         n_classes: int = 4,
     ) -> None:
+        """Initialise the classifier with an optional checkpoint path and output size."""
         super().__init__()
         self.n_classes = n_classes
         self._checkpoint_path = Path(checkpoint_path) if checkpoint_path is not None else None
@@ -334,7 +335,7 @@ class Classifier(nn.Module, ABC):
                 k = k[7:]
             # Remap CARE-PD head key to the motionbench cls_head attribute
             if k.startswith("head.fc_layers.0."):
-                k = "cls_head." + k[len("head.fc_layers.0."):]
+                k = "cls_head." + k[len("head.fc_layers.0.") :]
             # Remap MotionAGFormer layer-scale names (checkpoint uses layer_scale_N,
             # our port uses the shorter ls1/ls2 attribute names)
             k = k.replace(".layer_scale_1", ".ls1").replace(".layer_scale_2", ".ls2")
@@ -348,4 +349,3 @@ class Classifier(nn.Module, ABC):
             result.missing_keys,
             result.unexpected_keys,
         )
-

@@ -31,12 +31,18 @@ import traceback
 import warnings
 from math import comb
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
+from _ablation_common import (  # noqa: E402
+    ec_metrics,
+)
 from omegaconf import OmegaConf
 from torch import Tensor
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(
@@ -56,11 +62,11 @@ CARE_PD = Path(os.environ.get("CARE_PD_ROOT", REPO.parent / "CARE-PD"))
 CKPT_SYNTH = REPO / "motionbench" / "classifiers" / "checkpoints" / "synthetic"
 
 DEVICE_STR = "cuda:0"
-N_TEST = 400          # test sequences
-N_TRAIN = 200         # training sequences (for Marginal/Mean)
-N_MC = 50             # MC samples per coalition in oracle
-N_SANITY_SEQ = 10     # sequences for sanity check
-TOL_SANITY = 0.20     # 20 % EC1 tolerance
+N_TEST = 400  # test sequences
+N_TRAIN = 200  # training sequences (for Marginal/Mean)
+N_MC = 50  # MC samples per coalition in oracle
+N_SANITY_SEQ = 10  # sequences for sanity check
+TOL_SANITY = 0.20  # 20 % EC1 tolerance
 
 # J=5, F=3, T=16, K=4 matching gaussian_k4
 J, F, T, K = 5, 3, 16, 4
@@ -68,8 +74,13 @@ J, F, T, K = 5, 3, 16, 4
 CLASSIFIERS = ["synthetic_mlp", "synthetic_cnn", "synthetic_transformer"]
 
 # Methods to evaluate
-METHODS = ["kernelshap_vaeac", "kernelshap_flow", "kernelshap_marginal",
-           "kernelshap_mean", "kernelshap_zero"]
+METHODS = [
+    "kernelshap_vaeac",
+    "kernelshap_flow",
+    "kernelshap_marginal",
+    "kernelshap_mean",
+    "kernelshap_zero",
+]
 
 # ---------------------------------------------------------------------------
 # KernelSHAP helpers (inlined; previously imported from
@@ -85,6 +96,12 @@ def _shap_kernel(K: int, s: int) -> float:
 
 def kernel_shap_exact(z_bin: np.ndarray, v_vals: np.ndarray, n_players: int) -> np.ndarray:
     """Exact KernelSHAP WLS solve for the given coalition values.
+
+    Pinned local variant: unlike
+    ``motionbench.attribution.enumerated_kernel_shap.kernel_shap_exact``
+    (which quantises values to float32 before the solve — the real-data
+    track convention), this ablation solves in float64 as its stored
+    results were produced.  Do not swap in the package solver.
 
     Args:
         z_bin: ``(2^K, K)`` bool/int coalition indicators.
@@ -140,9 +157,10 @@ def load_classifier(clf_name: str, device: torch.device) -> torch.nn.Module:
     """
     cfg_path = REPO / "configs" / "classifiers" / f"{clf_name}.yaml"
     clf_cfg = OmegaConf.load(cfg_path)
-    from motionbench.pipelines.synthetic_eval import _build_classifier  # noqa: PLC0415
+    from motionbench.pipelines.synthetic_eval import build_classifier  # noqa: PLC0415
+
     n_classes = 3
-    clf = _build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
+    clf = build_classifier(clf_cfg, J, F, T, K, n_classes).to(device)
     clf.eval()
 
     ckpt_path = CKPT_SYNTH / "gaussian_k4" / f"{clf_name}.pt"
@@ -175,19 +193,21 @@ def load_vaeac(device: torch.device):
     Gaussian datasets and is what the motionbench-xai registry maps
     GaussianMotionDataset to.
     """
-    from motionbench.imputers.carepd_imputer import _load_vaeac  # noqa: PLC0415
+    from motionbench.imputers.carepd_imputer import load_vaeac  # noqa: PLC0415
+
     ckpt_dir = CARE_PD / "experiment_outs" / "vaeac_synthetic" / "gaussian_k8_t16"
     cfg_path = CARE_PD / "configs" / "vaeac" / "gaussian_k8_t16.json"
     if not ckpt_dir.exists():
         raise FileNotFoundError(f"VAEAC checkpoint dir not found: {ckpt_dir}")
     if not cfg_path.exists():
         raise FileNotFoundError(f"VAEAC config not found: {cfg_path}")
-    return _load_vaeac(ckpt_dir, cfg_path, device)
+    return load_vaeac(ckpt_dir, cfg_path, device)
 
 
 def load_flow(device: torch.device):
     """Load Flow matching from CARE-PD gaussian_k4_t16 checkpoint."""
-    from motionbench.imputers.carepd_imputer import _load_flow  # noqa: PLC0415
+    from motionbench.imputers.carepd_imputer import load_flow  # noqa: PLC0415
+
     ckpt_dir = CARE_PD / "experiment_outs" / "flow_matching_synthetic" / "gaussian_k4_t16"
     cfg_path = CARE_PD / "configs" / "flow_matching" / "gaussian_k4_t16.json"
     if not ckpt_dir.exists():
@@ -197,11 +217,12 @@ def load_flow(device: torch.device):
     cfg = json.loads(cfg_path.read_text())
     cfg["num_steps"] = 20  # reduce for speed
     import tempfile
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as fh:
         json.dump(cfg, fh)
         tmp_cfg = Path(fh.name)
     try:
-        imp = _load_flow(ckpt_dir, tmp_cfg, device)
+        imp = load_flow(ckpt_dir, tmp_cfg, device)
     finally:
         tmp_cfg.unlink()
     return imp
@@ -242,7 +263,7 @@ def compute_coalition_values_neural(
         ``(2^K,)`` float32 value array.
     """
     n_coal = frame_mask_t.shape[0]
-    x_in = x_i.unsqueeze(0).to(device)            # (1, J, F, T)
+    x_in = x_i.unsqueeze(0).to(device)  # (1, J, F, T)
     pad = torch.ones(1, T, dtype=torch.bool, device=device)
     frame_mask_dev = frame_mask_t.to(device)
 
@@ -253,43 +274,39 @@ def compute_coalition_values_neural(
                 mask=pad,
                 coalition_masks=frame_mask_dev,
                 n_samples=n_mc,
-            )                                    # (n_coal, n_mc, J, F, T)
+            )  # (n_coal, n_mc, J, F, T)
         # Enforce observed entries
-        obs_exp = frame_mask_dev.view(n_coal, 1, 1, 1, T).expand(
-            n_coal, n_mc, J, F, T
-        )
+        obs_exp = frame_mask_dev.view(n_coal, 1, 1, 1, T).expand(n_coal, n_mc, J, F, T)
         x_exp = x_i.to(device).view(1, 1, J, F, T).expand(n_coal, n_mc, J, F, T)
-        comps = torch.where(obs_exp, x_exp, out)   # (n_coal, n_mc, J, F, T)
+        comps = torch.where(obs_exp, x_exp, out)  # (n_coal, n_mc, J, F, T)
         comps = comps.view(n_coal * n_mc, J, F, T)
 
         with torch.no_grad():
-            logits = clf(comps)                    # (n_coal*n_mc, n_classes)
-        if logits.ndim == 2:
-            probs = torch.softmax(logits, dim=-1)[:, target_class]
-        else:
-            probs = logits
+            logits = clf(comps)  # (n_coal*n_mc, n_classes)
+        probs = torch.softmax(logits, dim=-1)[:, target_class] if logits.ndim == 2 else logits
         v_vals = probs.view(n_coal, n_mc).mean(dim=1).cpu().numpy()
     else:
         # Fallback: per-coalition loop using sample_completions
         v_vals = np.zeros(n_coal, dtype=np.float32)
         for ci in range(n_coal):
-            coal_mask = frame_mask_dev[ci]         # (T,) bool
+            coal_mask = frame_mask_dev[ci]  # (T,) bool
             coalition_in = coal_mask.unsqueeze(0)  # (1, T)
             comps_list = imp.sample_completions(
-                x=x_in, y=None, mask=pad, lengths=None,
-                coalition_mask=coalition_in, n_samples=n_mc,
+                x=x_in,
+                y=None,
+                mask=pad,
+                lengths=None,
+                coalition_mask=coalition_in,
+                n_samples=n_mc,
             )
-            comps = torch.cat(comps_list, dim=0)   # (n_mc, J, F, T)
+            comps = torch.cat(comps_list, dim=0)  # (n_mc, J, F, T)
             # Enforce observed
             obs_exp = coal_mask.view(1, 1, 1, T).expand(n_mc, J, F, T)
             x_exp2 = x_i.to(device).unsqueeze(0).expand(n_mc, -1, -1, -1)
             comps = torch.where(obs_exp, x_exp2, comps)
             with torch.no_grad():
                 logits = clf(comps)
-            if logits.ndim == 2:
-                probs = torch.softmax(logits, dim=-1)[:, target_class]
-            else:
-                probs = logits
+            probs = torch.softmax(logits, dim=-1)[:, target_class] if logits.ndim == 2 else logits
             v_vals[ci] = probs.mean().item()
 
     return v_vals
@@ -320,17 +337,14 @@ def compute_coalition_values_simple(
     completions = []
     for ci in range(n_coal):
         obs_mask_jft = frame_mask_t[ci].view(1, 1, T).expand(J, F, T)
-        comp = fill_fn(x_i, obs_mask_jft)    # (1, J, F, T) or (J, F, T)
+        comp = fill_fn(x_i, obs_mask_jft)  # (1, J, F, T) or (J, F, T)
         if comp.ndim == 3:
             comp = comp.unsqueeze(0)
         completions.append(comp)
     comps = torch.cat(completions, dim=0).to(device)  # (n_coal, J, F, T)
     with torch.no_grad():
         logits = clf(comps)
-    if logits.ndim == 2:
-        probs = torch.softmax(logits, dim=-1)[:, target_class]
-    else:
-        probs = logits
+    probs = torch.softmax(logits, dim=-1)[:, target_class] if logits.ndim == 2 else logits
     return probs.cpu().numpy().astype(np.float32)
 
 
@@ -375,10 +389,7 @@ def compute_coalition_values_marginal(
         comps = torch.where(obs_exp, x_obs_exp, donors).to(device)  # (n_mc, J, F, T)
         with torch.no_grad():
             logits = clf(comps)
-        if logits.ndim == 2:
-            probs = torch.softmax(logits, dim=-1)[:, target_class]
-        else:
-            probs = logits
+        probs = torch.softmax(logits, dim=-1)[:, target_class] if logits.ndim == 2 else logits
         v_vals[ci] = probs.mean().item()
 
     return v_vals
@@ -387,20 +398,6 @@ def compute_coalition_values_marginal(
 # ---------------------------------------------------------------------------
 # EC metrics
 # ---------------------------------------------------------------------------
-
-
-def ec_metrics(phi_hat: np.ndarray, phi_true: np.ndarray) -> dict[str, float]:
-    diff = phi_hat - phi_true
-    ec1 = float(np.mean(np.abs(diff)))
-    denom = float(np.mean(np.abs(phi_true)) + 1e-8)
-    ec1_norm = ec1 / denom
-    ec2 = float(np.mean(diff ** 2))
-    if np.std(phi_hat) < 1e-10 or np.std(phi_true) < 1e-10:
-        ec3 = float("nan")
-    else:
-        corr = float(np.corrcoef(phi_hat, phi_true)[0, 1])
-        ec3 = 1.0 - corr
-    return {"ec1": ec1, "ec1_norm": ec1_norm, "ec2": ec2, "ec3": ec3}
 
 
 # ---------------------------------------------------------------------------
@@ -420,9 +417,9 @@ def run_sanity_check(device: torch.device) -> dict:
     """
     log.info("=== SANITY CHECK ===")
     from motionbench.data.synthetic.gaussian_motion import GaussianMotionDataset  # noqa: PLC0415
-    from motionbench.oracles.gaussian_oracle import GaussianOracle              # noqa: PLC0415
-    from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle     # noqa: PLC0415
-    from motionbench.players.temporal_windows import TemporalWindows             # noqa: PLC0415
+    from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle  # noqa: PLC0415
+    from motionbench.oracles.gaussian_oracle import GaussianOracle  # noqa: PLC0415
+    from motionbench.players.temporal_windows import TemporalWindows  # noqa: PLC0415
 
     ds = GaussianMotionDataset(J=J, F=F, T=T, N=50, K=K, rho=0.5, alpha=0.8, seed=42)
     bench = ds._benchmark
@@ -441,6 +438,7 @@ def run_sanity_check(device: torch.device) -> dict:
     clf = load_classifier("synthetic_transformer", device)
 
     def clf_fn(x_batch: Tensor) -> Tensor:
+        """Class-0 softmax probability (raw output if 1-D): batch → ``(B,)`` CPU tensor."""
         x_dev = x_batch.float().to(device)
         with torch.no_grad():
             logits = clf(x_dev)
@@ -452,10 +450,12 @@ def run_sanity_check(device: torch.device) -> dict:
     for i in range(min(N_SANITY_SEQ, len(ds))):
         x_i, _ = ds[i]
         try:
-            phi_k = oracle_kron.true_shapley(x_i, clf_fn, players, n_mc=N_MC,
-                                              n_coalitions=1 << K, seed=i)
-            phi_f = oracle_full.true_shapley(x_i, clf_fn, players, n_mc=N_MC,
-                                              n_coalitions=1 << K, seed=i)
+            phi_k = oracle_kron.true_shapley(
+                x_i, clf_fn, players, n_mc=N_MC, n_coalitions=1 << K, seed=i
+            )
+            phi_f = oracle_full.true_shapley(
+                x_i, clf_fn, players, n_mc=N_MC, n_coalitions=1 << K, seed=i
+            )
             phis_kron.append(phi_k.numpy())
             phis_full.append(phi_f.numpy())
         except Exception as exc:
@@ -469,8 +469,9 @@ def run_sanity_check(device: torch.device) -> dict:
     phis_full_arr = np.stack(phis_full)  # (N_sanity, K)
 
     # EC1 between the two oracles
-    ec1_vals = [ec_metrics(phis_full_arr[i], phis_kron_arr[i])["ec1"]
-                for i in range(len(phis_kron))]
+    ec1_vals = [
+        ec_metrics(phis_full_arr[i], phis_kron_arr[i])["ec1"] for i in range(len(phis_kron))
+    ]
     mean_ec1 = float(np.mean(ec1_vals))
 
     # EC1 of oracle against itself (should be 0; use full-vs-kron as cross-check)
@@ -480,7 +481,10 @@ def run_sanity_check(device: torch.device) -> dict:
     passed = ratio <= TOL_SANITY
     log.info(
         "  Sanity: n_seqs=%d  EC1(full vs kron)=%.4f  |phi_kron|=%.4f  ratio=%.3f  %s",
-        len(phis_kron), mean_ec1, mean_kron_mag, ratio,
+        len(phis_kron),
+        mean_ec1,
+        mean_kron_mag,
+        ratio,
         "PASS" if passed else "FAIL",
     )
     return {
@@ -501,12 +505,9 @@ def run_sanity_check(device: torch.device) -> dict:
 def run_experiment(device: torch.device) -> dict:
     """Run all imputers on the non-Kronecker dataset and compute EC1."""
     log.info("=== EXPERIMENT ===")
-    from motionbench.data.synthetic.gaussian_nk import GaussianNKDataset           # noqa: PLC0415
-    from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle          # noqa: PLC0415
-    from motionbench.players.temporal_windows import TemporalWindows                  # noqa: PLC0415
-    from motionbench.imputers.off_manifold import (                                   # noqa: PLC0415
-        ZeroImputer, MeanImputer, MarginalDonorImputer,
-    )
+    from motionbench.data.synthetic.gaussian_nk import GaussianNKDataset  # noqa: PLC0415
+    from motionbench.oracles.full_gaussian_oracle import FullGaussianOracle  # noqa: PLC0415
+    from motionbench.players.temporal_windows import TemporalWindows  # noqa: PLC0415
 
     # ---- Datasets ----
     log.info("Building NK datasets (train N=%d, test N=%d)...", N_TRAIN, N_TEST)
@@ -518,9 +519,7 @@ def run_experiment(device: torch.device) -> dict:
     # Build oracle from test dataset's covariance (same as train up to seed noise
     # in Sigma, but we want to use the test set's Sigma_full_nk since it's fixed
     # by construction — just use ds_test's Sigma)
-    oracle = FullGaussianOracle(
-        Sigma_full=ds_test.Sigma_full_nk, J=J, F=F, T=T
-    )
+    oracle = FullGaussianOracle(Sigma_full=ds_test.Sigma_full_nk, J=J, F=F, T=T)
     players = TemporalWindows(K=K, T=T, J=J, F=F)
 
     # Pre-build all coalition masks
@@ -562,17 +561,22 @@ def run_experiment(device: torch.device) -> dict:
             x_i = x_test_list[i]
             tgt = int(targets[i])
 
-            def clf_fn_i(x_b: Tensor, _tgt: int = tgt) -> Tensor:
+            def clf_fn_i(x_b: Tensor, _tgt: int = tgt, _clf=clf) -> Tensor:  # noqa: ANN001
+                """Softmax probability of the frozen target class: batch → ``(B,)`` CPU tensor."""
                 with torch.no_grad():
-                    out = clf(x_b.float().to(device))
+                    out = _clf(x_b.float().to(device))
                 if out.ndim == 2:
                     return torch.softmax(out, dim=-1)[:, _tgt].cpu()
                 return out.cpu()
 
             try:
                 phi_oracle = oracle.true_shapley(
-                    x_i, clf_fn_i, players,
-                    n_mc=N_MC, n_coalitions=n_coal, seed=i,
+                    x_i,
+                    clf_fn_i,
+                    players,
+                    n_mc=N_MC,
+                    n_coalitions=n_coal,
+                    seed=i,
                 )
                 oracle_phis[i] = phi_oracle.numpy()
             except Exception as exc:
@@ -613,7 +617,13 @@ def run_experiment(device: torch.device) -> dict:
                         x_i = x_test_list[i]
                         tgt = int(targets[i])
                         v_vals = compute_coalition_values_neural(
-                            imp, x_i, frame_mask_t, z_bin, clf, tgt, device,
+                            imp,
+                            x_i,
+                            frame_mask_t,
+                            z_bin,
+                            clf,
+                            tgt,
+                            device,
                         )
                         imp_phis[i] = kernel_shap_exact(z_bin, v_vals, K)
                     del imp
@@ -625,33 +635,53 @@ def run_experiment(device: torch.device) -> dict:
                         x_i = x_test_list[i]
                         tgt = int(targets[i])
                         v_vals = compute_coalition_values_neural(
-                            imp, x_i, frame_mask_t, z_bin, clf, tgt, device,
+                            imp,
+                            x_i,
+                            frame_mask_t,
+                            z_bin,
+                            clf,
+                            tgt,
+                            device,
                         )
                         imp_phis[i] = kernel_shap_exact(z_bin, v_vals, K)
                     del imp
                     torch.cuda.empty_cache()
 
                 elif method == "kernelshap_zero":
+
                     def zero_fill(x_obs: Tensor, obs_mask: Tensor) -> Tensor:
+                        """Zero-fill hidden entries."""
                         return torch.where(obs_mask, x_obs, torch.zeros_like(x_obs))
 
                     for i in range(N_TEST):
                         x_i = x_test_list[i]
                         tgt = int(targets[i])
                         v_vals = compute_coalition_values_simple(
-                            zero_fill, x_i, frame_mask_t, clf, tgt, device,
+                            zero_fill,
+                            x_i,
+                            frame_mask_t,
+                            clf,
+                            tgt,
+                            device,
                         )
                         imp_phis[i] = kernel_shap_exact(z_bin, v_vals, K)
 
                 elif method == "kernelshap_mean":
+
                     def mean_fill(x_obs: Tensor, obs_mask: Tensor) -> Tensor:
+                        """Mean-fill hidden entries."""
                         return torch.where(obs_mask, x_obs, mean_tensor)
 
                     for i in range(N_TEST):
                         x_i = x_test_list[i]
                         tgt = int(targets[i])
                         v_vals = compute_coalition_values_simple(
-                            mean_fill, x_i, frame_mask_t, clf, tgt, device,
+                            mean_fill,
+                            x_i,
+                            frame_mask_t,
+                            clf,
+                            tgt,
+                            device,
                         )
                         imp_phis[i] = kernel_shap_exact(z_bin, v_vals, K)
 
@@ -660,8 +690,14 @@ def run_experiment(device: torch.device) -> dict:
                         x_i = x_test_list[i]
                         tgt = int(targets[i])
                         v_vals = compute_coalition_values_marginal(
-                            x_pool, x_i, frame_mask_t, clf, tgt, device,
-                            n_mc=5, seed=i,
+                            x_pool,
+                            x_i,
+                            frame_mask_t,
+                            clf,
+                            tgt,
+                            device,
+                            n_mc=5,
+                            seed=i,
                         )
                         imp_phis[i] = kernel_shap_exact(z_bin, v_vals, K)
 
@@ -693,7 +729,11 @@ def run_experiment(device: torch.device) -> dict:
                 )
                 log.info(
                     "    DONE %s in %.1fs  EC1=%.4f ± %.4f  EC1_norm=%.4f",
-                    method, time.time() - t_method, ec1_mean, ec1_std, ec1_norm_mean,
+                    method,
+                    time.time() - t_method,
+                    ec1_mean,
+                    ec1_std,
+                    ec1_norm_mean,
                 )
                 summary_rows.append(result)
 
@@ -722,6 +762,7 @@ def run_experiment(device: torch.device) -> dict:
 
 
 def main() -> None:
+    """Run the N/K ablation grid and write per-cell results."""
     t_start = time.time()
     os.chdir(REPO)
     log.info("CUDA_VISIBLE_DEVICES=%s", os.environ.get("CUDA_VISIBLE_DEVICES", "<unset>"))
@@ -742,9 +783,7 @@ def main() -> None:
         traceback.print_exc()
         sanity_result = {"passed": False, "error": str(exc)}
 
-    (RESULTS_DIR / "sanity_check.json").write_text(
-        json.dumps(sanity_result, indent=2)
-    )
+    (RESULTS_DIR / "sanity_check.json").write_text(json.dumps(sanity_result, indent=2))
     log.info("Sanity check result: %s", sanity_result)
 
     if not sanity_result.get("passed", False):
@@ -796,12 +835,18 @@ def main() -> None:
             if "ec1_mean" in r:
                 log.info(
                     "%-30s %-25s %.4f ± %.4f",
-                    r.get("method", "?"), r.get("classifier", "?"),
-                    r["ec1_mean"], r.get("ec1_std", float("nan")),
+                    r.get("method", "?"),
+                    r.get("classifier", "?"),
+                    r["ec1_mean"],
+                    r.get("ec1_std", float("nan")),
                 )
             elif "error" in r:
-                log.info("%-30s %-25s ERROR: %s", r.get("method", "?"),
-                         r.get("classifier", "?"), str(r["error"])[:60])
+                log.info(
+                    "%-30s %-25s ERROR: %s",
+                    r.get("method", "?"),
+                    r.get("classifier", "?"),
+                    str(r["error"])[:60],
+                )
 
 
 if __name__ == "__main__":

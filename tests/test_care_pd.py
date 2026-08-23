@@ -10,30 +10,32 @@ Manual / reproducibility tests (require downloaded checkpoints):
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 
 # ---------------------------------------------------------------------------
 # Shape constants matching motionbench convention
 # ---------------------------------------------------------------------------
 
-B = 2        # batch size
-J = 17       # joints (H36M-17)
-FS = 3       # features (xyz)
-T = 81       # frames (3 s @ 27 fps)
+B = 2  # batch size
+J = 17  # joints (H36M-17)
+FS = 3  # features (xyz)
+T = 81  # frames (3 s @ 27 fps)
 N_CLASSES = 4
 
 _DEFAULT_CARE_PD = Path(__file__).resolve().parents[2] / "CARE-PD"
 CHECKPOINT_ROOT = Path(
     os.environ.get(
         "CARE_PD_CHECKPOINTS",
-        str(Path(os.environ.get("CARE_PD_ROOT", _DEFAULT_CARE_PD))
-            / "assets" / "Pretrained_checkpoints"),
+        str(
+            Path(os.environ.get("CARE_PD_ROOT", _DEFAULT_CARE_PD))
+            / "assets"
+            / "Pretrained_checkpoints"
+        ),
     )
 )
 
@@ -44,32 +46,38 @@ CHECKPOINT_ROOT = Path(
 
 def _import_poseformerv2():
     from motionbench.classifiers.ported_care_pd.poseformerv2 import PoseFormerV2Classifier
+
     return PoseFormerV2Classifier
 
 
 def _import_motionbert():
     from motionbench.classifiers.ported_care_pd.motionbert import MotionBERTClassifier
+
     return MotionBERTClassifier
 
 
 def _import_potr():
     from motionbench.classifiers.ported_care_pd.potr import POTRClassifier
+
     return POTRClassifier
 
 
 def _import_motionagformer():
     from motionbench.classifiers.ported_care_pd.motionagformer import MotionAGFormerClassifier
+
     return MotionAGFormerClassifier
 
 
 def _import_bilstm():
     from motionbench.classifiers.ported_care_pd.bilstm import BiLSTMClassifier
+
     return BiLSTMClassifier
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_batch(b=B, j=J, f=FS, t=T) -> torch.Tensor:
     """Return a random ``(B, J, F, T)`` float32 tensor."""
@@ -250,21 +258,20 @@ class TestForwardShapesBiLSTM:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("clf_factory", [
-    _import_poseformerv2,
-    _import_motionbert,
-    _import_potr,
-    _import_bilstm,
-])
+@pytest.mark.parametrize(
+    "clf_factory",
+    [
+        _import_poseformerv2,
+        _import_motionbert,
+        _import_potr,
+        _import_bilstm,
+    ],
+)
 def test_predict_proba(clf_factory):
     """After softmax, logits sum to ~1 per sample."""
     Clf = clf_factory()
     # Use smallest non-trivial config for speed
-    if "PoseFormerV2" in Clf.__name__:
-        model = Clf(n_classes=N_CLASSES)
-    elif "MotionBERT" in Clf.__name__:
-        model = Clf(n_classes=N_CLASSES)
-    elif "POTR" in Clf.__name__:
+    if "PoseFormerV2" in Clf.__name__ or "MotionBERT" in Clf.__name__ or "POTR" in Clf.__name__:
         model = Clf(n_classes=N_CLASSES)
     else:
         model = Clf(n_classes=N_CLASSES)
@@ -281,9 +288,7 @@ def test_predict_proba(clf_factory):
         proba = F.softmax(logits, dim=-1)
 
     sums = proba.sum(dim=-1)
-    assert torch.allclose(sums, torch.ones(B), atol=1e-5), (
-        f"Softmax sums not close to 1: {sums}"
-    )
+    assert torch.allclose(sums, torch.ones(B), atol=1e-5), f"Softmax sums not close to 1: {sums}"
 
 
 def test_predict_proba_motionagformer():
@@ -333,6 +338,7 @@ def _make_dummy_labels(
 ) -> Path:
     """Write a temporary labels joblib file."""
     import joblib
+
     labels = {}
     for i in range(n_seqs):
         sid = f"S{i:02d}"
@@ -351,6 +357,7 @@ class TestBMCLabDataset:
         npz_path = _make_dummy_npz(tmp_dir)
         lbl_path = _make_dummy_labels(tmp_dir)
         from motionbench.data.real.care_pd import BMCLabDataset
+
         return BMCLabDataset(
             joints_paths=[str(npz_path)],
             labels_path=str(lbl_path),
@@ -392,6 +399,7 @@ class TestBMCLabDataset:
 
     def test_base_dataset_protocol(self, dataset):
         from motionbench.data.base import BaseDataset
+
         assert isinstance(dataset, BaseDataset)
 
     def test_clip_shorter_than_clip_len(self, tmp_path_factory):
@@ -403,11 +411,13 @@ class TestBMCLabDataset:
         np.savez(str(npz_path), **data)
 
         import joblib
+
         labels = {"S00": {"walk01": {"UPDRS_GAIT": 1, "medication": "on", "other": 0}}}
         lbl_path = tmp_dir / "labels.pkl"
         joblib.dump(labels, str(lbl_path))
 
         from motionbench.data.real.care_pd import BMCLabDataset
+
         ds = BMCLabDataset([str(npz_path)], str(lbl_path), clip_len=81)
         x, y = ds[0]
         assert x.shape == (17, 3, 81)
@@ -420,11 +430,13 @@ class TestBMCLabDataset:
         np.savez(str(npz_path), **data)
 
         import joblib
+
         labels = {"S00": {"walk01": {"UPDRS_GAIT": 2, "medication": "off", "other": 1}}}
         lbl_path = tmp_dir / "labels.pkl"
         joblib.dump(labels, str(lbl_path))
 
         from motionbench.data.real.care_pd import BMCLabDataset
+
         ds = BMCLabDataset([str(npz_path)], str(lbl_path), clip_len=81)
         x, y = ds[0]
         assert x.shape == (17, 3, 81)

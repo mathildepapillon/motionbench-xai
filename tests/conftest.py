@@ -8,12 +8,12 @@ The canonical test shapes are:
 These are small enough that tests run fast on CPU and large enough to catch
 shape-regression bugs.
 """
+
 from __future__ import annotations
 
 import numpy as np
 import pytest
 import torch
-
 
 # ---------------------------------------------------------------------------
 # Global seeds

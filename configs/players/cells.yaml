@@ -1,0 +1,4 @@
+name: cells
+# One player per (joint, temporal window) cell (M = J * K); finest granularity.
+# J, F, T, K are injected at runtime from the dataset config.
+_target_: motionbench.players.joint_window_cells.JointWindowCells

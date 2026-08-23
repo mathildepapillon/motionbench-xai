@@ -57,6 +57,7 @@ class _BiLSTMEncoder(nn.Module):
         num_layers: int = 2,
         dropout: float = 0.1,
     ) -> None:
+        """Initialise the bidirectional LSTM."""
         super().__init__()
         self.bilstm = nn.LSTM(
             input_size=input_dim,
@@ -111,6 +112,7 @@ class BiLSTMClassifier(Classifier):
         num_joints: int = 17,
         n_coords: int = 3,
     ) -> None:
+        """Initialise the BiLSTM encoder and linear head (``checkpoint_path`` is ignored)."""
         super().__init__(checkpoint_path=None, n_classes=n_classes)
 
         if checkpoint_path is not None:

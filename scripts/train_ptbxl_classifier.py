@@ -40,6 +40,7 @@ References
 * Wang et al. (2017). Time Series Classification from Scratch. IJCNN.
 * Strodthoff et al. (2021). Deep Learning for ECG Analysis. IEEE JBHI.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,8 +57,8 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 REPO_ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from motionbench.classifiers.ported_ptbxl.resnet1d import ECGResNet1dClassifier
-from motionbench.data.real.ptbxl import PTBXLDataset
+from motionbench.classifiers.ported_ptbxl.resnet1d import ECGResNet1dClassifier  # noqa: E402
+from motionbench.data.real.ptbxl import PTBXLDataset  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -72,8 +73,8 @@ log = logging.getLogger(__name__)
 # Maps script fold index (1, 2, 3) → (train_folds, val_folds, test_folds)
 # using PTB-XL strat_fold values (1–10).
 _FOLD_CONFIG: dict[int, dict[str, list[int]]] = {
-    1: {"train": list(range(1, 8)), "val": [9],  "test": [8]},
-    2: {"train": list(range(1, 9)), "val": [9],  "test": [10]},
+    1: {"train": list(range(1, 8)), "val": [9], "test": [8]},
+    2: {"train": list(range(1, 9)), "val": [9], "test": [10]},
     3: {"train": list(range(1, 8)) + [9], "val": [8], "test": [10]},
 }
 
@@ -88,6 +89,7 @@ class _PTBXLSplitDataset(PTBXLDataset):
         train_stats: tuple[np.ndarray, np.ndarray] | None = None,
         max_sequences: int | None = None,
     ) -> None:
+        """Initialise a PTB-XL dataset restricted to ``fold_ids`` (bypasses the parent split logic)."""
         # We bypass the parent split logic by monkey-patching _FOLD_SPLITS.
         # Import at function scope to avoid circular issues.
         import motionbench.data.real.ptbxl as _ptbxl_mod
@@ -119,7 +121,7 @@ def _make_weighted_sampler(dataset: PTBXLDataset) -> WeightedRandomSampler:
     labels = [dataset._samples[i][1] for i in range(len(dataset))]
     class_counts = np.bincount(labels, minlength=2)
     class_weights = 1.0 / np.maximum(class_counts, 1)
-    sample_weights = torch.tensor([class_weights[l] for l in labels], dtype=torch.float)
+    sample_weights = torch.tensor([class_weights[lab] for lab in labels], dtype=torch.float)
     return WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
 
 
@@ -169,37 +171,53 @@ def _evaluate(
 
     return {
         "loss": total_loss / max(n, 1),
-        "acc":  correct / max(n, 1),
-        "auc":  auc,
+        "acc": correct / max(n, 1),
+        "auc": auc,
     }
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(
         description="Train ECGResNet1dClassifier on PTB-XL NORM vs MI.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    ap.add_argument("--data_path", type=str, required=True,
-                    help="Root directory of the downloaded PTB-XL dataset.")
-    ap.add_argument("--fold", type=int, default=2, choices=[1, 2, 3],
-                    help="Script fold index (1–3); see module docstring for mapping.")
-    ap.add_argument("--epochs", type=int, default=30,
-                    help="Number of training epochs.")
+    ap.add_argument(
+        "--data_path",
+        type=str,
+        required=True,
+        help="Root directory of the downloaded PTB-XL dataset.",
+    )
+    ap.add_argument(
+        "--fold",
+        type=int,
+        default=2,
+        choices=[1, 2, 3],
+        help="Script fold index (1–3); see module docstring for mapping.",
+    )
+    ap.add_argument("--epochs", type=int, default=30, help="Number of training epochs.")
     ap.add_argument("--batch_size", type=int, default=64)
-    ap.add_argument("--lr", type=float, default=1e-3,
-                    help="Initial learning rate (Adam).")
+    ap.add_argument("--lr", type=float, default=1e-3, help="Initial learning rate (Adam).")
     ap.add_argument("--weight_decay", type=float, default=1e-4)
-    ap.add_argument("--max_train_seq", type=int, default=None,
-                    help="Optionally cap training set size (for debugging).")
+    ap.add_argument(
+        "--max_train_seq",
+        type=int,
+        default=None,
+        help="Optionally cap training set size (for debugging).",
+    )
     ap.add_argument("--device", type=str, default="cuda:0")
     ap.add_argument("--num_workers", type=int, default=4)
-    ap.add_argument("--output_dir", type=str,
-                    default=str(REPO_ROOT / "motionbench" / "classifiers" / "checkpoints" / "real"),
-                    help="Directory to write the checkpoint.")
+    ap.add_argument(
+        "--output_dir",
+        type=str,
+        default=str(REPO_ROOT / "motionbench" / "classifiers" / "checkpoints" / "real"),
+        help="Directory to write the checkpoint.",
+    )
     return ap.parse_args()
 
 
 def main() -> None:
+    """Train the PTB-XL 1-D ResNet for one fold and save the checkpoint."""
     args = parse_args()
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     fold_cfg = _FOLD_CONFIG[args.fold]
@@ -227,17 +245,26 @@ def main() -> None:
         train_stats=train_stats,
     )
 
-    log.info("train: %d  val: %d  (class balance approx 50/50 after sampling)",
-             len(train_ds), len(val_ds))
+    log.info(
+        "train: %d  val: %d  (class balance approx 50/50 after sampling)",
+        len(train_ds),
+        len(val_ds),
+    )
 
     sampler = _make_weighted_sampler(train_ds)
     train_loader = DataLoader(
-        train_ds, batch_size=args.batch_size, sampler=sampler,
-        num_workers=args.num_workers, pin_memory=True,
+        train_ds,
+        batch_size=args.batch_size,
+        sampler=sampler,
+        num_workers=args.num_workers,
+        pin_memory=True,
     )
     val_loader = DataLoader(
-        val_ds, batch_size=128, shuffle=False,
-        num_workers=args.num_workers, pin_memory=True,
+        val_ds,
+        batch_size=128,
+        shuffle=False,
+        num_workers=args.num_workers,
+        pin_memory=True,
     )
 
     # ------------------------------------------------------------- model
@@ -276,7 +303,8 @@ def main() -> None:
 
         log.info(
             "Epoch %3d/%d  train_loss=%.4f  val_loss=%.4f  val_acc=%.3f  val_auc=%.4f%s",
-            epoch, args.epochs,
+            epoch,
+            args.epochs,
             train_loss / max(n_train, 1),
             val_metrics["loss"],
             val_metrics["acc"],
@@ -301,6 +329,7 @@ def main() -> None:
 
     # Also save normalisation statistics so inference scripts can use them
     import numpy as np
+
     stats_path = out_dir / f"ptbxl_fold{args.fold}_stats.npz"
     np.savez_compressed(
         stats_path,

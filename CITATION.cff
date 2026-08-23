@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: >-
+  If you use MotionBench-XAI in your research, please cite the benchmark
+  paper below. Please also cite CARE-PD and PTB-XL if you use the
+  corresponding real-data tracks.
+title: "MotionBench-XAI"
+type: software
+authors:
+  - name: "The MotionBench-XAI Authors"
+repository-code: "https://github.com/mathildepapillon/motionbench-xai"
+version: 2.0.0
+license: MIT
+preferred-citation:
+  type: conference-paper
+  title: >-
+    MotionBench-XAI: A Benchmark for Manifold-Aware Shapley Attribution on
+    Spatiotemporal Data
+  authors:
+    - name: "The MotionBench-XAI Authors"
+  collection-title: >-
+    Advances in Neural Information Processing Systems, Evaluations and
+    Datasets Track
+  year: 2026

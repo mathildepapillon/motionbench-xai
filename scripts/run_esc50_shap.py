@@ -3,7 +3,7 @@
 Mirrors run_ptbxl_shap.py for the ESC-50 environmental sound dataset.
 Runs KernelSHAP with five imputation strategies (Zero / Mean / Marginal /
 VAEAC / Flow) on ESC-50 mel-spectrogram test sequences using the fine-tuned
-AST classifier (bioamla/ast-esc50).
+per-fold AST classifiers (fold-disciplined fine-tunes; checkpoints/README.md).
 
 Player set
 ----------
@@ -17,7 +17,16 @@ Usage::
 
     CUDA_VISIBLE_DEVICES=0 python scripts/run_esc50_shap.py \\
         --fold 1 --method kernelshap_zero --device cuda:0
+
+Imputer checkpoints: the learned-imputer rows (``kernelshap_vaeac`` /
+``kernelshap_flow``) load release-format checkpoints produced by
+``scripts/train_vaeac.py`` / ``scripts/train_flow.py`` (default paths
+below, override with ``--vaeac_ckpt`` / ``--flow_ckpt``).  The reference
+archive's ``checkpoints/imputers/esc50_*.pt`` are in the validation-study
+format consumed by the cells entry point
+(``run_esc50_cells_shap.py``, Frame* loaders) — see checkpoints/README.md.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,12 +48,13 @@ SCRIPTS_DIR = Path(__file__).parent
 
 # Import shared KernelSHAP utilities from run_care_pd_multiclf — no duplication.
 sys.path.insert(0, str(SCRIPTS_DIR))
-from run_care_pd_multiclf import (   # noqa: E402
+from motionbench.attribution.enumerated_kernel_shap import (  # noqa: E402
     build_coalition_masks,
-    faithfulness_correlation,
     kernel_shap_exact,
-    player_aopc,
-    shapley_kernel,
+)
+from motionbench.metrics.coalition_table import (  # noqa: E402
+    faithfulness_enumerated,
+    player_aopc_enumerated,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -52,9 +62,9 @@ log = logging.getLogger(__name__)
 
 RESULTS_ROOT = REPO_ROOT / "results" / "esc50"
 VAEAC_CKPT = REPO_ROOT / "results" / "esc50_imputers" / "vaeac" / "vaeac_best.pt"
-FLOW_CKPT  = REPO_ROOT / "results" / "esc50_imputers" / "flow"  / "flow_best.pt"
+FLOW_CKPT = REPO_ROOT / "results" / "esc50_imputers" / "flow" / "flow_best.pt"
 
-K = 4       # temporal windows; each window = T//K = 256 time-steps
+K = 4  # temporal windows; each window = T//K = 256 time-steps
 DEVICE = "cuda:0"
 
 ALL_METHODS = [
@@ -91,30 +101,34 @@ def build_completions_offmanifold(
     elif kind == "mean":
         fill = fill_tensor.view(J, F, 1).expand(J, F, T)
     elif kind == "marginal":
-        fill = fill_tensor   # (J, F, T) donor
+        fill = fill_tensor  # (J, F, T) donor
     else:
         raise ValueError(f"unknown kind {kind!r}")
-    x_b    = x.view(1, J, F, T).expand(n_coal, J, F, T)
+    x_b = x.view(1, J, F, T).expand(n_coal, J, F, T)
     fill_b = fill.view(1, J, F, T).expand(n_coal, J, F, T)
     return torch.where(obs, x_b, fill_b).contiguous()
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--fold", type=int, default=1, choices=[1, 2, 3],
-                    help="Fold index (1–3).")
-    ap.add_argument("--method", type=str, default=None,
-                    help="Single method to run (default: all five).")
-    ap.add_argument("--methods", type=str, nargs="+", default=None,
-                    help="Subset of methods to run.")
-    ap.add_argument("--n_seq", type=int, default=200,
-                    help="Number of test sequences to evaluate.")
+    ap.add_argument("--fold", type=int, default=1, choices=[1, 2, 3], help="Fold index (1–3).")
+    ap.add_argument(
+        "--method", type=str, default=None, help="Single method to run (default: all five)."
+    )
+    ap.add_argument(
+        "--methods", type=str, nargs="+", default=None, help="Subset of methods to run."
+    )
+    ap.add_argument("--n_seq", type=int, default=200, help="Number of test sequences to evaluate.")
     ap.add_argument("--results_dir", type=str, default=str(RESULTS_ROOT))
+    ap.add_argument("--vaeac_ckpt", type=str, default=str(VAEAC_CKPT))
+    ap.add_argument("--flow_ckpt", type=str, default=str(FLOW_CKPT))
     ap.add_argument("--device", type=str, default=DEVICE)
     return ap.parse_args()
 
 
 def main() -> None:
+    """Run the temporal-window sweep for one fold."""
     args = parse_args()
     fold = args.fold
     N_SEQ = int(args.n_seq)
@@ -125,29 +139,29 @@ def main() -> None:
 
     # ------------------------------------------------------------------ data
     data_dir = REPO_ROOT / "data" / "esc50"
-    test_npz  = data_dir / f"fold{fold}_test.npz"
+    test_npz = data_dir / f"fold{fold}_test.npz"
     train_npz = data_dir / f"fold{fold}_train.npz"
 
     log.info("[fold%d] loading test data from %s", fold, test_npz)
-    test_d  = np.load(test_npz)
+    test_d = np.load(test_npz)
     train_d = np.load(train_npz)
 
-    x_test_all = test_d["x_test"]   # (400, 128, 1, 1024)
-    y_test_all = test_d["y_test"]   # (400,)
-    x_train    = train_d["x_train"] # (1600, 128, 1, 1024)
+    x_test_all = test_d["x_test"]  # (400, 128, 1, 1024)
+    y_test_all = test_d["y_test"]  # (400,)
+    x_train = train_d["x_train"]  # (1600, 128, 1, 1024)
 
     # Subsample to N_SEQ (or all if fewer)
     N_avail = x_test_all.shape[0]
     N = min(N_SEQ, N_avail)
     rng = np.random.default_rng(42 + fold)
-    if N < N_avail:
+    if N_avail > N:
         idx = rng.choice(N_avail, size=N, replace=False)
         idx = np.sort(idx)
     else:
         idx = np.arange(N)
 
     x_val = x_test_all[idx]  # (N, 128, 1, 1024)
-    y_val = y_test_all[idx]  # (N,)
+    y_test_all[idx]  # (N,)
 
     N, J, F, T = x_val.shape
     log.info("[fold%d] N=%d J=%d F=%d T=%d", fold, N, J, F, T)
@@ -160,7 +174,8 @@ def main() -> None:
     # --------------------------------------------------------- classifier
     sys.path.insert(0, str(REPO_ROOT))
     from motionbench.classifiers.esc50_classifier import load_esc50_classifier
-    clf = load_esc50_classifier(device=device)
+
+    clf = load_esc50_classifier(fold=fold, device=device)
     clf.eval()
     log.info("[fold%d] ESC-50 AST classifier loaded", fold)
 
@@ -171,12 +186,15 @@ def main() -> None:
         probs_all = []
         bs = 32
         for start in range(0, N, bs):
-            probs_batch = clf(x_val_t[start:start+bs])
+            probs_batch = clf(x_val_t[start : start + bs])
             probs_all.append(probs_batch.cpu())
         probs_all = torch.cat(probs_all, dim=0)
     targets = probs_all.argmax(dim=-1).numpy()
-    log.info("[fold%d] predicted targets (top-5): %s", fold,
-             np.bincount(targets, minlength=50).argsort()[-5:][::-1].tolist())
+    log.info(
+        "[fold%d] predicted targets (top-5): %s",
+        fold,
+        np.bincount(targets, minlength=50).argsort()[-5:][::-1].tolist(),
+    )
 
     # --------------------------------------------------------- imputer setup
     mean_jf = torch.from_numpy(x_train.mean(axis=(0, 3))).float()  # (J, F)
@@ -184,22 +202,26 @@ def main() -> None:
     donors = torch.from_numpy(x_train[donor_idx]).float()  # (N, J, F, T)
 
     vaeac_imputer = None
-    flow_imputer  = None
+    flow_imputer = None
 
     def get_vaeac():
+        """Lazily load the release-format VAEAC imputer (cached)."""
         nonlocal vaeac_imputer
         if vaeac_imputer is None:
             from motionbench.imputers.vaeac import VAEACImputer
-            vaeac_imputer = VAEACImputer.load(VAEAC_CKPT)
+
+            vaeac_imputer = VAEACImputer.load(args.vaeac_ckpt)
             vaeac_imputer = vaeac_imputer.to(device)
             # vaeac does not have .eval() (BaseImputer, not nn.Module)
         return vaeac_imputer
 
     def get_flow():
+        """Lazily load the release-format Flow imputer (cached)."""
         nonlocal flow_imputer
         if flow_imputer is None:
             from motionbench.imputers.flow_matching import FlowMatchingImputer
-            flow_imputer = FlowMatchingImputer.load(FLOW_CKPT)
+
+            flow_imputer = FlowMatchingImputer.load(args.flow_ckpt)
             # FlowMatchingImputer uses _device and _net.to() directly
             flow_imputer._device = device
             flow_imputer._net = flow_imputer._net.to(device)
@@ -231,7 +253,7 @@ def main() -> None:
         log.info("[fold%d] Method: %s", fold, method)
         t_method = time.time()
 
-        phis  = np.zeros((N, K), dtype=np.float32)
+        phis = np.zeros((N, K), dtype=np.float32)
         v_all = np.zeros((N, n_coal), dtype=np.float32)
 
         imp = None
@@ -251,7 +273,7 @@ def main() -> None:
                 continue
 
         for i in range(N):
-            x_i = torch.from_numpy(x_val[i])   # (J, F, T)
+            x_i = torch.from_numpy(x_val[i])  # (J, F, T)
             target_i = int(targets[i])
 
             if method == "kernelshap_zero":
@@ -280,33 +302,37 @@ def main() -> None:
                 probs_b = clf(comps.to(device))
             v_b = probs_b[:, target_i].cpu()
             v_all[i] = v_b.numpy()
-            phis[i]  = kernel_shap_exact(z_bin, v_b, K).numpy()
+            phis[i] = kernel_shap_exact(z_bin, v_b, K).numpy()
 
             if (i + 1) % 25 == 0 or i == N - 1:
                 elapsed = time.time() - t_method
-                log.info("  [fold%d] %s  %d/%d  (%.2fs/seq)",
-                         fold, method, i + 1, N, elapsed / (i + 1))
+                log.info(
+                    "  [fold%d] %s  %d/%d  (%.2fs/seq)", fold, method, i + 1, N, elapsed / (i + 1)
+                )
 
         # ------------------------------------------------------ metrics
         faiths, aopcs = [], []
         for i in range(N):
-            v_i   = torch.from_numpy(v_all[i])
+            v_i = torch.from_numpy(v_all[i])
             phi_i = torch.from_numpy(phis[i])
-            faiths.append(faithfulness_correlation(z_bin, v_i, phi_i))
-            aopcs.append(player_aopc(v_i, z_bin, phi_i, K))
+            faiths.append(faithfulness_enumerated(z_bin, v_i, phi_i))
+            aopcs.append(player_aopc_enumerated(v_i, z_bin, phi_i, K))
 
         faiths_arr = np.asarray(faiths, dtype=np.float64)
-        aopcs_arr  = np.asarray(aopcs,  dtype=np.float64)
-        n_finite   = int(np.isfinite(faiths_arr).sum())
+        aopcs_arr = np.asarray(aopcs, dtype=np.float64)
+        n_finite = int(np.isfinite(faiths_arr).sum())
 
         faith_mean = float(np.nanmean(faiths_arr))
-        faith_std  = float(np.nanstd(faiths_arr, ddof=1)) if n_finite > 1 else float("nan")
-        aopc_mean  = float(np.mean(aopcs_arr))
-        aopc_std   = float(np.std(aopcs_arr, ddof=1)) if N > 1 else float("nan")
+        faith_std = float(np.nanstd(faiths_arr, ddof=1)) if n_finite > 1 else float("nan")
+        aopc_mean = float(np.mean(aopcs_arr))
+        aopc_std = float(np.std(aopcs_arr, ddof=1)) if N > 1 else float("nan")
 
         np.savez_compressed(
             method_dir / "attributions.npz",
-            phi=phis, x=x_val, target=targets, v=v_all,
+            phi=phis,
+            x=x_val,
+            target=targets,
+            v=v_all,
         )
         result = {
             "dataset": "esc50",
@@ -320,16 +346,22 @@ def main() -> None:
             "player_aopc": aopc_mean,
             "player_aopc_std": aopc_std,
             "phi_mean": phis.mean(axis=0).tolist(),
-            "phi_std":  phis.std(axis=0).tolist(),
+            "phi_std": phis.std(axis=0).tolist(),
             "faithfulness_per_seq": faiths_arr.tolist(),
-            "player_aopc_per_seq":  aopcs_arr.tolist(),
+            "player_aopc_per_seq": aopcs_arr.tolist(),
             "targets_per_seq": targets.tolist(),
         }
         result_path.write_text(json.dumps(result, indent=2))
         summary_rows.append(result)
-        log.info("  [fold%d] %s done %.1fs — faith=%+.3f aopc=%+.3f (n_fin=%d)",
-                 fold, method, time.time() - t_method,
-                 faith_mean, aopc_mean, n_finite)
+        log.info(
+            "  [fold%d] %s done %.1fs — faith=%+.3f aopc=%+.3f (n_fin=%d)",
+            fold,
+            method,
+            time.time() - t_method,
+            faith_mean,
+            aopc_mean,
+            n_finite,
+        )
 
     (fold_dir / "summary.json").write_text(json.dumps(summary_rows, indent=2))
     log.info("=" * 60)

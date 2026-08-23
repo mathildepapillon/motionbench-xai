@@ -132,10 +132,14 @@ class GroundTruthDataset(Protocol):
     def __len__(self) -> int: ...
 
     @property
-    def shape(self) -> tuple[int, int, int]: ...
+    def shape(self) -> tuple[int, int, int]:
+        """Spatial shape of every sample as ``(J, F, T)``."""
+        ...
 
     @property
-    def metadata(self) -> dict[str, object]: ...
+    def metadata(self) -> dict[str, object]:
+        """Dataset-level metadata dict."""
+        ...
 
     @property
     def oracle(self) -> "Oracle":

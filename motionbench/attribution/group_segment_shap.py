@@ -29,7 +29,7 @@ Economics and Game Theory*, pp. 76–88.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -37,9 +37,11 @@ import torch
 from torch import Tensor
 
 from motionbench.attribution.base import BaseAttributor
-from motionbench.imputers.base import BaseImputer
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from motionbench.imputers.base import BaseImputer
     from motionbench.players.base import PlayerSet
 
 
@@ -139,6 +141,15 @@ class GroupSegmentSHAPAttributor(BaseAttributor):
         n_coalitions: int = 256,
         seed: int | None = None,
     ) -> None:
+        """Initialise the exact group Shapley attributor.
+
+        Args:
+            classifier: Callable ``(B, J, F, T) float32 → (B,) float32``.
+            imputer: Fitted imputer used to fill hidden player coordinates.
+            n_coalitions: Number of imputation draws averaged per coalition
+                value.  Defaults to ``256``.
+            seed: Optional seed for reproducible imputation draws.
+        """
         super().__init__(classifier)
         self._imputer = imputer
         self._n_coalitions = n_coalitions
@@ -151,7 +162,7 @@ class GroupSegmentSHAPAttributor(BaseAttributor):
     def attribute(
         self,
         x: Tensor,
-        players: "PlayerSet",
+        players: PlayerSet,
         target: int = 0,
     ) -> Tensor:
         """Compute exact group Shapley values at the player level.
@@ -186,9 +197,7 @@ class GroupSegmentSHAPAttributor(BaseAttributor):
             z = torch.tensor(z_bits, dtype=torch.bool)
             mask = players.coalition_mask(z)
 
-            seed_k: int | None = (
-                None if self._seed is None else int(self._seed + bitmask)
-            )
+            seed_k: int | None = None if self._seed is None else int(self._seed + bitmask)
             # Draw n_coalitions imputed samples for this mask.
             x_imp_batch = self._imputer.impute(
                 x, mask, n_samples=self._n_coalitions, seed=seed_k
@@ -227,9 +236,8 @@ class GroupSegmentSHAPAttributor(BaseAttributor):
 # Module-level math helpers (also useful for testing)
 # ---------------------------------------------------------------------------
 
-def shapley_from_value_table(
-    v: npt.NDArray[np.float64], M: int
-) -> npt.NDArray[np.float64]:
+
+def shapley_from_value_table(v: npt.NDArray[np.float64], M: int) -> npt.NDArray[np.float64]:
     """Public alias for :func:`_shapley_from_v` for external use and testing.
 
     Args:

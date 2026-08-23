@@ -1,0 +1,46 @@
+# @package _global_
+# Player-set evaluation: any PlayerSet x any imputer, graded with EC1/EC3
+# against the deterministic f-of-mean oracles on a shared fixed coalition
+# design (exact enumeration for M <= 12, importance-corrected sampling above).
+#
+# See motionbench/pipelines/player_eval.py for the protocol.  CPU-friendly:
+# the default cell (gaussian_k4 x spatial x MLP x 2 methods) runs in minutes.
+pipeline: player_eval
+
+datasets:
+  - gaussian_k4
+  - skeleton_structured
+
+player_sets:
+  - temporal    # M = K windows
+  - spatial     # M = J joints
+  - cells       # M = J * K spatiotemporal cells
+
+methods:
+  - kernelshap_zero
+  - kernelshap_mean
+  - kernelshap_marginal
+  - kernelshap_empirical
+  - kernelshap_gauss   # KS-Gauss: fitted Gaussian conditional (Aas et al. 2021)
+  - kernelshap_oracle
+
+classifiers:
+  - synthetic_mlp
+
+# Shared fixed coalition design (see attribution/sampled_coalitions.py).
+coalition_budget: 1024
+coalition_seed: 7919
+
+# Value-function semantics: "f_of_mean" (executed release semantics,
+# v(S) = f(mean of completions)) or "mean_of_f" (paper Eq. 5,
+# v(S) = mean of f over completions).
+value_fn: f_of_mean
+
+n_sequences: 200
+seed: 42
+results_dir: results/player_eval
+checkpoint_dir: motionbench/classifiers/checkpoints/synthetic
+device: cpu
+
+wandb:
+  mode: disabled

@@ -134,10 +134,12 @@ _SANITY_METRICS: dict[str, Any] = {
 
 # These metrics need direct access to the nn.Module (not a clf_fn wrapper) because
 # they require gradient flow or parameter enumeration.
-_NEEDS_MODULE: frozenset[str] = frozenset({
-    "max_sensitivity",
-    "model_parameter_randomisation",
-})
+_NEEDS_MODULE: frozenset[str] = frozenset(
+    {
+        "max_sensitivity",
+        "model_parameter_randomisation",
+    }
+)
 
 _ALL_METRICS: dict[str, Any] = {
     **_GT_METRICS,
@@ -181,8 +183,7 @@ def _load_sub_config(subdir: str, name: str, cfg: DictConfig) -> DictConfig:
     config_path = config_root / subdir / f"{name}.yaml"
     if not config_path.exists():
         raise FileNotFoundError(
-            f"Config not found: {config_path}. "
-            f"Run from the motionbench-xai repo root."
+            f"Config not found: {config_path}. Run from the motionbench-xai repo root."
         )
     return OmegaConf.load(config_path)  # type: ignore[return-value]
 
@@ -192,7 +193,7 @@ def _load_sub_config(subdir: str, name: str, cfg: DictConfig) -> DictConfig:
 # ---------------------------------------------------------------------------
 
 
-def _instantiate_dataset(
+def instantiate_dataset(
     dataset_cfg: DictConfig,
 ) -> tuple[BaseDataset, int]:
     """Instantiate a dataset and extract the number of temporal windows K.
@@ -232,7 +233,7 @@ def _instantiate_dataset(
 # ---------------------------------------------------------------------------
 
 
-def _build_players(
+def build_players(
     method_cfg: DictConfig,
     J: int,
     F: int,
@@ -254,9 +255,7 @@ def _build_players(
     Returns:
         An instantiated :class:`~motionbench.players.base.PlayerSet`.
     """
-    players_cfg: dict[str, Any] = OmegaConf.to_container(
-        method_cfg.players, resolve=True
-    )  # type: ignore[assignment]
+    players_cfg: dict[str, Any] = OmegaConf.to_container(method_cfg.players, resolve=True)  # type: ignore[assignment]
     # Fill in shape args — all standard player types accept these kwargs
     players_cfg.update({"K": K, "J": J, "F": F, "T": T})
     return cast("PlayerSet", instantiate(OmegaConf.create(players_cfg)))
@@ -291,9 +290,7 @@ def _build_and_fit_imputer(
     Returns:
         A fitted :class:`~motionbench.imputers.base.BaseImputer`.
     """
-    imputer_cfg: dict[str, Any] = OmegaConf.to_container(
-        method_cfg.imputer, resolve=True
-    )  # type: ignore[assignment]
+    imputer_cfg: dict[str, Any] = OmegaConf.to_container(method_cfg.imputer, resolve=True)  # type: ignore[assignment]
 
     target_str = str(imputer_cfg.get("_target_", ""))
 
@@ -306,9 +303,7 @@ def _build_and_fit_imputer(
                 "cannot use GaussianOracle/CopulaOracle as an imputer."
             )
         if not isinstance(oracle, BaseImputer):
-            raise ValueError(
-                f"Dataset oracle {oracle!r} does not implement BaseImputer."
-            )
+            raise ValueError(f"Dataset oracle {oracle!r} does not implement BaseImputer.")
         return oracle  # already fitted — Sigma matrices were set at construction
 
     # Learned imputers need J, F, T at construction time
@@ -318,9 +313,7 @@ def _build_and_fit_imputer(
     # Also pass train_epochs if specified in method config (for VAEAC/Flow)
     train_epochs = int(method_cfg.get("train_epochs", 0))
 
-    imputer: BaseImputer = cast(
-        "BaseImputer", instantiate(OmegaConf.create(imputer_cfg))
-    )
+    imputer: BaseImputer = cast("BaseImputer", instantiate(OmegaConf.create(imputer_cfg)))
 
     # Learned imputers may expose a device attribute
     if hasattr(imputer, "_device"):
@@ -377,15 +370,15 @@ def _build_attributor(
     Raises:
         RuntimeError: If a required dependency (imputer / layer) is missing.
     """
+
     # Probability wrapper for SHAP methods: ensures the value function
     # v(S) = softmax(f(x))[target] matches the oracle's clf_fn exactly.
     def _prob_clf(x: Tensor) -> Tensor:
         with torch.no_grad():
             logits = classifier(x)
         return torch.softmax(logits, dim=-1)  # (B, n_classes)
-    attr_cfg: dict[str, Any] = OmegaConf.to_container(
-        method_cfg.attributor, resolve=True
-    )  # type: ignore[assignment]
+
+    attr_cfg: dict[str, Any] = OmegaConf.to_container(method_cfg.attributor, resolve=True)  # type: ignore[assignment]
     target_str = str(attr_cfg.get("_target_", ""))
 
     # ---- GradCAM: needs a convolutional layer from the classifier ----
@@ -408,12 +401,13 @@ def _build_attributor(
     # ---- KernelSHAP variants (including temporal-player): need imputer ----
     if "KernelShapAttributor" in target_str:
         if imputer is None:
-            raise RuntimeError(
-                f"{target_str} requires an imputer but none was built."
-            )
+            raise RuntimeError(f"{target_str} requires an imputer but none was built.")
         n_samples = int(method_cfg.get("n_kernel_samples", 256))
         n_compl = int(method_cfg.get("n_completion_samples", 20))
         seed = int(method_cfg.get("seed", 42))
+        # Value-function semantics: "f_of_mean" (executed release semantics)
+        # or "mean_of_f" (paper Eq. 5).  See kernel_shap.py "Estimator".
+        value_fn = str(method_cfg.get("value_fn", "f_of_mean"))
         return cast(
             "BaseAttributor",
             instantiate(
@@ -423,6 +417,7 @@ def _build_attributor(
                 n_samples=n_samples,
                 n_completion_samples=n_compl,
                 seed=seed,
+                value_fn=value_fn,
             ),
         )
 
@@ -432,14 +427,9 @@ def _build_attributor(
     # refers exclusively to the backward-compat alias for
     # ``KernelSHAPTemporalAttributor`` (our hand-rolled KernelSHAP-over-
     # temporal-windows surrogate, kept for old result-file deserialisation).
-    if (
-        "KernelSHAPTemporalAttributor" in target_str
-        or target_str.endswith(".TimeSHAPAttributor")
-    ):
+    if "KernelSHAPTemporalAttributor" in target_str or target_str.endswith(".TimeSHAPAttributor"):
         if imputer is None:
-            raise RuntimeError(
-                f"{target_str} requires an imputer but none was built."
-            )
+            raise RuntimeError(f"{target_str} requires an imputer but none was built.")
         n_coalitions = int(method_cfg.get("n_coalitions", 100))
         seed = int(method_cfg.get("seed", 42))
         return cast(
@@ -478,7 +468,7 @@ def _build_attributor(
 # ---------------------------------------------------------------------------
 
 
-def _build_classifier(
+def build_classifier(
     clf_cfg: DictConfig,
     J: int,
     F: int,
@@ -543,6 +533,7 @@ class _SampleCachedOracle:
     """
 
     def __init__(self, base_oracle: Any, cached_phi: Tensor) -> None:
+        """Initialise the wrapper with the base oracle and cached Shapley vector."""
         self._base = base_oracle
         self._phi = cached_phi
 
@@ -551,6 +542,7 @@ class _SampleCachedOracle:
         return self._phi
 
     def conditional_sample(self, *args: Any, **kwargs: Any) -> Any:
+        """Forward to the base oracle's ``conditional_sample``."""
         return self._base.conditional_sample(*args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
@@ -606,8 +598,9 @@ def _evaluate_metrics(
     Returns:
         Dict mapping metric sub-score names to float values (averaged).
     """
-    import numpy as _np
     from collections import Counter  # noqa: PLC0415
+
+    import numpy as _np
 
     oracle = getattr(dataset, "oracle", None)  # None for real datasets
     clf_device = torch.device(device)
@@ -616,13 +609,16 @@ def _evaluate_metrics(
 
     def _make_clf_fn(tgt: int) -> Any:
         """Return a softmax-probability callable for a specific target class."""
+
         def clf_fn(b: Tensor) -> Tensor:
+            """Softmax probability of class ``tgt`` for a ``(B, J, F, T)`` batch."""
             with torch.no_grad():
                 logits = classifier(b.to(clf_device))
             proba = torch.softmax(logits, dim=-1)
             if proba.ndim == 2:
                 return proba[:, tgt]
             return proba
+
         return clf_fn
 
     # Quantus explain_func is built once; use the most common predicted class
@@ -668,11 +664,14 @@ def _evaluate_metrics(
                 len(phi_list),
                 oracle_n_mc,
             )
-            for idx, (x_i, target_i) in enumerate(zip(x_list, target_list)):
+            for idx, (x_i, target_i) in enumerate(zip(x_list, target_list, strict=False)):
                 try:
                     oracle_phi_cache[idx] = oracle.true_shapley(
-                        x_i, _make_clf_fn(target_i), players,
-                        n_mc=oracle_n_mc, n_coalitions=oracle_n_coalitions,
+                        x_i,
+                        _make_clf_fn(target_i),
+                        players,
+                        n_mc=oracle_n_mc,
+                        n_coalitions=oracle_n_coalitions,
                     )
                 except Exception as exc:
                     log.warning("Oracle pre-computation failed for sample %d: %s", idx, exc)
@@ -724,7 +723,7 @@ def _evaluate_metrics(
 
         # Stability/sanity use a limited subset; all others use the full list.
         # Track sample index so we can look up the pre-computed oracle phi.
-        indexed_triples = list(enumerate(zip(phi_list, x_list, target_list)))
+        indexed_triples = list(enumerate(zip(phi_list, x_list, target_list, strict=False)))
         if name in _NEEDS_MODULE:
             indexed_triples = indexed_triples[:stability_n]
 
@@ -771,7 +770,7 @@ def _evaluate_metrics(
 # ---------------------------------------------------------------------------
 
 
-def _run_cell(
+def run_cell(
     dataset_name: str,
     clf_name: str,
     method_name: str,
@@ -803,13 +802,13 @@ def _run_cell(
     try:
         # ---- Dataset ----
         dataset_cfg = _load_sub_config("data", dataset_name, cfg)
-        dataset, K = _instantiate_dataset(dataset_cfg)
+        dataset, K = instantiate_dataset(dataset_cfg)
         J, F, T = dataset.shape
 
         # ---- Classifier ----
         clf_cfg = _load_sub_config("classifiers", clf_name, cfg)
         n_classes = int(str(dataset.metadata.get("n_classes", 3)))
-        classifier = _build_classifier(clf_cfg, J, F, T, K, n_classes)
+        classifier = build_classifier(clf_cfg, J, F, T, K, n_classes)
         device: str = str(cfg.get("device", "cpu"))
         classifier = classifier.to(torch.device(device))
         classifier.eval()  # required: BatchNorm uses running stats in eval mode
@@ -828,13 +827,11 @@ def _run_cell(
                 _ckpt.get("val_acc", float("nan")),
             )
         else:
-            log.warning(
-                "No checkpoint found at %s — using random initialisation.", _ckpt_path
-            )
+            log.warning("No checkpoint found at %s — using random initialisation.", _ckpt_path)
 
         # ---- Method ----
         method_cfg = _load_sub_config("methods", method_name, cfg)
-        players = _build_players(method_cfg, J, F, T, K)
+        players = build_players(method_cfg, J, F, T, K)
 
         # Build imputer if the method config specifies one
         has_imputer = OmegaConf.select(method_cfg, "imputer") is not None
@@ -869,7 +866,10 @@ def _run_cell(
                     cache_loaded = True
                     log.info(
                         "Loaded cached attributions for %s/%s/%s (n=%d)",
-                        dataset_name, clf_name, method_name, n_seq,
+                        dataset_name,
+                        clf_name,
+                        method_name,
+                        n_seq,
                     )
             except Exception as exc:  # pragma: no cover — cache is optional
                 log.warning("Failed to load attribution cache %s: %s", cache_path, exc)
@@ -930,9 +930,7 @@ def _run_cell(
         }
         result_path.parent.mkdir(parents=True, exist_ok=True)
         result_path.write_text(json.dumps(result, indent=2))
-        log.info(
-            "Done %s/%s/%s — %d metrics", dataset_name, clf_name, method_name, len(scores)
-        )
+        log.info("Done %s/%s/%s — %d metrics", dataset_name, clf_name, method_name, len(scores))
         return result
 
     except Exception as exc:
@@ -1018,15 +1016,9 @@ def run_synthetic_eval(cfg: DictConfig) -> pd.DataFrame:
     classifiers: list[str] = list(cfg.classifiers)
     n_jobs = int(cfg.get("n_jobs", 1))
 
-    cells = [
-        (ds, clf, mth)
-        for ds in datasets
-        for clf in classifiers
-        for mth in methods
-    ]
+    cells = [(ds, clf, mth) for ds in datasets for clf in classifiers for mth in methods]
     log.info(
-        "Launching %d cells (%d datasets × %d classifiers × %d methods) "
-        "with n_jobs=%d",
+        "Launching %d cells (%d datasets × %d classifiers × %d methods) with n_jobs=%d",
         len(cells),
         len(datasets),
         len(classifiers),
@@ -1035,16 +1027,14 @@ def run_synthetic_eval(cfg: DictConfig) -> pd.DataFrame:
     )
 
     def _run(ds: str, clf: str, mth: str) -> dict[str, Any]:
-        result = _run_cell(ds, clf, mth, cfg)
+        result = run_cell(ds, clf, mth, cfg)
         _log_to_wandb(result)
         return result
 
     if n_jobs == 1:
         results = [_run(ds, clf, mth) for ds, clf, mth in cells]
     else:
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(_run)(ds, clf, mth) for ds, clf, mth in cells
-        )
+        results = Parallel(n_jobs=n_jobs)(delayed(_run)(ds, clf, mth) for ds, clf, mth in cells)
 
     try:
         import wandb  # noqa: PLC0415
@@ -1055,3 +1045,12 @@ def run_synthetic_eval(cfg: DictConfig) -> pd.DataFrame:
         pass
 
     return pd.DataFrame(results) if results else pd.DataFrame()
+
+
+_instantiate_dataset = instantiate_dataset  # backwards-compat alias (pre-2.0 private name)
+
+_build_players = build_players  # backwards-compat alias (pre-2.0 private name)
+
+_build_classifier = build_classifier  # backwards-compat alias (pre-2.0 private name)
+
+_run_cell = run_cell  # backwards-compat alias (pre-2.0 private name)

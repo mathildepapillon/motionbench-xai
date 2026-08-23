@@ -7,6 +7,7 @@ indivisible-masking guarantee.
 A ``MockPlayerSet`` is defined here; all passing tests confirm that the
 ABC itself is correctly wired.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -14,7 +15,6 @@ import torch
 from torch import Tensor
 
 from motionbench.players.base import PlayerSet
-
 
 # ---------------------------------------------------------------------------
 # Mock implementation (minimal concrete subclass)
@@ -53,7 +53,9 @@ class MockPlayerSet(PlayerSet):
 
     def aggregate(self, phi_coords: Tensor) -> Tensor:
         if phi_coords.shape != (self._J, self._F, self._T):
-            raise ValueError(f"expected phi_coords.shape=={self.shape}; got {tuple(phi_coords.shape)}")
+            raise ValueError(
+                f"expected phi_coords.shape=={self.shape}; got {tuple(phi_coords.shape)}"
+            )
         phi = torch.zeros(self._M)
         for k in range(self._M):
             t_start = k * self._window_size
@@ -179,3 +181,95 @@ def test_repr(players):
     r = repr(players)
     assert "MockPlayerSet" in r
     assert "n_players" in r
+
+
+# ---------------------------------------------------------------------------
+# Concrete player-set contracts (mask/aggregate) — shared parametrised tests
+# ---------------------------------------------------------------------------
+
+from motionbench.players.joint_window_cells import JointWindowCells  # noqa: E402
+from motionbench.players.spatial_joints import SpatialJoints  # noqa: E402
+from motionbench.players.temporal_windows import TemporalWindows  # noqa: E402
+
+_J, _F, _T, _K = 5, 3, 16, 4
+
+
+def _concrete_player_sets():
+    return [
+        pytest.param(TemporalWindows(K=_K, T=_T, J=_J, F=_F), id="temporal"),
+        pytest.param(SpatialJoints(J=_J, F=_F, T=_T), id="spatial"),
+        pytest.param(JointWindowCells(J=_J, K=_K, F=_F, T=_T), id="cells"),
+    ]
+
+
+@pytest.mark.parametrize("ps", _concrete_player_sets())
+def test_concrete_singleton_masks_partition(ps):
+    """Singleton coalition masks are disjoint and cover all coordinates."""
+    M = ps.n_players
+    total = torch.zeros(ps.shape, dtype=torch.int32)
+    for k in range(M):
+        z = torch.zeros(M, dtype=torch.int32)
+        z[k] = 1
+        mask = ps.coalition_mask(z)
+        assert mask.dtype == torch.bool
+        assert mask.any(), f"player {k} owns no coordinates"
+        total += mask.int()
+    assert (total == 1).all(), "player masks must partition (J, F, T) exactly once"
+
+
+@pytest.mark.parametrize("ps", _concrete_player_sets())
+def test_concrete_mask_union_consistency(ps):
+    """coalition_mask(z) equals the union of the singleton masks of z."""
+    M = ps.n_players
+    z = torch.zeros(M, dtype=torch.int32)
+    z[:: max(1, M // 3)] = 1
+    mask = ps.coalition_mask(z)
+    union = torch.zeros(ps.shape, dtype=torch.bool)
+    for k in torch.nonzero(z).flatten().tolist():
+        zk = torch.zeros(M, dtype=torch.int32)
+        zk[k] = 1
+        union |= ps.coalition_mask(zk)
+    assert torch.equal(mask, union)
+
+
+@pytest.mark.parametrize("ps", _concrete_player_sets())
+def test_concrete_boundary_masks(ps):
+    M = ps.n_players
+    assert ps.coalition_mask(torch.ones(M, dtype=torch.int32)).all()
+    assert not ps.coalition_mask(torch.zeros(M, dtype=torch.int32)).any()
+
+
+@pytest.mark.parametrize("ps", _concrete_player_sets())
+def test_concrete_aggregate_sums_own_coordinates(ps):
+    """aggregate(phi)[k] is the sum of phi over player k's coordinates."""
+    M = ps.n_players
+    phi_coords = torch.randn(*ps.shape)
+    agg = ps.aggregate(phi_coords)
+    assert agg.shape == (M,)
+    for k in range(M):
+        zk = torch.zeros(M, dtype=torch.int32)
+        zk[k] = 1
+        mask = ps.coalition_mask(zk)
+        expected = float(phi_coords[mask].sum())
+        assert float(agg[k]) == pytest.approx(expected, abs=1e-4)
+
+
+@pytest.mark.parametrize("ps", _concrete_player_sets())
+def test_concrete_aggregate_efficiency_preserved(ps):
+    """Total attribution mass is preserved by aggregation (partition sets)."""
+    phi_coords = torch.randn(*ps.shape)
+    agg = ps.aggregate(phi_coords)
+    assert float(agg.sum()) == pytest.approx(float(phi_coords.sum()), abs=1e-4)
+
+
+def test_cells_player_index_layout():
+    """JointWindowCells player index is j * K + k."""
+    ps = JointWindowCells(J=_J, K=_K, F=_F, T=_T)
+    ws = _T // _K
+    j, k = 2, 3
+    z = torch.zeros(ps.n_players, dtype=torch.int32)
+    z[ps.player_index(j, k)] = 1
+    mask = ps.coalition_mask(z)
+    expected = torch.zeros(_J, _F, _T, dtype=torch.bool)
+    expected[j, :, k * ws : (k + 1) * ws] = True
+    assert torch.equal(mask, expected)

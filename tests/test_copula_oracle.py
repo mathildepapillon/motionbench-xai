@@ -42,9 +42,7 @@ class _TemporalWindows:
         self._K = K
         self._T = T
         q = T // K
-        self._windows = [
-            list(range(k * q, (k + 1) * q if k < K - 1 else T)) for k in range(K)
-        ]
+        self._windows = [list(range(k * q, (k + 1) * q if k < K - 1 else T)) for k in range(K)]
 
     @property
     def n_players(self) -> int:
@@ -208,8 +206,12 @@ def _reference_gaussian_shapley(
         mask_full = np.broadcast_to(mask, x.shape).copy()
 
         samps = _gaussian_conditional_sample_np(
-            x, mask_full, Sigma_joints, Sigma_time, n_mc,
-            np.random.default_rng(int(rng.integers(1 << 31)))
+            x,
+            mask_full,
+            Sigma_joints,
+            Sigma_time,
+            n_mc,
+            np.random.default_rng(int(rng.integers(1 << 31))),
         )
         values[i] = float(classifier_fn(samps.astype(np.float32)).mean())
 
@@ -268,7 +270,9 @@ def test_marginal_round_trip(marginal):
     # Filter out x ≈ 0 where BurrXII PDF = 0 (CDF degeneracy near 0.5).
     ok = np.abs(x) > 1e-3
     np.testing.assert_allclose(
-        x_rt[ok], x[ok], atol=1e-6,
+        x_rt[ok],
+        x[ok],
+        atol=1e-6,
         err_msg=f"Round-trip failed for {marginal!r}",
     )
 
@@ -331,19 +335,18 @@ def test_gaussian_marginals_match_gaussian_oracle():
     seed = 7
 
     # CopulaOracle Shapley values.
-    phi_copula = copula_oracle.true_shapley(
-        x0, clf, players, n_mc=n_mc, seed=seed
-    ).numpy()
+    phi_copula = copula_oracle.true_shapley(x0, clf, players, n_mc=n_mc, seed=seed).numpy()
 
     # Reference Gaussian Shapley values.
     phi_ref = _reference_gaussian_shapley(
-        z0, Sigma_j, Sigma_t, lambda b: b.mean(axis=(1, 2, 3)),
-        players, n_mc=n_mc, seed=seed
+        z0, Sigma_j, Sigma_t, lambda b: b.mean(axis=(1, 2, 3)), players, n_mc=n_mc, seed=seed
     )
 
     # Allow generous tolerance due to MC variance (1e-5 is tight; use 0.02).
     np.testing.assert_allclose(
-        phi_copula, phi_ref, atol=0.02,
+        phi_copula,
+        phi_ref,
+        atol=0.02,
         err_msg="CopulaOracle(GaussianMarginal) Shapley values deviate from reference.",
     )
 
@@ -499,8 +502,8 @@ def test_conditional_sample_preserves_observed_spatiotemporal():
 
     # Arbitrary spatiotemporal mask: joint 0 at all times + all joints at t=0.
     mask = torch.zeros(J, F, T, dtype=torch.bool)
-    mask[0, :, :] = True      # joint 0 all time
-    mask[:, :, 0] = True      # all joints at t=0
+    mask[0, :, :] = True  # joint 0 all time
+    mask[:, :, 0] = True  # all joints at t=0
 
     samps = oracle.conditional_sample(x0, mask, n=10, seed=2)
     assert samps.shape == (10, J, F, T)

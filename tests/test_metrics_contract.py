@@ -7,15 +7,14 @@ Verifies:
 4. _check_deps raises ValueError when required dependencies are missing.
 5. Subclasses with requires_oracle=True refuse None oracle.
 """
+
 from __future__ import annotations
 
 import pytest
 import torch
-from torch import Tensor
 
 from motionbench.metrics.base import BaseMetric
-from tests.conftest import J, F, T, M
-
+from tests.conftest import F, J, M, T
 
 # ---------------------------------------------------------------------------
 # Minimal mocks
@@ -30,7 +29,7 @@ class _MockPlayers:
         ws = T // M
         phi = torch.zeros(M)
         for k in range(M):
-            phi[k] = phi_coords[:, :, k * ws:(k + 1) * ws].sum()
+            phi[k] = phi_coords[:, :, k * ws : (k + 1) * ws].sum()
         return phi
 
 
@@ -131,7 +130,7 @@ def test_evaluate_returns_string_keys(x_sample, classifier_fn):
     players = _MockPlayers()
     phi = torch.randn(M)
     result = m.evaluate(phi, x_sample, classifier_fn, players)
-    assert all(isinstance(k, str) for k in result.keys())
+    assert all(isinstance(k, str) for k in result)
 
 
 def test_requires_oracle_default():

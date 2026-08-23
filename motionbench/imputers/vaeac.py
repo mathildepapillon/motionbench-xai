@@ -68,12 +68,12 @@ class _FramePositionalEncoding(nn.Module):
     """
 
     def __init__(self, d_model: int, max_len: int = 512) -> None:
+        """Initialise and precompute the ``(max_len, d_model)`` encoding buffer."""
         super().__init__()
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(max_len, dtype=torch.float32).unsqueeze(1)
         div_term = torch.exp(
-            torch.arange(0, d_model, 2, dtype=torch.float32)
-            * (-math.log(10_000.0) / d_model)
+            torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10_000.0) / d_model)
         )
         pe[:, 0::2] = torch.sin(position * div_term)
         if d_model % 2 == 0:
@@ -206,6 +206,7 @@ class _TransformerTrunk(nn.Module):
         dropout: float,
         max_len: int,
     ) -> None:
+        """Initialise the positional encoding and encoder stack."""
         super().__init__()
         self.pos = _FramePositionalEncoding(d_model, max_len=max_len)
         enc_layer = nn.TransformerEncoderLayer(
@@ -266,6 +267,7 @@ class _EncoderHead(nn.Module):
         d_latent: int,
         max_len: int,
     ) -> None:
+        """Initialise the projection, trunk, and latent parameter heads."""
         super().__init__()
         self.in_proj = nn.Linear(input_feat_dim, d_model)
         self.trunk = _TransformerTrunk(d_model, nhead, num_layers, ff_dim, dropout, max_len)
@@ -273,9 +275,7 @@ class _EncoderHead(nn.Module):
         self.logvar_head = nn.Linear(d_model, d_latent)
         self.apply(_init_linear)
 
-    def forward(
-        self, feat: Tensor, pad_mask: Tensor | None = None
-    ) -> tuple[Tensor, Tensor]:
+    def forward(self, feat: Tensor, pad_mask: Tensor | None = None) -> tuple[Tensor, Tensor]:
         """Encode token features into latent distribution parameters.
 
         Args:
@@ -317,6 +317,7 @@ class _Decoder(nn.Module):
         dropout: float,
         max_len: int,
     ) -> None:
+        """Initialise the projection, trunk, and output head."""
         super().__init__()
         self.in_proj = nn.Linear(input_feat_dim, d_model)
         self.trunk = _TransformerTrunk(d_model, nhead, num_layers, ff_dim, dropout, max_len)
@@ -357,6 +358,7 @@ class _GaussianScalarHead(nn.Module):
     """
 
     def __init__(self) -> None:
+        """Initialise the shared scalar ``log_sigma`` at zero."""
         super().__init__()
         self.log_sigma = nn.Parameter(torch.zeros(1))
 
@@ -373,9 +375,7 @@ class _GaussianScalarHead(nn.Module):
         """
         sigma2 = (2.0 * self.log_sigma).exp()
         nll_per = (
-            0.5 * (x_target - x_pred) ** 2 / sigma2
-            + self.log_sigma
-            + 0.5 * math.log(2.0 * math.pi)
+            0.5 * (x_target - x_pred) ** 2 / sigma2 + self.log_sigma + 0.5 * math.log(2.0 * math.pi)
         )
         hid_f = hid_mask.to(nll_per.dtype)
         n_hid = hid_f.sum().clamp(min=1.0)
@@ -429,6 +429,7 @@ class _VAEAC(nn.Module):
         num_layers: int = 2,
         max_len: int = 512,
     ) -> None:
+        """Initialise the three subnets and the Gaussian output head."""
         super().__init__()
         self.n_joints = n_joints
         self.n_coords = n_coords
@@ -466,17 +467,13 @@ class _VAEAC(nn.Module):
         """Build prior-encoder token: ``[(x·mask)_flat, mask_flat]``."""
         B, T = x.shape[:2]
         obs_f = obs.to(x.dtype)
-        return torch.cat(
-            [(x * obs_f).reshape(B, T, -1), obs_f.reshape(B, T, -1)], dim=-1
-        )
+        return torch.cat([(x * obs_f).reshape(B, T, -1), obs_f.reshape(B, T, -1)], dim=-1)
 
     def _tok_dec(self, z: Tensor, x: Tensor, obs: Tensor) -> Tensor:
         """Build decoder token: ``[z, (x·mask)_flat, mask_flat]``."""
         B, T = x.shape[:2]
         obs_f = obs.to(x.dtype)
-        return torch.cat(
-            [z, (x * obs_f).reshape(B, T, -1), obs_f.reshape(B, T, -1)], dim=-1
-        )
+        return torch.cat([z, (x * obs_f).reshape(B, T, -1), obs_f.reshape(B, T, -1)], dim=-1)
 
     # ------------------------------------------------------------------
     # Training loss
@@ -515,9 +512,7 @@ class _VAEAC(nn.Module):
             hid = hid & pad_mask[:, :, None, None]
         recon_nll = self.head.nll(x, x_pred, hid)
 
-        kl_per = 0.5 * (
-            lv_p - lv_q + (lv_q.exp() + (mu_q - mu_p) ** 2) / lv_p.exp() - 1.0
-        )
+        kl_per = 0.5 * (lv_p - lv_q + (lv_q.exp() + (mu_q - mu_p) ** 2) / lv_p.exp() - 1.0)
         if pad_mask is not None:
             pm_f = pad_mask.to(kl_per.dtype)[:, :, None]
             kl = (kl_per * pm_f).sum() / pm_f.sum().clamp(min=1.0) / kl_per.shape[-1]
@@ -612,6 +607,7 @@ class VAEACImputer(BaseImputer):
         latent_dim: int = 64,
         hidden_dim: int = 256,
     ) -> None:
+        """Initialise the imputer and an untrained VAEAC model on CPU."""
         self._J = J
         self._F = F
         self._T = T
@@ -690,9 +686,7 @@ class VAEACImputer(BaseImputer):
                 "Either call fit(dataset) or load a checkpoint with load()."
             )
         if x_obs.shape != mask.shape:
-            raise ValueError(
-                f"x_obs.shape {tuple(x_obs.shape)} != mask.shape {tuple(mask.shape)}"
-            )
+            raise ValueError(f"x_obs.shape {tuple(x_obs.shape)} != mask.shape {tuple(mask.shape)}")
         J, F, T = x_obs.shape
         if (J, F, T) != (self._J, self._F, self._T):
             raise ValueError(
@@ -711,9 +705,7 @@ class VAEACImputer(BaseImputer):
         m_vaeac = m.permute(2, 0, 1).unsqueeze(0)
 
         self._model.eval()
-        completions = self._model.sample_completions(
-            x_vaeac, m_vaeac, n_samples=n_samples
-        )
+        completions = self._model.sample_completions(x_vaeac, m_vaeac, n_samples=n_samples)
         # completions: (n_samples, T, J, F) → (n_samples, J, F, T)
         output = completions.permute(0, 2, 3, 1).contiguous()
 

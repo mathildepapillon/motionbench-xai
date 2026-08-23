@@ -25,17 +25,27 @@ The SHAP game is formulated as follows:
 
 Estimator
 ---------
-The value function estimator is::
+Two value-function estimators are available, selected by ``value_fn``:
 
-    v(S) ≈ f(E_{x_bar ~ q(·|x_S)}[x])
+* ``"f_of_mean"`` (default — the semantics the released benchmark executed)::
 
-i.e. the classifier evaluated at the **mean completion** (not the average
-over individual predictions).  For a linear classifier this is exact; for
-non-linear classifiers it introduces a Jensen bias that is negligible when
-the imputer's conditional variance is small.
+      v(S) ≈ f(E_{x_bar ~ q(·|x_S)}[x])
 
-For deterministic imputers (``ZeroImputer``, ``MeanImputer``) the mean
-completion degenerates to a single constant and the bias is zero.
+  i.e. the classifier evaluated at the **mean completion**.  For a linear
+  classifier this is exact; for non-linear classifiers it introduces a
+  Jensen bias that is negligible when the imputer's conditional variance
+  is small.
+
+* ``"mean_of_f"`` (paper Eq. 5)::
+
+      v(S) ≈ (1/R) Σ_r f(x_S ⊔ x_bar^(r))
+
+  i.e. the classifier output **averaged over R individual completions**.
+
+The two coincide for deterministic imputers (``ZeroImputer``,
+``MeanImputer``) and for ``R = 1``; they differ by a Jensen gap for
+stochastic imputers with ``R > 1``.  The distinction was documented by the
+independent validation study (its RESOLUTIONS.md, finding C3/A3).
 
 References
 ----------
@@ -106,6 +116,7 @@ class _MotionBenchMasker(shap.maskers.Masker):  # type: ignore[misc]
         imputer: BaseImputer,
         n_completion_samples: int,
     ) -> None:
+        """Initialise the masker with the observed sequence, player set, and imputer."""
         self._x_obs = x_obs
         self._players = players
         self._imputer = imputer
@@ -135,16 +146,29 @@ class _MotionBenchMasker(shap.maskers.Masker):  # type: ignore[misc]
             A 1-tuple containing a ``(1, J*F*T)`` float64 array representing
             the mean imputed completion for this coalition.
         """
+        mean_comp = torch.from_numpy(self.completions(mask)).float().mean(dim=0)
+        flat: npt.NDArray[np.float64] = (
+            mean_comp.detach().cpu().numpy().reshape(1, self._n_flat).astype(np.float64)
+        )
+        return (flat,)
+
+    def completions(self, mask: npt.NDArray[Any]) -> npt.NDArray[np.float32]:
+        """Draw the raw imputer completions for one coalition.
+
+        Args:
+            mask: ``(M,)`` boolean array — True = player is observed.
+
+        Returns:
+            ``(n_completion_samples, J, F, T)`` float32 array of completions
+            (observed entries preserved bit-for-bit by the imputer contract).
+        """
         z = torch.from_numpy(mask.astype(np.int32))
         element_mask: Tensor = self._players.coalition_mask(z)  # (J, F, T) bool
         completions: Tensor = self._imputer.impute(
             self._x_obs, element_mask, n_samples=self._n_completion
         )  # (n_completion, J, F, T)
-        mean_comp: Tensor = completions.float().mean(dim=0)  # (J, F, T)
-        flat: npt.NDArray[np.float64] = (
-            mean_comp.detach().cpu().numpy().reshape(1, self._n_flat).astype(np.float64)
-        )
-        return (flat,)
+        result: npt.NDArray[np.float32] = completions.detach().cpu().numpy().astype(np.float32)
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -187,6 +211,14 @@ class KernelShapAttributor(BaseAttributor):
         seed: NumPy random seed for SHAP's internal coalition sampling.
         algorithm: ``"kernel"`` (default) or ``"permutation"``.  Stored
             for pipeline metadata; both currently use KernelExplainer.
+        value_fn: ``"f_of_mean"`` (default; classifier evaluated at the mean
+            completion — the executed release semantics) or ``"mean_of_f"``
+            (paper Eq. 5; classifier output averaged over completions).
+            Configure per method via the ``value_fn`` key in
+            ``configs/methods/*.yaml``.
+
+    Raises:
+        ValueError: for an unknown ``value_fn``.
     """
 
     requires_imputer: bool = True
@@ -200,13 +232,18 @@ class KernelShapAttributor(BaseAttributor):
         n_completion_samples: int = 20,
         seed: int = 42,
         algorithm: str = "kernel",
+        value_fn: str = "f_of_mean",
     ) -> None:
+        """Initialise KernelSHAP with an imputer and sampling configuration."""
         super().__init__(classifier)
+        if value_fn not in ("f_of_mean", "mean_of_f"):
+            raise ValueError(f"Unknown value_fn {value_fn!r}; use 'f_of_mean' or 'mean_of_f'.")
         self._imputer = imputer
         self._n_samples = n_samples
         self._n_completion_samples = n_completion_samples
         self._seed = seed
         self._algorithm = algorithm
+        self._value_fn = value_fn
 
     def attribute(
         self,
@@ -249,9 +286,7 @@ class KernelShapAttributor(BaseAttributor):
         # Build the masker and classifier wrappers
         # ------------------------------------------------------------------ #
 
-        masker = _MotionBenchMasker(
-            x, players, self._imputer, self._n_completion_samples
-        )
+        masker = _MotionBenchMasker(x, players, self._imputer, self._n_completion_samples)
 
         # Detect classifier device so we can move inputs to match.
         # self._classifier may be a plain Python function (e.g. _prob_clf wrapper),
@@ -293,8 +328,10 @@ class KernelShapAttributor(BaseAttributor):
         ) -> npt.NDArray[np.float64]:
             """Map binary coalition indicators (n_evals, M) → v(S) values (n_evals,).
 
-            For each coalition row, calls the masker to obtain the mean
-            imputed completion and then runs the classifier.
+            For each coalition row, draws completions from the imputer and
+            applies the configured value-function estimator: classifier at
+            the mean completion (``f_of_mean``) or classifier averaged over
+            completions (``mean_of_f``).
 
             Args:
                 coalition_np: ``(n_evals, M)`` binary float64 array.
@@ -304,6 +341,13 @@ class KernelShapAttributor(BaseAttributor):
                 ``(n_evals,)`` float64 array of value-function estimates.
             """
             n_evals = len(coalition_np)
+            if self._value_fn == "mean_of_f":
+                values = np.empty(n_evals, dtype=np.float64)
+                for i, row in enumerate(coalition_np):
+                    comps = masker.completions(row.astype(bool))  # (R, J, F, T)
+                    flat_r = comps.reshape(len(comps), J * F * T).astype(np.float64)
+                    values[i] = float(np.mean(_clf_flat(flat_r)))
+                return values
             flat_batch = np.empty((n_evals, J * F * T), dtype=np.float64)
             for i, row in enumerate(coalition_np):
                 (mean_comp,) = masker(row.astype(bool), row)

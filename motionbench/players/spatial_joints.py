@@ -34,16 +34,19 @@ class SpatialJoints(PlayerSet):
     """
 
     def __init__(self, J: int, F: int, T: int) -> None:
+        """Initialise with the ``(J, F, T)`` element-space shape."""
         self._J = J
         self._F = F
         self._T = T
 
     @property
     def n_players(self) -> int:
+        """Number of players M = J."""
         return self._J
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) element-space shape this player set operates over."""
         return self._J, self._F, self._T
 
     def coalition_mask(self, z: Tensor) -> Tensor:
@@ -59,9 +62,7 @@ class SpatialJoints(PlayerSet):
             ValueError: if ``z.shape != (J,)``.
         """
         if z.shape != (self._J,):
-            raise ValueError(
-                f"Expected z.shape==({self._J},); got {tuple(z.shape)}."
-            )
+            raise ValueError(f"Expected z.shape==({self._J},); got {tuple(z.shape)}.")
         mask = torch.zeros(self._J, self._F, self._T, dtype=torch.bool)
         for j in range(self._J):
             if z[j]:

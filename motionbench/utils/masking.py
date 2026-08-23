@@ -1,4 +1,4 @@
-"""motionbench.utils.masking — element-level mask utilities.
+"""motionbench.utils.masking — Element-level mask utilities.
 
 Helpers for converting coalition indicators to element-level boolean masks
 and validating mask shapes throughout the motionbench pipeline.
@@ -13,17 +13,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import torch
-from torch import Tensor
-
 if TYPE_CHECKING:
+    from torch import Tensor
+
     from motionbench.players.base import PlayerSet
 
 
 __all__ = ["coalition_to_element_mask", "assert_mask_shape"]
 
 
-def coalition_to_element_mask(z: Tensor, player_set: "PlayerSet") -> Tensor:
+def coalition_to_element_mask(z: Tensor, player_set: PlayerSet) -> Tensor:
     """Convert a ``(M,)`` binary coalition indicator to a ``(J, F, T)`` element mask.
 
     Delegates to :py:meth:`~motionbench.players.base.PlayerSet.coalition_mask`,
@@ -57,6 +56,4 @@ def assert_mask_shape(mask: Tensor, J: int, F: int, T: int) -> None:
         ValueError: if ``mask.shape != (J, F, T)``.
     """
     if tuple(mask.shape) != (J, F, T):
-        raise ValueError(
-            f"Expected mask shape ({J}, {F}, {T}), got {tuple(mask.shape)}"
-        )
+        raise ValueError(f"Expected mask shape ({J}, {F}, {T}), got {tuple(mask.shape)}")

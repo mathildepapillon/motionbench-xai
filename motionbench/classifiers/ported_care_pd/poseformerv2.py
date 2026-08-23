@@ -77,6 +77,7 @@ __all__ = ["PoseFormerV2Classifier"]
 class _Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None,
                  act_layer=nn.GELU, drop=0.):
+        """Initialise the two-layer MLP."""
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -86,6 +87,7 @@ class _Mlp(nn.Module):
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
+        """Apply fc1 → activation → dropout → fc2 → dropout."""
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop(x)
@@ -97,6 +99,7 @@ class _Mlp(nn.Module):
 class _FreqMlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None,
                  act_layer=nn.GELU, drop=0.):
+        """Initialise the two-layer frequency-domain MLP."""
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -106,6 +109,7 @@ class _FreqMlp(nn.Module):
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
+        """Apply the MLP in the DCT domain (DCT → MLP → inverse DCT along the sequence)."""
         b, f, _ = x.shape
         x = dct.dct(x.permute(0, 2, 1)).permute(0, 2, 1).contiguous()
         x = self.fc1(x)
@@ -120,6 +124,7 @@ class _FreqMlp(nn.Module):
 class _Attention(nn.Module):
     def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None,
                  attn_drop=0., proj_drop=0.):
+        """Initialise the multi-head self-attention block."""
         super().__init__()
         self.num_heads = num_heads
         head_dim = dim // num_heads
@@ -130,6 +135,7 @@ class _Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(self, x):
+        """Apply multi-head self-attention; preserves ``(B, N, C)``."""
         B, N, C = x.shape
         qkv = (self.qkv(x)
                .reshape(B, N, 3, self.num_heads, C // self.num_heads)
@@ -148,6 +154,7 @@ class _Block(nn.Module):
     def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False,
                  qk_scale=None, drop=0., attn_drop=0., drop_path=0.,
                  act_layer=nn.GELU, norm_layer=nn.LayerNorm):
+        """Initialise the attention + MLP transformer block."""
         super().__init__()
         self.norm1 = norm_layer(dim)
         self.attn = _Attention(
@@ -160,6 +167,7 @@ class _Block(nn.Module):
                         act_layer=act_layer, drop=drop)
 
     def forward(self, x):
+        """Apply attention and MLP with residual connections."""
         x = x + self.drop_path(self.attn(self.norm1(x)))
         x = x + self.drop_path(self.mlp(self.norm2(x)))
         return x
@@ -169,6 +177,7 @@ class _MixedBlock(nn.Module):
     def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False,
                  qk_scale=None, drop=0., attn_drop=0., drop_path=0.,
                  act_layer=nn.GELU, norm_layer=nn.LayerNorm):
+        """Initialise the block with time-domain and frequency-domain MLP branches."""
         super().__init__()
         self.norm1 = norm_layer(dim)
         self.attn = _Attention(
@@ -184,6 +193,7 @@ class _MixedBlock(nn.Module):
                               act_layer=act_layer, drop=drop)
 
     def forward(self, x):
+        """Apply attention, then time- and frequency-domain MLPs to the two sequence halves."""
         b, f, c = x.shape
         x = x + self.drop_path(self.attn(self.norm1(x)))
         x1 = x[:, :f // 2] + self.drop_path(self.mlp1(self.norm2(x[:, :f // 2])))
@@ -208,6 +218,7 @@ class _PoseTransformerV2Backbone(nn.Module):
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.2,
                  norm_layer=None, number_of_kept_frames=1,
                  number_of_kept_coeffs=1):
+        """Initialise the spatial and frequency branches with ``depth`` blocks each."""
         super().__init__()
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
         embed_dim = embed_dim_ratio * num_joints
@@ -341,6 +352,7 @@ class PoseFormerV2Classifier(Classifier):
         merge_joints: bool = False,
         image_resolution: tuple[int, int] = (1100, 1100),
     ) -> None:
+        """Initialise the backbone and classification head, optionally loading a checkpoint."""
         super().__init__(checkpoint_path=checkpoint_path, n_classes=n_classes)
         self._merge_joints = merge_joints
         self._img_w = float(image_resolution[0])

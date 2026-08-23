@@ -1,4 +1,4 @@
-"""motionbench.metrics.stability -- Stability / robustness metrics wrapping Quantus.
+"""motionbench.metrics.stability — Stability / robustness metrics wrapping Quantus.
 
 Provides metrics that measure how sensitive attributions are to small
 perturbations of the input.  Each Quantus metric requires a method-specific
@@ -102,6 +102,7 @@ class _QuantusWrapper(nn.Module):
         n_classes: int = 2,
         target: int = 0,
     ) -> None:
+        """Initialise the wrapper with the classifier, input dims, and target class."""
         super().__init__()
         self._J = J
         self._F = F
@@ -137,9 +138,7 @@ class _QuantusWrapper(nn.Module):
         B, _D, T = x.shape
         x_4d = x.reshape(B, self._J, self._F, T)
         clf: Callable[..., Tensor] = (
-            self._module_clf
-            if self._module_clf is not None
-            else self._fn_clf  # type: ignore[assignment]
+            self._module_clf if self._module_clf is not None else self._fn_clf  # type: ignore[assignment]
         )
         raw_out = clf(x_4d)  # (B,) or (B, n_classes)
         # Multi-class modules return (B, n_classes); extract target class.
@@ -147,12 +146,9 @@ class _QuantusWrapper(nn.Module):
             scalar_out = torch.softmax(raw_out, dim=-1)[:, self._target]
         else:
             scalar_out = raw_out
-        out = torch.zeros(
-            B, self._n_classes, dtype=scalar_out.dtype, device=scalar_out.device
-        )
+        out = torch.zeros(B, self._n_classes, dtype=scalar_out.dtype, device=scalar_out.device)
         out[:, 0] = scalar_out
         return out
-
 
 
 def _expand_phi(phi: Tensor, players: PlayerSet) -> Tensor:
@@ -243,6 +239,7 @@ class MaxSensitivityMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.MaxSensitivity`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         self._quantus: MaxSensitivity = MaxSensitivity(**quantus_kwargs)
 
@@ -326,6 +323,7 @@ class ContinuityMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.Continuity`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         self._quantus: Continuity = Continuity(**quantus_kwargs)
 
@@ -407,6 +405,7 @@ class LipschitzEstimateMetric(BaseMetric):
     requires_imputer: ClassVar[bool] = False
 
     def __init__(self, **quantus_kwargs: Any) -> None:
+        """Initialise the underlying ``quantus.RelativeInputStability`` metric."""
         quantus_kwargs.setdefault("disable_warnings", True)
         self._quantus: RelativeInputStability = RelativeInputStability(**quantus_kwargs)
 

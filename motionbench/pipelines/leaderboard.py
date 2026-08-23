@@ -105,7 +105,9 @@ def build_leaderboard(
 
     # Keep only numeric score columns (drop metadata strings)
     meta_cols = {"dataset", "classifier", "method", "n_sequences", "error"}
-    score_cols = [c for c in df.columns if c not in meta_cols and pd.api.types.is_numeric_dtype(df[c])]
+    score_cols = [
+        c for c in df.columns if c not in meta_cols and pd.api.types.is_numeric_dtype(df[c])
+    ]
 
     if "method" not in df.columns:
         raise ValueError("Loaded results do not contain a 'method' column.")

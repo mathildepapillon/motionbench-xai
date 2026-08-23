@@ -52,8 +52,7 @@ class _TemporalPlayers:
         self._T = T
         quarter = T // K
         self._windows: list[list[int]] = [
-            list(range(k * quarter, (k + 1) * quarter if k < K - 1 else T))
-            for k in range(K)
+            list(range(k * quarter, (k + 1) * quarter if k < K - 1 else T)) for k in range(K)
         ]
 
     @property
@@ -90,11 +89,22 @@ class _TemporalPlayers:
 
 #: H36M-17 kinematic tree edges (same as in SigmaJointsFactory.skeleton_adjacency).
 _H36M_EDGES = [
-    (0, 1), (1, 2), (2, 3),           # right leg
-    (0, 4), (4, 5), (5, 6),           # left leg
-    (0, 7), (7, 8), (8, 9), (9, 10),  # spine / neck / head
-    (8, 11), (11, 12), (12, 13),       # left arm
-    (8, 14), (14, 15), (15, 16),       # right arm
+    (0, 1),
+    (1, 2),
+    (2, 3),  # right leg
+    (0, 4),
+    (4, 5),
+    (5, 6),  # left leg
+    (0, 7),
+    (7, 8),
+    (8, 9),
+    (9, 10),  # spine / neck / head
+    (8, 11),
+    (11, 12),
+    (12, 13),  # left arm
+    (8, 14),
+    (14, 15),
+    (15, 16),  # right arm
 ]
 
 
@@ -130,14 +140,14 @@ _DIST_H36M = _bfs_distance(17, _H36M_EDGES)
 
 # Selected (i, j) pairs with known expected BFS distances.
 _ADJACENCY_CHECK_PAIRS = [
-    (0, 0, 0),    # diagonal: d=0 → decay^0 = 1
-    (0, 1, 1),    # pelvis → rhip: d=1
-    (1, 2, 1),    # rhip → rknee: d=1
-    (0, 2, 2),    # pelvis → rknee: d=2
-    (0, 3, 3),    # pelvis → rankle: d=3
-    (0, 10, 4),   # pelvis → head: d=4  (0→7→8→9→10)
-    (3, 6, 6),    # rankle → lankle: d=6 (3→2→1→0→4→5→6)
-    (1, 10, 5),   # rhip → head: d=5 (1→0→7→8→9→10)
+    (0, 0, 0),  # diagonal: d=0 → decay^0 = 1
+    (0, 1, 1),  # pelvis → rhip: d=1
+    (1, 2, 1),  # rhip → rknee: d=1
+    (0, 2, 2),  # pelvis → rknee: d=2
+    (0, 3, 3),  # pelvis → rankle: d=3
+    (0, 10, 4),  # pelvis → head: d=4  (0→7→8→9→10)
+    (3, 6, 6),  # rankle → lankle: d=6 (3→2→1→0→4→5→6)
+    (1, 10, 5),  # rhip → head: d=5 (1→0→7→8→9→10)
     (13, 16, 6),  # lwrist → rwrist: d=6 (13→12→11→8→14→15→16)
 ]
 
@@ -166,7 +176,7 @@ def test_skeleton_adjacency_structure() -> None:
     for i in range(17):
         for j_idx in range(17):
             d_ij = float(_DIST_H36M[i, j_idx])
-            expected = decay ** d_ij
+            expected = decay**d_ij
             assert abs(float(Sj[i, j_idx]) - expected) < 1e-9, (
                 f"Mismatch at [{i},{j_idx}]: d={d_ij}, expected={expected:.6f}, "
                 f"got {float(Sj[i, j_idx]):.6f}"
@@ -347,6 +357,4 @@ def test_metadata_keys(dataset_cls: type, kwargs: dict) -> None:
     assert not missing, f"Missing metadata keys: {missing}"
 
     assert isinstance(meta["skeleton"], str), "metadata['skeleton'] must be a str"
-    assert isinstance(meta["frame_rate"], (int, float)), (
-        "metadata['frame_rate'] must be numeric"
-    )
+    assert isinstance(meta["frame_rate"], (int, float)), "metadata['frame_rate'] must be numeric"

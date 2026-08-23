@@ -61,6 +61,7 @@ class GaitPhase(PlayerSet):
         F: int,
         n_strides: int = 1,
     ) -> None:
+        """Initialise frame boundaries for the ``n_phases * n_strides`` players."""
         self._n_phases = n_phases
         self._n_strides = n_strides
         self._T = T
@@ -82,10 +83,12 @@ class GaitPhase(PlayerSet):
 
     @property
     def n_players(self) -> int:
+        """Number of players M (= number of gait phases)."""
         return self._M
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """(J, F, T) element-space shape this player set operates over."""
         return self._J, self._F, self._T
 
     @property
@@ -106,9 +109,7 @@ class GaitPhase(PlayerSet):
             ValueError: if ``z.shape != (M,)``.
         """
         if z.shape != (self._M,):
-            raise ValueError(
-                f"Expected z.shape==({self._M},); got {tuple(z.shape)}."
-            )
+            raise ValueError(f"Expected z.shape==({self._M},); got {tuple(z.shape)}.")
         mask = torch.zeros(self._J, self._F, self._T, dtype=torch.bool)
         for p, (t0, t1) in enumerate(self._boundaries):
             if z[p]:

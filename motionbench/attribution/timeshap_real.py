@@ -26,7 +26,6 @@ Perturbations.  KDD 2021.  ``pip install timeshap``.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -37,6 +36,8 @@ from torch import Tensor
 from motionbench.attribution.base import BaseAttributor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from motionbench.players.base import PlayerSet
 
 
@@ -86,6 +87,7 @@ class _TimeSHAPClassifierAdapter:
         target: int,
         device: torch.device,
     ) -> None:
+        """Initialise the adapter with the classifier, input dims, target, and device."""
         self._classifier = classifier
         self._J = J
         self._F = F_coords
@@ -136,6 +138,7 @@ class RealTimeSHAPAttributor(BaseAttributor):
         nsamples: int = 32,
         seed: int = 42,
     ) -> None:
+        """Initialise TimeSHAP with a window length and coalition budget."""
         super().__init__(classifier)
         self._window_len = int(window_len)
         self._nsamples = int(nsamples)
@@ -152,6 +155,22 @@ class RealTimeSHAPAttributor(BaseAttributor):
         players: PlayerSet,
         target: int = 0,
     ) -> Tensor:
+        """Compute per-player SHAP values for one sequence via TimeSHAP.
+
+        Wraps ``timeshap.explainer.local_event`` (zeros baseline) and sums
+        the per-timestep event attributions into the benchmark's M players.
+
+        Args:
+            x: ``(J, F, T)`` float32 input sequence (no batch dim).
+            players: Player set used to aggregate per-timestep output.
+            target: Class index selected from the classifier's output.
+
+        Returns:
+            ``(M,)`` float32 per-player attribution.
+
+        Raises:
+            ValueError: if ``window_len`` does not evenly divide ``T``.
+        """
         from timeshap.explainer import local_event  # noqa: PLC0415
 
         J, F_coords, T = x.shape
@@ -163,19 +182,23 @@ class RealTimeSHAPAttributor(BaseAttributor):
             raise ValueError(
                 f"window_len={self._window_len} must divide T={T} evenly.",
             )
-        K = T // self._window_len
+        T // self._window_len
         F_total = J * F_coords
-        win = self._window_len
 
         # (J, F, T) → (1, T, J*F)
-        x_np = (
-            x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy()
-        )[np.newaxis].astype(np.float32)
+        x_np = (x.detach().cpu().permute(2, 0, 1).reshape(T, F_total).numpy())[np.newaxis].astype(
+            np.float32
+        )
         baseline = np.zeros_like(x_np)  # (1, T, F_total) all-zeros baseline
 
         device = _resolve_classifier_device(self._classifier, x)
         adapter = _TimeSHAPClassifierAdapter(
-            self._classifier, J, F_coords, T, target, device,
+            self._classifier,
+            J,
+            F_coords,
+            T,
+            target,
+            device,
         )
 
         df = local_event(
@@ -209,10 +232,7 @@ class RealTimeSHAPAttributor(BaseAttributor):
                         signed = int(raw.split()[-1])
                     except (TypeError, ValueError, IndexError):
                         continue
-                    if signed < 0:
-                        t_idx = T + signed
-                    else:
-                        t_idx = signed
+                    t_idx = T + signed if signed < 0 else signed
                 else:
                     continue
             if not (0 <= t_idx < T):
@@ -243,7 +263,8 @@ class RealTimeSHAPAttributor(BaseAttributor):
         # sum_{t in window k} phi[j, f, t] == phi_window_k for each (j, f).
         per_step_per_coord = (phi_t / float(F_total))[:, np.newaxis]  # (T, 1)
         per_step_full = np.broadcast_to(
-            per_step_per_coord, (T, F_total),
+            per_step_per_coord,
+            (T, F_total),
         ).copy()  # (T, F_total)
         phi_3d = per_step_full.reshape(T, J, F_coords)
         phi_coords = torch.as_tensor(phi_3d, dtype=torch.float32).permute(1, 2, 0)
