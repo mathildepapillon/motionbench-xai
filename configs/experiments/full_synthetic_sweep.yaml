@@ -7,8 +7,8 @@
 # Pipeline routing key: "synthetic" | "real"
 pipeline: synthetic
 
-# Nine synthetic datasets covering the four spatiotemporal regimes plus two
-# marginal families (Gaussian, Burr).  See paper Table 1 for the taxonomy.
+# Nine synthetic datasets: the paper's five pillar datasets (Table 1) plus
+# four robustness variants not reported in the paper's tables.
 datasets:
   - gaussian_k4
   - gaussian_k8
@@ -20,8 +20,9 @@ datasets:
   - joint_subset_skeleton
   - low_rank_manifold
 
-# Thirteen attribution variants reported in the paper, plus the Oracle
-# reference and four gradient baselines documented in the appendix.
+# Attribution variants: the paper's KernelSHAP and temporal-SHAP methods
+# plus the Oracle reference, and gradient baselines shipped for reuse but
+# not reported in the paper.
 methods:
   # KernelSHAP imputer family (six variants)
   - kernelshap_zero

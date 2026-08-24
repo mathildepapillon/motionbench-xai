@@ -188,8 +188,8 @@ GitHub Actions runs the fast tests, ruff, and mypy on every push
 ## Links
 
 - **Paper:** *MotionBench-XAI: A Benchmark for Manifold-Aware Shapley
-  Attribution on Spatiotemporal Data* (NeurIPS 2026 Evaluations & Datasets
-  Track submission). <!-- MAINTAINER TODO: add arXiv/OpenReview link -->
+  Attribution on Spatiotemporal Data* (under review).
+  <!-- MAINTAINER TODO: add arXiv/OpenReview link -->
 - **Independent validation study:** a from-scratch replication of this
   benchmark whose findings are folded into `RESOLUTIONS.md`, the
   deterministic oracles, and the oracle gate tests.
@@ -206,12 +206,11 @@ GitHub Actions runs the fast tests, ruff, and mypy on every push
 See [`CITATION.cff`](CITATION.cff) (GitHub's "Cite this repository" button).
 
 ```bibtex
-@inproceedings{motionbench2026,
-  title     = {MotionBench-XAI: A Benchmark for Manifold-Aware Shapley
-               Attribution on Spatiotemporal Data},
-  booktitle = {Advances in Neural Information Processing Systems,
-               Evaluations and Datasets Track},
-  year      = {2026},
+@misc{motionbench2026,
+  title = {MotionBench-XAI: A Benchmark for Manifold-Aware Shapley
+           Attribution on Spatiotemporal Data},
+  note  = {Under review},
+  year  = {2026},
 }
 ```
 

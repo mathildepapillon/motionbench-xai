@@ -305,6 +305,19 @@ python3 -m motionbench.cli.run experiments=player_set_eval
 Coalition designs are exact enumerations for M <= 12 players and
 importance-corrected samples (seed 7919, budget 1024) above; see
 `motionbench/attribution/sampled_coalitions.py` and RESOLUTIONS.md §6/§8.
+The canonical paper runs used `coalition_budget=2048` for the M=68 cell
+player sets (`gait_periodic`, `skeleton_structured`,
+`skeleton_gait_combined` × cells) and the default 1024 everywhere else —
+pass the override when reproducing those cells:
+
+```bash
+python3 -m motionbench.cli.run experiments=player_set_eval \
+    player_sets='[cells]' coalition_budget=2048
+```
+
+Hi-budget grading targets (and regrades of stored attributions against
+them) are built separately by `scripts/regrade_hi_budget.py`
+(B=8192 seed 900001; B=32768 seed 910001 at M=68).
 
 ---
 
@@ -524,11 +537,10 @@ training stats from ``train_ptbxl_classifier.py`` (or ``--cache_dir`` /
 * KernelSHAP coalitions are evaluated under `shap.KernelExplainer`, which
   enumerates exhaustively when the sample budget covers $2^K{-}2$
   coalitions and otherwise samples under the SHAP kernel weighting.  With
-  `n_kernel_samples=64` (off-manifold imputers) this is exact for
-  $K\in\{4,5\}$ and sampled for $K\in\{8,10\}$; with `n_kernel_samples=16`
-  (on-manifold imputers) this is exact for $K=4$ and sampled for
-  $K\in\{5,8,10\}$.  Imputer Monte-Carlo sampling uses the seed passed in
-  via Hydra (`+seed=<int>`), defaulting to 0.
+  `n_kernel_samples=64` (all imputers) this is exact for $K\in\{4,5\}$ —
+  every pillar-dataset temporal design is exact for every method — and
+  sampled for $K\in\{8,10\}$.  Imputer Monte-Carlo sampling uses the seed
+  passed in via Hydra (`+seed=<int>`), defaulting to 0.
 * Bootstrap CIs and paired-bootstrap p-values use seed 0 by default.  Pass
   `--seed <int>` to `compute_real_cis_multiclf.py` and
   `compute_carepd_aopc_significance.py` to obtain different draws.

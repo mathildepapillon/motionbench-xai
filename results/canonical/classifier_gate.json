@@ -1,0 +1,234 @@
+{
+ "meta": {
+  "rule": "a classifier's explanations enter the aggregated tables only if (G1) held-out accuracy >= chance + 0.05 and (G2) train-test gap <= 0.30",
+  "chance": {
+   "synthetic": 0.3333333333333333,
+   "carepd": 0.3333333333333333,
+   "ptbxl": 0.5,
+   "esc50": 0.02
+  },
+  "notes": "synthetic: accuracies on the training / validation / evaluation splits (checkpoint audit rerun of the shipped checkpoints). real: held-out accuracy per data fold; CARE-PD additionally pooled over the three folds (the gate statistic; see real_tracks.json carepd_gate); the CARE-PD/PTB-XL train column is accuracy on the pooled training material of the cross-validation folds. one rule yields every exclusion: POTR fails G1; the gait and skel+gait CNNs fail G2",
+  "produced_by": "checkpoint accuracy audit (synthetic + CARE-PD/PTB-XL fold evals), real_tracks.json carepd_gate (pooled CARE-PD accuracies incl. POTR), ESC-50 fold-disciplined AST retrain metadata"
+ },
+ "synthetic": [
+  {
+   "dataset": "gauss_k4",
+   "classifier": "mlp",
+   "train_acc": 0.644,
+   "val_acc": 0.662,
+   "test_acc": 0.59,
+   "train_test_gap": 0.054,
+   "gate_pass": true
+  },
+  {
+   "dataset": "gauss_k4",
+   "classifier": "cnn",
+   "train_acc": 0.9505,
+   "val_acc": 0.892,
+   "test_acc": 0.87,
+   "train_test_gap": 0.0805,
+   "gate_pass": true
+  },
+  {
+   "dataset": "gauss_k4",
+   "classifier": "transformer",
+   "train_acc": 0.9895,
+   "val_acc": 0.95,
+   "test_acc": 0.93,
+   "train_test_gap": 0.0595,
+   "gate_pass": true
+  },
+  {
+   "dataset": "skeleton",
+   "classifier": "mlp",
+   "train_acc": 0.5335,
+   "val_acc": 0.542,
+   "test_acc": 0.43,
+   "train_test_gap": 0.1035,
+   "gate_pass": true
+  },
+  {
+   "dataset": "skeleton",
+   "classifier": "cnn",
+   "train_acc": 0.961,
+   "val_acc": 0.878,
+   "test_acc": 0.865,
+   "train_test_gap": 0.096,
+   "gate_pass": true
+  },
+  {
+   "dataset": "skeleton",
+   "classifier": "transformer",
+   "train_acc": 0.996,
+   "val_acc": 0.962,
+   "test_acc": 0.945,
+   "train_test_gap": 0.051,
+   "gate_pass": true
+  },
+  {
+   "dataset": "burr_m5",
+   "classifier": "mlp",
+   "train_acc": 0.643,
+   "val_acc": 0.644,
+   "test_acc": 0.59,
+   "train_test_gap": 0.053,
+   "gate_pass": true
+  },
+  {
+   "dataset": "burr_m5",
+   "classifier": "cnn",
+   "train_acc": 0.953,
+   "val_acc": 0.876,
+   "test_acc": 0.815,
+   "train_test_gap": 0.138,
+   "gate_pass": true
+  },
+  {
+   "dataset": "burr_m5",
+   "classifier": "transformer",
+   "train_acc": 0.9935,
+   "val_acc": 0.96,
+   "test_acc": 0.945,
+   "train_test_gap": 0.0485,
+   "gate_pass": true
+  },
+  {
+   "dataset": "gait",
+   "classifier": "mlp",
+   "train_acc": 0.412,
+   "val_acc": 0.42,
+   "test_acc": 0.395,
+   "train_test_gap": 0.017,
+   "gate_pass": true
+  },
+  {
+   "dataset": "gait",
+   "classifier": "cnn",
+   "train_acc": 0.9395,
+   "val_acc": 0.4,
+   "test_acc": 0.365,
+   "train_test_gap": 0.5745,
+   "gate_pass": false,
+   "reason": "G2: train-test gap > 0.30"
+  },
+  {
+   "dataset": "gait",
+   "classifier": "transformer",
+   "train_acc": 0.993,
+   "val_acc": 0.846,
+   "test_acc": 0.845,
+   "train_test_gap": 0.148,
+   "gate_pass": true
+  },
+  {
+   "dataset": "skel+gait",
+   "classifier": "mlp",
+   "train_acc": 0.5125,
+   "val_acc": 0.544,
+   "test_acc": 0.515,
+   "train_test_gap": -0.0025,
+   "gate_pass": true
+  },
+  {
+   "dataset": "skel+gait",
+   "classifier": "cnn",
+   "train_acc": 1.0,
+   "val_acc": 0.52,
+   "test_acc": 0.5,
+   "train_test_gap": 0.5,
+   "gate_pass": false,
+   "reason": "G2: train-test gap > 0.30"
+  },
+  {
+   "dataset": "skel+gait",
+   "classifier": "transformer",
+   "train_acc": 0.9685,
+   "val_acc": 0.898,
+   "test_acc": 0.825,
+   "train_test_gap": 0.1435,
+   "gate_pass": true
+  }
+ ],
+ "real": {
+  "carepd": {
+   "motionbert": {
+    "pooled_acc": 0.6983870967741935,
+    "n_test": 620,
+    "per_fold_eval_acc": {
+     "1": 0.2417,
+     "2": 1.0,
+     "3": 0.975
+    },
+    "per_fold_trainpool_acc": {
+     "1": 0.9917,
+     "2": 0.9833,
+     "3": 0.9483
+    },
+    "trainpool_acc_mean": 0.9744333333333334,
+    "train_test_gap": 0.27604623655913985,
+    "gate_pass": true
+   },
+   "motionagformer": {
+    "pooled_acc": 0.7258064516129032,
+    "n_test": 620,
+    "per_fold_eval_acc": {
+     "1": 0.3125,
+     "2": 1.0,
+     "3": 0.975
+    },
+    "per_fold_trainpool_acc": {
+     "1": 0.975,
+     "2": 0.9917,
+     "3": 0.9833
+    },
+    "trainpool_acc_mean": 0.9833333333333333,
+    "train_test_gap": 0.25752688172043003,
+    "gate_pass": true
+   },
+   "potr": {
+    "pooled_acc": 0.3741935483870968,
+    "n_test": 620,
+    "gate_pass": false,
+    "reason": "G1: pooled accuracy < chance + 0.05"
+   },
+   "trainpool_note": "trainpool = pooled imputer_train (not the per-fold LOSO train split)"
+  },
+  "ptbxl": {
+   "resnet1d": {
+    "per_fold_eval_acc": {
+     "1": 0.955,
+     "2": 0.955,
+     "3": 0.945
+    },
+    "per_fold_trainpool_acc": {
+     "1": 0.97,
+     "2": 0.9733,
+     "3": 0.96
+    },
+    "eval_acc_mean": 0.9516666666666667,
+    "trainpool_acc_mean": 0.9677666666666666,
+    "train_test_gap": 0.016099999999999892,
+    "gate_pass": true
+   }
+  },
+  "esc50": {
+   "ast": {
+    "note": "three per-fold fine-tunes of MIT/ast-finetuned-audioset-10-10-0.4593, each trained on its fold's training split only",
+    "per_fold_train_acc": {
+     "1": 1.0,
+     "2": 0.9975,
+     "3": 1.0
+    },
+    "per_fold_test_acc": {
+     "1": 0.955,
+     "2": 0.9825,
+     "3": 0.9575
+    },
+    "train_acc_mean": 0.9991666666666666,
+    "test_acc_mean": 0.965,
+    "train_test_gap": 0.03416666666666668,
+    "gate_pass": true
+   }
+  }
+ }
+}

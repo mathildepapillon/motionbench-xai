@@ -1,5 +1,12 @@
 # RESOLUTIONS.md — executed conventions of this release
 
+> **Manuscript note.**  The "paper" referenced in the resolution entries
+> below is the original manuscript these discrepancies were found against.
+> The current manuscript states the executed conventions (f-of-mean value
+> semantics, the proxy label rule, the d_model 32 / 2-layer transformer, the
+> per-frame-token imputer architectures), so entries phrased as "paper vs.
+> release" describe resolved history, not live disagreements.
+
 This log records the implementation conventions this release executes,
 including every point where the paper's prose leaves a detail open or states
 a different convention than the released code runs.  The content is adapted

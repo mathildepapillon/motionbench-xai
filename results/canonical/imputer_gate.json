@@ -1,0 +1,148 @@
+{
+ "meta": {
+  "protocol": "hide-one-recover: Pearson correlation between the imputed conditional mean (average of 8 completions) and the hidden ground truth, per (sequence, mask); 3 folds x first 24 eval sequences per fold (the per-track sweeps' fingerprinted 200-sequence selections, truncated); mask families spatial (one joint / lead / mel-band quartile), temporal (one of K=4 uniform windows), cell (12 sampled (unit, window) cells per sequence, rng [2202, fold]); completion draws rng [2203, fold, seq] per (family, fold, sequence)",
+  "controls": "donor: hidden entries copied from the track's marginal donor sequence (imputer-independent data-redundancy baseline, identical for vaeac/flow by construction); unconditional: imputer recovery with everything hidden, reported as the max over the two imputers (per-imputer values in unconditional_by_imputer)",
+  "checkpoints": "checkpoints/imputers/{track}_{vaeac,flow}.pt \u2014 the imputers behind the paper tables",
+  "produced_by": "scripts/run_imputer_gate.py (--mode gate|controls, per track x imputer)"
+ },
+ "tracks": {
+  "carepd": {
+   "vaeac": {
+    "spatial": {
+     "mean": 0.9999169858729509,
+     "std": 0.00010245580952425749,
+     "n": 1224
+    },
+    "temporal": {
+     "mean": 0.959269028864961,
+     "std": 0.11954356940224138,
+     "n": 288
+    },
+    "cell": {
+     "mean": 0.999950357422768,
+     "std": 3.902154087720355e-05,
+     "n": 864
+    }
+   },
+   "flow": {
+    "spatial": {
+     "mean": 0.9999671648238759,
+     "std": 3.089398755505038e-05,
+     "n": 1224
+    },
+    "temporal": {
+     "mean": 0.9979388520467695,
+     "std": 0.009870214944414379,
+     "n": 288
+    },
+    "cell": {
+     "mean": 0.9999900040274078,
+     "std": 1.0736315848735375e-05,
+     "n": 864
+    }
+   },
+   "donor": {
+    "spatial": 0.9703026655108745,
+    "temporal": 0.9767711759249712,
+    "cell": 0.9763376020713724
+   },
+   "unconditional": 0.9938040247087666,
+   "unconditional_by_imputer": {
+    "vaeac": 0.9938040247087666,
+    "flow": 0.9923072694826808
+   }
+  },
+  "ptbxl": {
+   "vaeac": {
+    "spatial": {
+     "mean": 0.9589879999337642,
+     "std": 0.09237844076426988,
+     "n": 864
+    },
+    "temporal": {
+     "mean": 0.0522724815551933,
+     "std": 0.09523325592137985,
+     "n": 288
+    },
+    "cell": {
+     "mean": 0.9759442210110196,
+     "std": 0.06815096778896325,
+     "n": 864
+    }
+   },
+   "flow": {
+    "spatial": {
+     "mean": 0.9454162128932666,
+     "std": 0.11809799997740934,
+     "n": 864
+    },
+    "temporal": {
+     "mean": 0.10330277528613885,
+     "std": 0.15403032565355276,
+     "n": 288
+    },
+    "cell": {
+     "mean": 0.9875633036965178,
+     "std": 0.041553754056981564,
+     "n": 864
+    }
+   },
+   "donor": {
+    "spatial": -0.009425975449486293,
+    "temporal": -0.00857635767077674,
+    "cell": -0.005543390137600384
+   },
+   "unconditional": 0.0005071421767986866,
+   "unconditional_by_imputer": {
+    "vaeac": -0.004007635076049575,
+    "flow": 0.0005071421767986866
+   }
+  },
+  "esc50": {
+   "vaeac": {
+    "spatial": {
+     "mean": 0.8698356380874377,
+     "std": 0.2415643147626656,
+     "n": 288
+    },
+    "temporal": {
+     "mean": 0.30651602728043276,
+     "std": 0.34820002694119495,
+     "n": 288
+    },
+    "cell": {
+     "mean": 0.3559006346376697,
+     "std": 0.38911499279904366,
+     "n": 864
+    }
+   },
+   "flow": {
+    "spatial": {
+     "mean": 0.8775002805592318,
+     "std": 0.1738155225392532,
+     "n": 288
+    },
+    "temporal": {
+     "mean": 0.28872671905396335,
+     "std": 0.3333944388170079,
+     "n": 288
+    },
+    "cell": {
+     "mean": 0.3660753224057437,
+     "std": 0.393150343016827,
+     "n": 864
+    }
+   },
+   "donor": {
+    "spatial": 0.6237405257666963,
+    "temporal": 0.15759041509425256,
+    "cell": 0.12002057699655137
+   },
+   "unconditional": 0.7458195767794322,
+   "unconditional_by_imputer": {
+    "vaeac": 0.7458195767794322,
+    "flow": 0.7271013462365988
+   }
+  }
+ }
+}

@@ -132,8 +132,9 @@ Retrainable from the public dataset: `scripts/reproduce_esc50.sh`
 - PTB-XL-derived files: **CC BY 4.0** with the PTB-XL citation (the dataset's
   license).
 - ESC-50-derived files (separate archive): **CC BY-NC 4.0** — non-commercial
-  only, ESC-50's license carries through; see the archive's
-  `LICENSE_NOTES.md`.
+  only.  (The ESC-50 source material is CC BY-NC **3.0**; its adaptation
+  terms permit licensing derivatives under a later version.)  See the
+  archive's `LICENSE_NOTES.md`.
 - **CARE-PD-derived weights (classifiers and imputers) are not distributed**:
   CARE-PD is CC BY-NC-ND 4.0 (NoDerivatives).  Retrain them locally from the
   dataset (downloaded under its own terms) with the trainers in `scripts/`;
