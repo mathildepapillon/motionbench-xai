@@ -36,7 +36,7 @@ jobs:
           cache: pip
       - name: Install package + dev deps
         run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           pip install -e ".[dev]" --no-deps
           pip install pytest pytest-cov captum shap quantus zennit numpy scipy scikit-learn
       - name: Run contract tests
