@@ -1,8 +1,8 @@
 # Canonical benchmark results
 
 These JSON files are the authoritative outputs of the benchmark runs behind
-every table in the MotionBench-XAI paper.  They let you regenerate and verify
-the paper's tables **without rerunning any experiment**; the pipelines in this
+every table in the MotionBench-XAI paper.  They let you verify the paper's
+numbers **without rerunning any experiment**; the pipelines in this
 repository regenerate the files themselves (see `REPRODUCING_PAPER.md` at the
 repo root for the table-by-table map, and `REPRODUCIBILITY.md` for full
 end-to-end runs).
@@ -15,7 +15,7 @@ end-to-end runs).
 | `real_players.json` | CARE-PD spatial joints (M=17) and joint×window cells (M=68), ESC-50 band×window cells (M=16): faithfulness and PlayerAOPC, pooled + per-fold | real player-set entry points (gate-validated against `real_tracks.json` to float32) |
 | `real_ptbxl_cells.json` | PTB-XL lead×window cells (M=48), all 5 KernelSHAP methods, 3 folds | PTB-XL cells entry point (gate: reproduces the stored per-lead track to ≤7e-9 before running) |
 | `classifier_gate.json` | Classifier gate behind every aggregated table (G1: held-out accuracy ≥ chance+0.05; G2: train–test gap ≤ 0.30): synthetic train/val/test accuracies per dataset × architecture with pass/fail verdicts; real per-fold accuracies (CARE-PD incl. pooled accs and POTR's G1 failure, PTB-XL, ESC-50 per-fold AST fine-tunes) | checkpoint accuracy audit of the shipped classifiers + `real_tracks.json` `carepd_gate` + ESC-50 retrain metadata |
-| `imputer_gate.json` | Imputer capability gate (hide-one-recover): per track (CARE-PD, PTB-XL, ESC-50) × imputer (VAEAC, flow) Pearson recovery per mask family (spatial / temporal / cell), plus donor and unconditional controls; protocol in `meta` | `scripts/run_imputer_gate.py` (`--mode gate|controls`; ptbxl/flow cell reproduced bit-exactly against the archived run before merging) |
+| `imputer_gate.json` | Imputer capability gate (hide-one-recover): per track (CARE-PD, PTB-XL, ESC-50) × imputer (VAEAC, flow) Pearson recovery per mask family (spatial / temporal / cell), plus donor and unconditional controls; protocol in `meta` | `scripts/run_imputer_gate.py` (`--mode gate|controls`) |
 
 Conventions shared by all files: value function `v(S) = f(mean completion)`;
 each method graded against the exact ground truth of its own fill family

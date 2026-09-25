@@ -1,5 +1,6 @@
 name: kernelshap_gauss
-# KS-Gauss (the paper's name for this row; the validation study's ks_shapr):
+# KS-Gauss (the paper's name for this row; method key ks_shapr in the
+# canonical result files):
 # shapr-style fitted Gaussian conditional imputer (Aas et al. 2021 §3.2) with
 # Ledoit-Wolf shrinkage on the flattened D = J*F*T covariance.
 # Estimand: which deterministic grading target this method's imputer
@@ -10,7 +11,7 @@ attributor:
 imputer:
   _target_: motionbench.imputers.shapr_gaussian.ShaprGaussianImputer
   shrinkage: ledoit_wolf
-# Protocol pin (validation study, RESOLUTIONS.md §8): the Gaussian is fitted
+# Protocol pin (docs/CONVENTIONS.md §11): the Gaussian is fitted
 # on the family's imputer-training pool — N = 1000 fresh draws at seed 99 from
 # the dataset's generative field — NOT on the N = 200 evaluation set.  These
 # keys override the dataset config for the fit-time dataset only.
@@ -23,6 +24,6 @@ n_kernel_samples: 64
 n_completion_samples: 5
 seed: 42
 # Value-function semantics: 'f_of_mean' = classifier at the mean completion
-# (the executed release semantics); 'mean_of_f' = paper Eq. 5 (average of
+# (the executed release semantics); 'mean_of_f' = the per-draw alternative (average of
 # classifier outputs over completions).
 value_fn: f_of_mean

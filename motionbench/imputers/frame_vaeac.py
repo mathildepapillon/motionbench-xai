@@ -1,10 +1,10 @@
-"""motionbench.imputers.frame_vaeac — Frame-token transformer VAEAC (study format).
+"""motionbench.imputers.frame_vaeac — Frame-token transformer VAEAC (checkpoint format).
 
-Inference-time port of the **independent validation study's** VAEAC imputer
-(its ``mbxr.vaeac``), kept numerically identical so the real-data checkpoints
-documented in ``checkpoints/README.md`` (``imputers/{carepd,esc50,ptbxl}_vaeac.pt``,
-dicts ``{state_dict, shape, arch}``) reproduce the study's completions
-bit-for-bit given the same random stream.
+Inference-time implementation matching the released real-data VAEAC
+checkpoints documented in ``checkpoints/README.md``
+(``imputers/{carepd,esc50,ptbxl}_vaeac.pt``, dicts
+``{state_dict, shape, arch}``): given the same random stream it reproduces
+the reference training runs' completions bit-for-bit.
 
 Architecture (per-frame tokens): full encoder q(z|x, m), prior encoder
 p(z|x_obs, m) and decoder p(x|z, x_obs, m) are each a TransformerEncoder
@@ -14,7 +14,7 @@ Gaussian output head with one global learnable ``log_sigma``.  The internal
 layout is frame-major ``(B, T, J, F)``; the public API speaks the
 motionbench ``(J, F, T)`` convention.
 
-The imputer protocol matches the study's::
+The imputer protocol::
 
     impute(x, mask, n, rng)        -> (n, J, F, T) float32
     impute_multi(x, masks, n, rng) -> (n_masks, n, J, F, T) float32
@@ -22,7 +22,7 @@ The imputer protocol matches the study's::
 with ``mask`` True = observed.  Each call draws ``torch.manual_seed`` once
 from ``rng`` (``rng.integers(1 << 31)``), so a per-sequence
 ``np.random.default_rng([seed_base, fold, i])`` stream reproduces the
-study's draws exactly.  Completions are produced in whatever coordinate
+reference draws exactly.  Completions are produced in whatever coordinate
 space ``x`` is given in (raw cache space for CARE-PD/ESC-50, z-scored cache
 space for PTB-XL).
 """
@@ -114,16 +114,16 @@ class _DecoderHead(nn.Module):
 
 
 class FrameVAEACModel(nn.Module):
-    """Frame-token VAEAC (study architecture; state-dict compatible).
+    """Frame-token VAEAC (checkpoint architecture; state-dict compatible).
 
     Args:
         J: Number of joints / channels.
         F: Features per joint.
-        d_model: Trunk width (study default 256).
-        d_latent: Per-frame latent dimension (study default 64).
-        nhead: Attention heads (study default 8).
-        n_layers: Trunk layers (study default 2).
-        ff: Feed-forward width (study default ``2 * d_model``).
+        d_model: Trunk width (reference default 256).
+        d_latent: Per-frame latent dimension (reference default 64).
+        nhead: Attention heads (reference default 8).
+        n_layers: Trunk layers (reference default 2).
+        ff: Feed-forward width (reference default ``2 * d_model``).
     """
 
     def __init__(
@@ -269,9 +269,9 @@ class FrameVAEACImputer:
 
     @classmethod
     def load(cls, path: str | Path, device: str = "cpu") -> FrameVAEACImputer:
-        """Load a study-format checkpoint ``{state_dict, shape[, arch]}``.
+        """Load a reference-format checkpoint ``{state_dict, shape[, arch]}``.
 
-        Handles both state-dict naming variants of the study lineage: the
+        Handles both state-dict naming variants of the checkpoint lineage: the
         player-set sweep's ``decoder.trunk / decoder.out`` and the real-data
         checkpoints' top-level ``dec_trunk / dec_out`` (remapped on load).
 

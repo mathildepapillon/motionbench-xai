@@ -37,8 +37,8 @@ pytest tests/ -m "not slow and not gpu and not manual"
   with justified tolerances otherwise (see `tests/test_oracle_gate.py`).
 - No absolute machine-specific paths in package code or configs; use config
   keys or environment variables (`scripts/configure_paths.sh`).
-- Conventions that resolve an ambiguity in the paper belong in
-  `RESOLUTIONS.md`.
+- Conventions the paper's prose leaves open belong in
+  `docs/CONVENTIONS.md`.
 
 ## Reporting issues
 

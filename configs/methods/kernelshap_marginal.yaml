@@ -12,6 +12,6 @@ n_kernel_samples: 64
 n_completion_samples: 5
 seed: 42
 # Value-function semantics: 'f_of_mean' = classifier at the mean completion
-# (the executed release semantics); 'mean_of_f' = paper Eq. 5 (average of
+# (the executed release semantics); 'mean_of_f' = the per-draw alternative (average of
 # classifier outputs over completions).
 value_fn: f_of_mean

@@ -1,8 +1,8 @@
 """scripts/run_scalability_test.py — High-n scalability test for KernelSHAP variants.
 
-Addresses reviewer concern C10: "does the on-manifold (VAEAC) advantage over
-marginal imputer survive at much larger player counts (M=16 frame-level players
-vs M=4 window players)?"
+Asks: does the on-manifold (VAEAC) advantage over the marginal imputer
+survive at much larger player counts (M=16 frame-level players vs M=4
+window players)?
 
 Setup
 -----

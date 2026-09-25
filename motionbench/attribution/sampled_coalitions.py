@@ -34,9 +34,9 @@ Shapley kernel weights.  Otherwise:
    ``comb`` overflow for large M) and rescaled so the largest non-boundary
    weight is 1.
 
-Ported from the independent validation study's implementation
-(player-set sweep, ``coalition_set``); kept call-for-call identical so the
-two produce bit-identical designs for the same ``(M, budget, seed)``.
+The construction is fully deterministic: the same ``(M, budget, seed)``
+always produces a bit-identical design (``docs/CONVENTIONS.md``,
+Section 12).
 
 Example
 -------

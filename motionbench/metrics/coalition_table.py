@@ -14,9 +14,8 @@ variants:
   explicitly (its coalitions are generally not in the design); deletion
   order uses a stable sort — ties broken by player index.
 
-Both variants and their differences are pinned by the release's bit-exact
-reproduction gates (RESOLUTIONS.md); the canonical result files were
-produced with exactly these conventions.  Faithfulness always includes the
+Both variants are pinned conventions (``docs/CONVENTIONS.md``); the
+canonical result files were produced with exactly these conventions.  Faithfulness always includes the
 boundary rows.  Degenerate inputs (zero spread) return ``nan``.
 """
 

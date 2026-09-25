@@ -1,4 +1,4 @@
-"""scripts/run_player_set_budget.py — Coalition-budget equalization sweep (reviewer C5/W6).
+"""scripts/run_player_set_budget.py — Coalition-budget equalization sweep.
 
 Re-runs the player-set comparison at **fixed coalition budgets** {16, 64, 256} to
 disentangle whether the Ptemp advantage over Pjoint arises from structural

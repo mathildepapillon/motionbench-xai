@@ -21,15 +21,15 @@ families and wrong for the Burr families, and in both cases the covariance is
 
 Deviation from the paper's recipe, deliberate and recorded: the covariance is
 a Ledoit-Wolf shrinkage estimate rather than the plain maximum-likelihood one.
-The imputer-training pool (N = 1000 per family, RESOLUTIONS.md §8) is smaller
+The imputer-training pool (N = 1000 per family, docs/CONVENTIONS.md §8) is smaller
 than the flattened dimension ``D = J*F*T`` (240 to 816), so the ML estimate is
 singular and the analytic conditional is undefined.  Ledoit-Wolf is the same
 shrinkage :class:`~motionbench.imputers.empirical.EmpiricalConditionalImputer`
 already uses for its per-coalition Mahalanobis metric, so the choice adds no
 new machinery.
 
-Protocol (pinned to the independent validation study's ``ks_shapr`` row,
-which the paper reports as KS-Gauss): fit on the family's imputer-training
+Protocol (pinned; the paper's KS-Gauss rows, stored under the method key
+``ks_shapr`` in the canonical result files): fit on the family's imputer-training
 pool (N = 1000 fresh draws at seed 99 — *not* the evaluation set), 5
 completions per coalition, conditional grading game.  See
 ``configs/methods/kernelshap_gauss.yaml``.
@@ -229,7 +229,7 @@ class ShaprGaussianImputer(BaseImputer):
             seed: Optional random seed (ignored when ``generator`` is given).
             generator: Optional numpy Generator advanced *in place* — lets a
                 caller thread one stream across successive calls, exactly
-                reproducing the validation study's per-sequence RNG protocol.
+                reproducing the reference per-sequence RNG protocol.
 
         Returns:
             ``(n_samples, J, F, T)`` float32 Tensor.  Observed entries are

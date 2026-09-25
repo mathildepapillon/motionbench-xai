@@ -1,6 +1,6 @@
-"""scripts/run_nk_ablation.py — Non-Kronecker synthetic robustness ablation (C2).
+"""scripts/run_nk_ablation.py — Non-Kronecker synthetic robustness ablation.
 
-This script implements the reviewer-concern-C2 ablation:
+This script implements the non-Kronecker robustness ablation:
 
 1. **Sanity check**: wraps the Kronecker covariance as a FullGaussianOracle
    and verifies it matches the GaussianOracle (standard Kronecker oracle) to
@@ -83,8 +83,7 @@ METHODS = [
 ]
 
 # ---------------------------------------------------------------------------
-# KernelSHAP helpers (inlined; previously imported from
-# `run_synth_vaeac_flow.py`, now archived under archive/scripts/).
+# KernelSHAP helpers (inlined).
 # ---------------------------------------------------------------------------
 
 

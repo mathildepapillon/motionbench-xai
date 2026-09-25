@@ -71,7 +71,7 @@ python -m motionbench.cli.run \
 # n_sequences disagrees with --n-sequences.  The off-manifold + oracle cells
 # for skeleton_gait_combined are produced by the Hydra sweep above.
 GPUS_ARG="${REPRO_GPUS}"
-python scripts/restore_contaminated_n50.py \
+python scripts/run_synth_generative_sweep.py \
     --gpus $GPUS_ARG \
     --jobs-per-gpu 4 \
     --omp-threads 2 \

@@ -22,8 +22,8 @@ Imputer checkpoints: the learned-imputer rows (``kernelshap_vaeac`` /
 ``kernelshap_flow``) load release-format checkpoints produced by
 ``scripts/train_vaeac.py`` / ``scripts/train_flow.py`` (default paths
 below, override with ``--vaeac_ckpt`` / ``--flow_ckpt``).  The reference
-archive's ``checkpoints/imputers/esc50_*.pt`` are in the validation-study
-format consumed by the cells entry point
+archive's ``checkpoints/imputers/esc50_*.pt`` are in the frame-token
+reference format consumed by the cells entry point
 (``run_esc50_cells_shap.py``, Frame* loaders) — see checkpoints/README.md.
 """
 

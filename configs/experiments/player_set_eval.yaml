@@ -32,7 +32,7 @@ coalition_budget: 1024
 coalition_seed: 7919
 
 # Value-function semantics: "f_of_mean" (executed release semantics,
-# v(S) = f(mean of completions)) or "mean_of_f" (paper Eq. 5,
+# v(S) = f(mean of completions)) or "mean_of_f" (the per-draw alternative,
 # v(S) = mean of f over completions).
 value_fn: f_of_mean
 

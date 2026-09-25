@@ -3,8 +3,8 @@
 The pinned solver behind every temporal (K uniform windows) and small-M
 spatial real-data track.  All three functions are numerically load-bearing:
 the canonical result files in ``results/canonical/`` were produced with
-exactly these conventions, and the release's bit-exact reproduction gates
-(RESOLUTIONS.md) hold only if they stay fixed.
+exactly these conventions (``docs/CONVENTIONS.md``), which hold only if
+they stay fixed.
 
 Pinned conventions (do not "fix"):
 

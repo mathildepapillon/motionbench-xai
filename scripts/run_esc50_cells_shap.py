@@ -11,7 +11,7 @@ mean and donor conventions are identical to the temporal sweep
 continuing the same stream.  VAEAC/Flow imputer checkpoints default to
 ``checkpoints/imputers/esc50_{vaeac,flow}.pt`` (see ``checkpoints/README.md``).
 Shared coalition/fill/phi/metric protocol: ``scripts/_player_shap_common.py``
-and RESOLUTIONS.md §12.
+and docs/CONVENTIONS.md §12.
 
 Usage::
 

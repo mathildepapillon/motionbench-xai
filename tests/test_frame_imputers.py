@@ -2,7 +2,7 @@
 
 Small random-weight models on CPU: protocol shape/dtype contracts,
 observed-entry preservation, seeded determinism, per-mask vs batched-mask
-consistency, and study-format checkpoint loading (including the
+consistency, and reference-format checkpoint loading (including the
 ``dec_trunk`` / ``dec_out`` key remap of the real-data VAEAC checkpoints).
 """
 
@@ -99,7 +99,7 @@ class TestProtocol:
 
 
 class TestCheckpointLoading:
-    def test_vaeac_study_format_with_dec_remap(self, vaeac, x_and_masks, tmp_path):
+    def test_vaeac_reference_format_with_dec_remap(self, vaeac, x_and_masks, tmp_path):
         x, masks = x_and_masks
         sd = {}
         for k, v in vaeac.model.state_dict().items():
@@ -131,7 +131,7 @@ class TestCheckpointLoading:
         o2 = loaded.impute_multi(x, masks, 1, np.random.default_rng(3))
         assert np.array_equal(o1, o2)
 
-    def test_flow_study_format(self, flow, x_and_masks, tmp_path):
+    def test_flow_reference_format(self, flow, x_and_masks, tmp_path):
         x, masks = x_and_masks
         path = tmp_path / "flow.pt"
         torch.save(

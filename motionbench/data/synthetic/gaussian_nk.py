@@ -1,6 +1,6 @@
 """motionbench.data.synthetic.gaussian_nk — Non-Kronecker Gaussian motion dataset.
 
-Reviewer concern C2 ablation: the standard ``GaussianMotionDataset`` uses a
+Robustness ablation: the standard ``GaussianMotionDataset`` uses a
 Kronecker-separable covariance ``Sigma_joints ⊗ I_F ⊗ Sigma_time``.  This
 module generates a **perturbed** covariance that breaks Kronecker separability
 via a low-rank random perturbation:

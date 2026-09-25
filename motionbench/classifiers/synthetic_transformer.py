@@ -9,8 +9,8 @@ Architecture:
 The benchmark's executed configuration is **d_model=32, num_layers=2**
 (``configs/classifiers/synthetic_transformer.yaml``) — the configuration the
 released tables and checkpoints were produced with.  The constructor defaults
-(64/4) match the paper text's description; pass the config values to
-reproduce the benchmark classifiers (see RESOLUTIONS.md §9).
+(64/4) are generic class defaults; pass the config values to
+reproduce the benchmark classifiers (see docs/CONVENTIONS.md §9).
 """
 
 from __future__ import annotations

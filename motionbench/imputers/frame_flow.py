@@ -1,11 +1,10 @@
-"""motionbench.imputers.frame_flow — Frame-token CondOT flow imputer (study format).
+"""motionbench.imputers.frame_flow — Frame-token CondOT flow imputer (checkpoint format).
 
-Inference-time port of the **independent validation study's** flow-matching
-imputer (its ``mbxr.flow``), kept numerically identical so the real-data
+Inference-time implementation matching the released real-data flow-matching
 checkpoints documented in ``checkpoints/README.md``
 (``imputers/{carepd,esc50,ptbxl}_flow.pt``, dicts
-``{state_dict, shape, num_steps[, arch]}``) reproduce the study's completions
-bit-for-bit given the same random stream.
+``{state_dict, shape, num_steps[, arch]}``): given the same random stream it
+reproduces the reference training runs' completions bit-for-bit.
 
 Velocity network: frame tokens ``[x_frame_flat, time_embedding]`` -> Linear
 -> d_model (+ sinusoidal frame PE) -> TransformerEncoder (GELU) -> Linear ->
@@ -59,16 +58,16 @@ def _frame_pe(T: int, d: int, device: torch.device) -> Tensor:
 
 
 class FrameVelocityNet(nn.Module):
-    """Frame-token velocity network (study architecture; state-dict compatible).
+    """Frame-token velocity network (checkpoint architecture; state-dict compatible).
 
     Args:
         J: Number of joints / channels.
         F: Features per joint.
-        d_model: Trunk width (study default 256).
-        nhead: Attention heads (study default 4).
-        n_layers: Trunk layers (study default 4).
-        ff: Feed-forward width (study default ``4 * d_model``).
-        time_dim: Time-embedding width (study default ``d_model // 2``).
+        d_model: Trunk width (reference default 256).
+        nhead: Attention heads (reference default 4).
+        n_layers: Trunk layers (reference default 4).
+        ff: Feed-forward width (reference default ``4 * d_model``).
+        time_dim: Time-embedding width (reference default ``d_model // 2``).
     """
 
     def __init__(
@@ -133,9 +132,9 @@ class FrameFlowImputer:
         J: Number of joints / channels.
         F: Features per joint.
         T: Time steps.
-        num_steps: Midpoint ODE steps (study default 20).
+        num_steps: Midpoint ODE steps (reference default 20).
         device: Torch device string.
-        repaint: Harmonise observed coordinates during integration (study
+        repaint: Harmonise observed coordinates during integration (reference
             convention; ``False`` integrates unconditionally and pastes the
             observed block only at the end).
         **arch: Architecture overrides forwarded to :class:`FrameVelocityNet`.
@@ -264,7 +263,7 @@ class FrameFlowImputer:
         num_steps: int | None = None,
         repaint: bool = True,
     ) -> FrameFlowImputer:
-        """Load a study-format checkpoint ``{state_dict, shape[, num_steps, arch]}``.
+        """Load a reference-format checkpoint ``{state_dict, shape[, num_steps, arch]}``.
 
         Args:
             path: Checkpoint path.

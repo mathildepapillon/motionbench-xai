@@ -10,9 +10,9 @@ coordinates → vectorised crop_scale + confidence → CARE-PD ``MotionEncoder``
 head, with MotionAGFormer clips zero-padded 80 → 81 frames before the
 transform.  Eval caches resolve via ``--cache_dir``/``$CAREPD_CACHE_DIR``,
 then the CARE-PD release layout; checkpoints accept the release slim state
-dicts or the study format (see ``checkpoints/README.md``).  Shared
+dicts or the reference format (see ``checkpoints/README.md``).  Shared
 coalition/fill/phi/metric protocol: ``scripts/_player_shap_common.py`` and
-RESOLUTIONS.md §12.
+docs/CONVENTIONS.md §12.
 
 Usage::
 
@@ -65,7 +65,7 @@ CACHE_TEMPLATE = str(
 )
 TRAIN_POOL_CACHE = CARE_PD_ROOT / "cache" / "flow_matching" / "BMCLab_h36m_80_fold1" / "cache.npz"
 
-# Release slim checkpoints first, then the study-format manifest layout.
+# Release slim checkpoints first, then the reference-format manifest layout.
 CKPT_CANDIDATES = [
     "motionbench/classifiers/checkpoints/real/carepd_bmclab_fold{fold}_{clf}.pt",
     "checkpoints/carepd_clf/{clf}_fold{fold}.pt",
@@ -140,7 +140,7 @@ def load_carepd_classifier(clf_name: str, fold: int, ckpt_path: Path, device: to
 
     raw = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     if isinstance(raw, dict) and "state_dict" in raw and "backbone" in raw:
-        # Study format: {state_dict (encoder.*), backbone, fold}.
+        # Reference format: {state_dict (encoder.*), backbone, fold}.
         if raw["backbone"] != clf_name or int(raw["fold"]) != int(fold):
             raise ValueError(
                 f"checkpoint {ckpt_path} is ({raw['backbone']}, fold {raw['fold']}), "

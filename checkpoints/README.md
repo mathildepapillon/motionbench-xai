@@ -46,9 +46,8 @@ checkpoints/imputers/                     # real-data VAEAC / Flow imputers
 **Formats.**  Synthetic classifiers are native release format —
 `{model_state_dict, config, val_acc, epoch, seed, ...}` with `config` holding
 the constructor kwargs — and strict-load into
-`motionbench.classifiers.Synthetic{MLP,CNN,Transformer}Classifier` with
-bit-identical forward passes verified against the archived experiment runs.
-Real-data files are in the validation-study format and load natively through
+`motionbench.classifiers.Synthetic{MLP,CNN,Transformer}Classifier`.
+Real-data files are in the frame-token reference format and load natively through
 the player-set entry points (`scripts/run_*_shap.py`: key remap + strict
 load) and `motionbench.imputers.FrameVAEACImputer.load` /
 `FrameFlowImputer.load` (architecture read from the checkpoint's `arch`

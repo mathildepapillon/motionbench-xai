@@ -22,7 +22,7 @@ Protocol (per cell = dataset × player set × classifier × method)
 
    * ``value_fn = "f_of_mean"`` (default; the executed release semantics):
      ``v(S) = f(mean of n_completion_samples imputer draws)``
-   * ``value_fn = "mean_of_f"`` (paper Eq. 5):
+   * ``value_fn = "mean_of_f"`` (per-draw averaging):
      ``v(S) = mean over draws of f(completion)``
 
 3. Attributions come from the constrained WLS solve
@@ -41,8 +41,7 @@ Protocol (per cell = dataset × player set × classifier × method)
    ``per_sequence.npz`` next to ``result.json``.
 
 The runner protocol (shared coalition design, deterministic f-of-mean
-targets, per-method game assignment) follows the independent validation
-study's player-set sweep.
+targets, per-method game assignment) is pinned in docs/CONVENTIONS.md.
 
 Hydra usage
 -----------
@@ -206,7 +205,7 @@ def _method_values(
         masks: Precomputed element-level masks, aligned with ``Z`` rows.
         Z: ``(n_rows, M)`` binary coalition matrix.
         n_completion: Completion draws per coalition.
-        value_fn: ``"f_of_mean"`` (release) or ``"mean_of_f"`` (paper Eq. 5).
+        value_fn: ``"f_of_mean"`` (release) or ``"mean_of_f"`` (per-draw averaging).
         seq_seed: Seed-sequence prefix; coalition ``i`` draws with seed
             ``seq_seed + [i]`` so draws are independent across coalitions but
             fully reproducible.

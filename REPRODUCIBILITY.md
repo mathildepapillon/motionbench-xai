@@ -304,7 +304,7 @@ python3 -m motionbench.cli.run experiments=player_set_eval
 
 Coalition designs are exact enumerations for M <= 12 players and
 importance-corrected samples (seed 7919, budget 1024) above; see
-`motionbench/attribution/sampled_coalitions.py` and RESOLUTIONS.md §6/§8.
+`motionbench/attribution/sampled_coalitions.py` and docs/CONVENTIONS.md §6/§8.
 The canonical paper runs used `coalition_budget=2048` for the M=68 cell
 player sets (`gait_periodic`, `skeleton_structured`,
 `skeleton_gait_combined` × cells) and the default 1024 everywhere else —
@@ -375,7 +375,7 @@ PYTHONPATH=. python -m motionbench.cli.run \
 # On-manifold KS-VAEAC + KS-Flow at N=200 sequences across all available GPUs.
 # This runner skips cells whose result.json is already present and rewrites
 # cells whose cached n_sequences disagrees with --n-sequences.
-PYTHONPATH=. python scripts/restore_contaminated_n50.py \
+PYTHONPATH=. python scripts/run_synth_generative_sweep.py \
     --gpus 0 1 2 3 4 5 6 7 \
     --jobs-per-gpu 4 \
     --omp-threads 2 \
@@ -471,8 +471,8 @@ per-sequence faithfulness and PlayerAOPC.  The learned-imputer rows
 tracks are skipped with a warning unless release-format imputers exist
 under `results/esc50_imputers/` (train with `scripts/train_vaeac.py` /
 `scripts/train_flow.py` on `data/esc50/fold{f}_train.npz` with
-`--J 128 --F 1 --T 1024`); the cells track loads the validation-study
-format `checkpoints/imputers/esc50_{vaeac,flow}.pt` from the esc50
+`--J 128 --F 1 --T 1024`); the cells track loads the reference-format
+`checkpoints/imputers/esc50_{vaeac,flow}.pt` from the esc50
 checkpoint archive.
 
 <!-- BEGIN player-set sweeps subsection (added with the real-data player-set entry points) -->
@@ -480,7 +480,7 @@ checkpoint archive.
 
 Sampled-coalition KernelSHAP (fixed design ``sampled_coalition_set(M,
 B=2048, seed=7919)``, shared across methods and folds) on the finer
-player sets; protocol details in RESOLUTIONS.md §12.  Default methods are
+player sets; protocol details in docs/CONVENTIONS.md §12.  Default methods are
 the deterministic imputers (Zero/Mean/Marginal); pass
 ``--methods ... kernelshap_vaeac kernelshap_flow`` to add the on-manifold
 imputers (checkpoints under ``checkpoints/imputers/``, see

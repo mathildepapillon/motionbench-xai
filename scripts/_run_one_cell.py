@@ -1,7 +1,7 @@
 """scripts/_run_one_cell.py — Single-cell entry point for multi-GPU dispatch.
 
 Internal helper used by ``run_xor_sweep_multigpu.py`` and
-``restore_contaminated_n50.py``.  Bypasses the Hydra
+``run_synth_generative_sweep.py``.  Bypasses the Hydra
 defaults-list semantics that prevent CLI overrides on keys whose names
 collide with config-group directories (``classifiers/``, ``methods/``,
 ``data/``).

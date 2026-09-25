@@ -228,6 +228,5 @@ phi_star = phi_from_values(Z, w, prob_fn(fills))  # exact target
 ec1 = float(abs(phi - phi_star).mean())
 ```
 
-Both modules are ported from the independent validation study's
-implementation and verified bit-identical against it (see
+Both modules are pinned by the test suite (see
 `tests/test_sampled_coalitions.py`, `tests/test_deterministic_oracle.py`).

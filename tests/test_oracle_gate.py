@@ -1,10 +1,6 @@
 """Oracle validation gate: the six properties G1-G6 that Proposition 1 relies on.
 
-Ported from the independent validation study's oracle gate (its
-``scripts/oracle_gate.py``), re-expressed against this package's oracle APIs.
-The study ran the same six checks against its from-scratch reimplementation
-and recorded all-pass; these tests pin the released oracles to the same
-contract:
+These tests pin the released oracles to the contract Proposition 1 needs:
 
   G1  Unconditional sampler covariance matches Sigma_J (x) I_F (x) Sigma_T.
   G2  Conditional sampler mean/cov match the closed-form Gaussian

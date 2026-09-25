@@ -78,8 +78,8 @@ from motionbench.players import JointWindowCells, SpatialJoints  # noqa: E402
 HI_SEED = 900001
 
 # Game assignment per method (the paper's table; KS-Empirical plays the
-# marginal game).  Both the release method names and the validation study's
-# short names are accepted, so archived result trees regrade unchanged.
+# marginal game).  Both the release method names and the canonical files'
+# short names are accepted, so stored result trees regrade unchanged.
 GAME = {
     "kernelshap_zero": "marg",
     "kernelshap_mean": "marg",

@@ -36,7 +36,7 @@ Two value-function estimators are available, selected by ``value_fn``:
   Jensen bias that is negligible when the imputer's conditional variance
   is small.
 
-* ``"mean_of_f"`` (paper Eq. 5)::
+* ``"mean_of_f"`` (per-draw averaging)::
 
       v(S) ≈ (1/R) Σ_r f(x_S ⊔ x_bar^(r))
 
@@ -44,8 +44,8 @@ Two value-function estimators are available, selected by ``value_fn``:
 
 The two coincide for deterministic imputers (``ZeroImputer``,
 ``MeanImputer``) and for ``R = 1``; they differ by a Jensen gap for
-stochastic imputers with ``R > 1``.  The distinction was documented by the
-independent validation study (its RESOLUTIONS.md, finding C3/A3).
+stochastic imputers with ``R > 1``.  The executed semantics are recorded
+in ``docs/CONVENTIONS.md`` (Section 1).
 
 References
 ----------
@@ -213,7 +213,7 @@ class KernelShapAttributor(BaseAttributor):
             for pipeline metadata; both currently use KernelExplainer.
         value_fn: ``"f_of_mean"`` (default; classifier evaluated at the mean
             completion — the executed release semantics) or ``"mean_of_f"``
-            (paper Eq. 5; classifier output averaged over completions).
+            (classifier output averaged over completions).
             Configure per method via the ``value_fn`` key in
             ``configs/methods/*.yaml``.
 

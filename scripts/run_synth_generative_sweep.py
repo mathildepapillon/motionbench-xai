@@ -1,13 +1,16 @@
-"""scripts/restore_contaminated_n50.py — Emergency N=200 restoration.
+"""scripts/run_synth_generative_sweep.py — Multi-GPU runner for the generative synthetic cells.
 
-Re-runs the 48 ``kernelshap_vaeac`` / ``kernelshap_flow`` cells that were
-overwritten with N=50 results by ``run_synth_vaeac_flow.py``.  Targets all
-nine synthetic datasets except ``xor_label_gaussian`` (which still has clean
-N=200 results) and ``joint_subset_skeleton`` (which was never touched).
+Runs the ``kernelshap_vaeac`` / ``kernelshap_flow`` cells of the synthetic
+sweep (all non-XOR synthetic datasets × 3 classifiers) at N=200 sequences.
+The Hydra sweep (``experiments=full_synthetic_sweep``) covers the
+off-manifold, temporal and gradient methods; the generative imputers are
+dispatched here so every (dataset, classifier, method) cell gets its own
+GPU slot.  ``xor_label_gaussian`` has its own runner
+(``run_xor_sweep_multigpu.py``).
 
 Pattern mirrors ``run_xor_sweep_multigpu.py``:
-- Deletes the contaminated result.json files first (so the pipeline cache
-  check does not skip them).
+- Skips cells whose result.json is already present; deletes and re-runs
+  cells whose stored ``n_sequences`` disagrees with ``--n-sequences``.
 - Dispatches ``len(GPUS) * JOBS_PER_GPU`` workers; each worker pulls cells
   from a queue and shells out to ``scripts/_run_one_cell.py`` with
   ``CUDA_VISIBLE_DEVICES`` and CPU-thread caps set in the child env.
@@ -36,6 +39,7 @@ DATASETS = [
     "burr_m10",
     "low_rank_manifold",
     "skeleton_gait_combined",
+    "joint_subset_skeleton",
 ]
 CLASSIFIERS = ["synthetic_mlp", "synthetic_cnn", "synthetic_transformer"]
 METHODS = ["kernelshap_vaeac", "kernelshap_flow"]
@@ -43,7 +47,7 @@ METHODS = ["kernelshap_vaeac", "kernelshap_flow"]
 
 @dataclass
 class Cell:
-    """One dataset × classifier × method cell to re-run."""
+    """One dataset × classifier × method cell to run."""
 
     dataset: str
     classifier: str
@@ -58,15 +62,18 @@ class Cell:
         return f"{self.dataset}/{self.classifier}/{self.method}"
 
 
-def _delete_contaminated_n50(
-    results_dir: Path, cells: list[Cell], cutoff_mtime: float | None = None
+def _delete_stale_n(
+    results_dir: Path,
+    cells: list[Cell],
+    expected_n: int,
+    cutoff_mtime: float | None = None,
 ) -> int:
-    """Delete only result.json files that are still N=50-contaminated.
+    """Delete result.json files whose stored ``n_sequences`` is stale.
 
-    A result is "contaminated" if it parses as JSON with n_sequences == 50.
-    A cutoff_mtime, if given, additionally requires the file is older than
-    that timestamp (defensive: do not touch anything written after the
-    restoration began)."""
+    A result is stale if it parses as JSON with ``n_sequences`` different
+    from ``expected_n``.  A cutoff_mtime, if given, additionally requires the
+    file to be older than that timestamp (defensive: do not touch anything
+    written after this run began)."""
     import json as _json
 
     n = 0
@@ -80,7 +87,7 @@ def _delete_contaminated_n50(
             d = _json.loads(rp.read_text())
         except Exception:
             d = None
-        if d is not None and d.get("n_sequences") == 50:
+        if d is not None and d.get("n_sequences") != expected_n:
             rp.unlink()
             ep = rp.parent / "error.json"
             if ep.exists():
@@ -90,7 +97,7 @@ def _delete_contaminated_n50(
 
 
 def _filter_pending(results_dir: Path, cells: list[Cell]) -> list[Cell]:
-    """Skip cells whose result.json already exists (i.e., already restored)."""
+    """Skip cells whose result.json already exists."""
     pending = []
     for c in cells:
         rp = results_dir / c.dataset / c.classifier / c.method / "result.json"
@@ -188,7 +195,7 @@ def _worker(
 
 
 def main() -> None:
-    """Re-run every still-contaminated cell across the GPU worker pool."""
+    """Run every pending cell across the GPU worker pool."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--gpus", nargs="+", type=int, default=[0, 1, 2, 3, 4, 5, 6, 7])
     p.add_argument("--jobs-per-gpu", type=int, default=2)
@@ -208,12 +215,11 @@ def main() -> None:
     )
     p.add_argument("--n-sequences", type=int, default=200)
     p.add_argument("--results-dir", type=Path, default=REPO / "results" / "synthetic")
-    p.add_argument("--log-dir", type=Path, default=REPO / "outputs" / "restore_n50_logs")
+    p.add_argument("--log-dir", type=Path, default=REPO / "outputs" / "synth_generative_logs")
     p.add_argument(
         "--skip-deletion",
         action="store_true",
-        help="Do not auto-delete N=50 contaminated result.json "
-        "files (use when caller already cleaned up).",
+        help="Do not auto-delete result.json files whose n_sequences disagrees with --n-sequences.",
     )
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
@@ -227,8 +233,8 @@ def main() -> None:
         return
 
     if not args.skip_deletion:
-        deleted = _delete_contaminated_n50(args.results_dir, all_cells)
-        print(f"Deleted {deleted} contaminated (N=50) result.json files")
+        deleted = _delete_stale_n(args.results_dir, all_cells, args.n_sequences)
+        print(f"Deleted {deleted} stale result.json files (n_sequences != {args.n_sequences})")
 
     cells = _filter_pending(args.results_dir, all_cells)
     print(f"Pending (no result.json yet): {len(cells)}/{len(all_cells)}\n")

@@ -142,10 +142,9 @@ docs/               # Architecture notes
 
 Key documents:
 
-- [`RESOLUTIONS.md`](RESOLUTIONS.md) — the executed conventions of this
-  release (value-function semantics, labels, kernel bandwidths, seeds, …),
-  including every point where the paper's prose and the released code
-  differ.  Adapted from the independent validation study's log.
+- [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) — the executed conventions
+  of this release (value-function semantics, labels, kernel bandwidths,
+  seeds, coalition designs, …).
 - [`checkpoints/README.md`](checkpoints/README.md) — which checkpoint files
   the pipelines expect, with SHA-256 digests of the reference training runs.
 - [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) — per-stage commands, budgets,
@@ -156,8 +155,9 @@ Key documents:
 Two tiers — see [`REPRODUCING_PAPER.md`](REPRODUCING_PAPER.md) for the
 table-by-table map:
 
-- **From shipped results (no GPU):** every paper table regenerates from the
-  canonical result files in [`results/canonical/`](results/canonical/).
+- **From shipped results (no GPU):** every number in the paper's tables is
+  carried by the canonical result files in
+  [`results/canonical/`](results/canonical/).
 - **From scratch:**
 
 ```bash
@@ -190,10 +190,6 @@ GitHub Actions runs the fast tests, ruff, and mypy on every push
 - **Paper:** *MotionBench-XAI: A Benchmark for Manifold-Aware Shapley
   Attribution on Spatiotemporal Data* (under review).
   <!-- MAINTAINER TODO: add arXiv/OpenReview link -->
-- **Independent validation study:** a from-scratch replication of this
-  benchmark whose findings are folded into `RESOLUTIONS.md`, the
-  deterministic oracles, and the oracle gate tests.
-  <!-- MAINTAINER TODO: add link when the study is public -->
 - **Checkpoints:** reference classifier / imputer checkpoints are published
   at the [`checkpoints-v2` release](https://github.com/mathildepapillon/motionbench-xai/releases/tag/checkpoints-v2)
   (`bash scripts/download_checkpoints.sh`; manifest and digests in

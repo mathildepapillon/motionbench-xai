@@ -5,9 +5,7 @@ Common code for the sampled-coalition KernelSHAP entry points
 ``run_esc50_cells_shap.py`` (BandWindowCells M=16) and
 ``run_ptbxl_cells_shap.py`` (JointWindowCells M=48).
 
-Protocol (identical across the three tracks; validated against the
-independent validation study's real-data player-set runs — see
-RESOLUTIONS.md §12):
+Protocol (identical across the three tracks; see docs/CONVENTIONS.md §12):
 
 * **Coalitions**: one fixed design per player count — the shap-style
   enumerate-then-importance-sample scheme of

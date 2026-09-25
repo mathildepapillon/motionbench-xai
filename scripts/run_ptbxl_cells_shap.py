@@ -12,7 +12,7 @@ sweep: fills in z-scored cache coordinates, per-fold 1-D ResNet
 ``$PTBXL_DATA_ROOT`` (raw PTB-XL through ``PTBXLDataset``); classifier and
 imputer checkpoints per ``checkpoints/README.md``.  Shared
 coalition/fill/phi/metric protocol: ``scripts/_player_shap_common.py`` and
-RESOLUTIONS.md §12.
+docs/CONVENTIONS.md §12.
 
 Usage::
 
@@ -73,7 +73,7 @@ def load_ptbxl_classifier(fold: int, ckpt_path: Path, device: torch.device):
     raw = torch.load(ckpt_path, map_location="cpu", weights_only=True)
     state = raw.get("state_dict", raw) if isinstance(raw, dict) else raw
     if any(k.startswith("block1.") for k in state):
-        # Study format: bare block1/2/3 + head layout.
+        # Reference format: bare block1/2/3 + head layout.
         sd = {}
         for k, v in state.items():
             if k.startswith(("block1.", "block2.", "block3.")):

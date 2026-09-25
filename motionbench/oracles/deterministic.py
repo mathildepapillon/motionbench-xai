@@ -47,10 +47,8 @@ the symmetric marginals are symmetric about 0.  The marginal deterministic
 fill is therefore the zero fill (:func:`marginal_fill`), identical to
 KS-Zero's fill by construction.
 
-Ported from the independent validation study's implementation
-(``rb.detoracle`` temporal-mask reference and the player-set sweep's
-general-mask ``DetCondFill``); kept numerically identical so the two produce
-bit-identical fills on the same inputs.
+The temporal-mask and general-mask implementations are kept numerically
+identical, so the two produce bit-identical fills on the same inputs.
 
 Example
 -------
@@ -104,9 +102,6 @@ def cusp_split_nodes(
     integral against the standard normal density over ``|t| <= 13`` is split
     at ``t0`` and each side is mapped through ``t = t0 -/+ y^2``, which
     removes the cusp and restores Gauss-Legendre's spectral accuracy.
-
-    Ported from the independent validation study's implementation
-    (``rb.detoracle._cusp_split_nodes``).
 
     Args:
         mu: Conditional means; any shape (broadcast-compatible with ``sd``).
@@ -170,9 +165,6 @@ class DeterministicConditionalOracle:
       Hidden coordinates get the exact 1-D integral
       ``E[quantile(Phi(z))]``, ``z ~ N(mu_z, sd^2)``, via cusp-split
       Gauss-Legendre quadrature (:func:`cusp_split_nodes`).
-
-    Ported from the independent validation study's implementation (player-set
-    sweep ``DetCondFill``).
 
     Args:
         sigma_joints: ``(J, J)`` joint covariance of the (latent) Gaussian field.

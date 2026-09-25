@@ -2,7 +2,7 @@
 # Full synthetic sweep used by scripts/reproduce_synthetic.sh and the paper's
 # Section 5 tables.  Off-manifold + temporal + gradient methods are evaluated
 # here; on-manifold KS-VAEAC and KS-Flow at N=200 are produced by
-# scripts/restore_contaminated_n50.py (which writes to the same result tree).
+# scripts/run_synth_generative_sweep.py (which writes to the same result tree).
 #
 # Pipeline routing key: "synthetic" | "real"
 pipeline: synthetic
