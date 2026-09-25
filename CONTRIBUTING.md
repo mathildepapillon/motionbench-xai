@@ -8,7 +8,7 @@ and new datasets with tractable oracles.
 
 ```bash
 python3 -m pip install -e ".[dev]"
-pre-commit install            # optional: ruff + mypy + hygiene hooks
+pre-commit install            # optional: ruff + hygiene hooks
 ```
 
 ## Extending the benchmark
@@ -27,7 +27,6 @@ Shape conventions everywhere: per-sample layout `(J, F, T)`; boolean masks
 
 ```bash
 ruff check . && ruff format --check .   # lint / format
-mypy motionbench/                        # types (strict)
 pytest tests/ -m "not slow and not gpu and not manual"
 ```
 

@@ -18,7 +18,7 @@ player-set evaluation) a plain pip install is enough:
 
 ```bash
 python3 -m pip install -e .        # Python >= 3.10; verified on 3.10
-python3 -m pip install -e ".[dev]" # + pytest / ruff / mypy
+python3 -m pip install -e ".[dev]" # + pytest / ruff
 ```
 
 The optional WindowSHAP baselines additionally need

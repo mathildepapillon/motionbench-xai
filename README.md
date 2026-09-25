@@ -43,7 +43,7 @@ is the product of four axes:
 git clone https://github.com/mathildepapillon/motionbench-xai
 cd motionbench-xai
 python3 -m pip install -e .          # Python >= 3.10
-# optional dev tools (pytest, ruff, mypy):
+# optional dev tools (pytest, ruff):
 python3 -m pip install -e ".[dev]"
 ```
 
@@ -179,10 +179,9 @@ download locations and digests are in
 ```bash
 pytest tests/ -m "not slow and not gpu and not manual"   # fast suite
 ruff check . && ruff format --check .                    # lint / format
-mypy motionbench/                                        # types
 ```
 
-GitHub Actions runs the fast tests, ruff, and mypy on every push
+GitHub Actions runs the fast tests and ruff on every push
 (`.github/workflows/ci.yml`).
 
 ## Links

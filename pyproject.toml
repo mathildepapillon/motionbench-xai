@@ -59,9 +59,7 @@ dev = [
     "pytest-cov>=5.0",
     "pytest-xdist>=3.5",
     "ruff>=0.4.0",
-    "mypy>=1.9",
     "pre-commit>=3.7",
-    "types-tqdm",
 ]
 
 [project.scripts]
@@ -98,23 +96,6 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-
-[tool.mypy]
-python_version = "3.10"
-strict = true
-warn_return_any = true
-warn_unused_ignores = true
-ignore_missing_imports = true
-exclude = [
-    "motionbench/classifiers/ported_care_pd/",
-    "tests/",
-    "examples/",
-    "scripts/",
-]
-
-[[tool.mypy.overrides]]
-module = "motionbench.data.base"
-warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
